@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./portal_fejepe
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./portal_fejepe/.env
+    environment:
+      - CORS_ORIGINS=http://localhost,http://localhost:80
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./front_portal_fejepe
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,0 +1,1478 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Portal FEJEPE API",
+    "description": "API do Portal FEJEPE — centraliza dados e cálculos estratégicos das Empresas Juniores da rede. Permite consultar EJs, comparar indicadores, visualizar KPIs da rede e gerar rankings.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/empresas": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Listar EJs",
+        "description": "Retorna a lista de Empresas Juniores da rede FEJEPE com indicadores calculados, suportando filtros por ano, mês, cluster, comunidade, status e busca por nome. Inclui paginação e ordenação.",
+        "operationId": "list_empresas_api_v1_empresas_get",
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência (1-12). Omita para usar acumulado até o último mês disponível.",
+              "title": "Mes"
+            },
+            "description": "Mês de referência (1-12). Omita para usar acumulado até o último mês disponível."
+          },
+          {
+            "name": "cluster",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por cluster (1-5)",
+              "title": "Cluster"
+            },
+            "description": "Filtrar por cluster (1-5)"
+          },
+          {
+            "name": "comunidade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por comunidade",
+              "title": "Comunidade"
+            },
+            "description": "Filtrar por comunidade"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por status da EJ",
+              "title": "Status"
+            },
+            "description": "Filtrar por status da EJ"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Busca por nome da EJ",
+              "title": "Search"
+            },
+            "description": "Busca por nome da EJ"
+          },
+          {
+            "name": "ordem_por",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrdemEmpresa",
+              "description": "Campo de ordenação",
+              "default": "nome"
+            },
+            "description": "Campo de ordenação"
+          },
+          {
+            "name": "direcao",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Direcao",
+              "description": "Direção da ordenação",
+              "default": "asc"
+            },
+            "description": "Direção da ordenação"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Página atual",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Página atual"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Itens por página"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmpresaListaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/empresas/comparar": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Comparar EJs",
+        "description": "Compara múltiplas EJs lado a lado. Retorna indicadores calculados para cada EJ selecionada, ordenados por faturamento.",
+        "operationId": "compare_empresas_api_v1_empresas_comparar_get",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 10,
+              "description": "IDs das EJs a comparar (id_ej). Min 2, max 10.",
+              "title": "Ids"
+            },
+            "description": "IDs das EJs a comparar (id_ej). Min 2, max 10."
+          },
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EmpresaComIndicadores"
+                  },
+                  "title": "Response Compare Empresas Api V1 Empresas Comparar Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/empresas/{id_ej}": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Perfil da EJ",
+        "description": "Retorna o perfil estratégico completo de uma EJ, incluindo série temporal de faturamento, metas vs realizado, projeção anual, ritmo necessário e crescimento.",
+        "operationId": "get_empresa_api_v1_empresas__id_ej__get",
+        "parameters": [
+          {
+            "name": "id_ej",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id Ej"
+            }
+          },
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmpresaPerfilCompleto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rede/indicadores": {
+      "get": {
+        "tags": [
+          "Rede"
+        ],
+        "summary": "Indicadores da rede",
+        "description": "Retorna os KPIs consolidados da rede FEJEPE: faturamento total, faturamento colaborativo, média de CSAT, número de EJs fora do zero, distribuição por cluster, participação por comunidade e crescimento.",
+        "operationId": "get_indicadores_rede_api_v1_rede_indicadores_get",
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          },
+          {
+            "name": "cluster",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por cluster",
+              "title": "Cluster"
+            },
+            "description": "Filtrar por cluster"
+          },
+          {
+            "name": "comunidade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por comunidade",
+              "title": "Comunidade"
+            },
+            "description": "Filtrar por comunidade"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndicadoresRede"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rede/ranking": {
+      "get": {
+        "tags": [
+          "Rede"
+        ],
+        "summary": "Ranking de EJs",
+        "description": "Gera ranking dinâmico de EJs por critério: faturamento, CSAT, projetos ou faturamento colaborativo. Pode ser filtrado por cluster e comunidade.",
+        "operationId": "get_ranking_api_v1_rede_ranking_get",
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          },
+          {
+            "name": "criterio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(faturamento|csat|projetos|colab)$",
+              "description": "Critério de ranking: faturamento, csat, projetos, colab",
+              "default": "faturamento",
+              "title": "Criterio"
+            },
+            "description": "Critério de ranking: faturamento, csat, projetos, colab"
+          },
+          {
+            "name": "cluster",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por cluster",
+              "title": "Cluster"
+            },
+            "description": "Filtrar por cluster"
+          },
+          {
+            "name": "comunidade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por comunidade",
+              "title": "Comunidade"
+            },
+            "description": "Filtrar por comunidade"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Máximo de itens no ranking",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Máximo de itens no ranking"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RankingItem"
+                  },
+                  "title": "Response Get Ranking Api V1 Rede Ranking Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Sistema"
+        ],
+        "summary": "Health check",
+        "description": "Verifica se a API está rodando.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Direcao": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "Direcao",
+        "description": "Direção da ordenação."
+      },
+      "EmpresaComIndicadores": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "id_ej": {
+            "type": "integer",
+            "title": "Id Ej"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "comunidade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comunidade"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "foto_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Url"
+          },
+          "faturamento_acumulado": {
+            "type": "number",
+            "title": "Faturamento Acumulado",
+            "default": 0
+          },
+          "faturamento_colab_acumulado": {
+            "type": "number",
+            "title": "Faturamento Colab Acumulado",
+            "default": 0
+          },
+          "projetos_totais": {
+            "type": "integer",
+            "title": "Projetos Totais",
+            "default": 0
+          },
+          "csat_medio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csat Medio"
+          },
+          "percentual_meta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual Meta"
+          },
+          "ritmo": {
+            "$ref": "#/components/schemas/Ritmo",
+            "default": "sem_vendas"
+          },
+          "taxa_colaboracao": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxa Colaboracao"
+          },
+          "pontos_cluster": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pontos Cluster"
+          },
+          "cluster_calculado": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Calculado"
+          },
+          "tendencia_cluster": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TendenciaCluster"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "id_ej",
+          "nome"
+        ],
+        "title": "EmpresaComIndicadores",
+        "description": "EJ enriquecida com indicadores calculados pelo backend.\n\nUsada na listagem principal e comparações."
+      },
+      "EmpresaJunior": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "id_ej": {
+            "type": "integer",
+            "title": "Id Ej"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "cnpj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cnpj"
+          },
+          "ano_federacao": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ano Federacao"
+          },
+          "federacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Federacao"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "comunidade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comunidade"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "cidade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cidade"
+          },
+          "universidade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Universidade"
+          },
+          "curso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Curso"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "foto_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "id_ej",
+          "nome"
+        ],
+        "title": "EmpresaJunior",
+        "description": "Representação completa de uma EJ (espelho da tabela `empresa_junior`)."
+      },
+      "EmpresaListaResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/EmpresaComIndicadores"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginacaoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "EmpresaListaResponse",
+        "description": "Resposta paginada para listagem de EJs."
+      },
+      "EmpresaPerfilCompleto": {
+        "properties": {
+          "empresa": {
+            "$ref": "#/components/schemas/EmpresaJunior"
+          },
+          "indicadores": {
+            "$ref": "#/components/schemas/EmpresaComIndicadores"
+          },
+          "serie_mensal": {
+            "items": {
+              "$ref": "#/components/schemas/FaturamentoMensal"
+            },
+            "type": "array",
+            "title": "Serie Mensal",
+            "default": []
+          },
+          "metas": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetaVsRealizado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projecao_anual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projecao Anual"
+          },
+          "ritmo_necessario": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ritmo Necessario"
+          },
+          "crescimento_mensal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crescimento Mensal"
+          },
+          "crescimento_anual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crescimento Anual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "empresa",
+          "indicadores"
+        ],
+        "title": "EmpresaPerfilCompleto",
+        "description": "Perfil completo de uma EJ individual.\n\nInclui série temporal, metas vs realizado, projeção e crescimento."
+      },
+      "FaturamentoMensal": {
+        "properties": {
+          "mes": {
+            "type": "integer",
+            "maximum": 12,
+            "minimum": 1,
+            "title": "Mes"
+          },
+          "faturamento": {
+            "type": "number",
+            "title": "Faturamento"
+          },
+          "faturamento_colab": {
+            "type": "number",
+            "title": "Faturamento Colab"
+          },
+          "projetos_vendidos": {
+            "type": "integer",
+            "title": "Projetos Vendidos"
+          },
+          "csat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "faturamento",
+          "faturamento_colab",
+          "projetos_vendidos"
+        ],
+        "title": "FaturamentoMensal",
+        "description": "Ponto de faturamento mensal (usado em gráficos de série temporal)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IndicadoresRede": {
+        "properties": {
+          "ano": {
+            "type": "integer",
+            "title": "Ano"
+          },
+          "mes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes"
+          },
+          "faturamento_total": {
+            "type": "number",
+            "title": "Faturamento Total",
+            "default": 0
+          },
+          "faturamento_colab_total": {
+            "type": "number",
+            "title": "Faturamento Colab Total",
+            "default": 0
+          },
+          "total_projetos": {
+            "type": "integer",
+            "title": "Total Projetos",
+            "default": 0
+          },
+          "media_csat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Csat"
+          },
+          "total_ejs": {
+            "type": "integer",
+            "title": "Total Ejs",
+            "default": 0
+          },
+          "ejs_fora_do_zero": {
+            "type": "integer",
+            "title": "Ejs Fora Do Zero",
+            "default": 0
+          },
+          "ejs_ritmo_minimo": {
+            "type": "integer",
+            "title": "Ejs Ritmo Minimo",
+            "default": 0
+          },
+          "ejs_ritmo_significativo": {
+            "type": "integer",
+            "title": "Ejs Ritmo Significativo",
+            "default": 0
+          },
+          "sde": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sde"
+          },
+          "crescimento_vs_ano_anterior": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crescimento Vs Ano Anterior"
+          },
+          "distribuicao_clusters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Distribuicao Clusters",
+            "default": {
+
+            }
+          },
+          "participacao_comunidades": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Participacao Comunidades",
+            "default": {
+
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "ano"
+        ],
+        "title": "IndicadoresRede",
+        "description": "KPIs consolidados de toda a rede FEJEPE."
+      },
+      "MetaVsRealizado": {
+        "properties": {
+          "meta_faturamento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Faturamento"
+          },
+          "faturamento_acumulado": {
+            "type": "number",
+            "title": "Faturamento Acumulado",
+            "default": 0
+          },
+          "percentual_meta": {
+            "type": "number",
+            "title": "Percentual Meta",
+            "default": 0
+          },
+          "meta_csat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Csat"
+          },
+          "csat_medio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csat Medio"
+          },
+          "meta_taxa_colaboracao": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Taxa Colaboracao"
+          },
+          "taxa_colaboracao": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxa Colaboracao"
+          },
+          "meta_projetos_impacto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Projetos Impacto"
+          },
+          "meta_engajamento_mej": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Engajamento Mej"
+          }
+        },
+        "type": "object",
+        "title": "MetaVsRealizado",
+        "description": "Comparação entre meta e valor realizado."
+      },
+      "OrdemEmpresa": {
+        "type": "string",
+        "enum": [
+          "nome",
+          "faturamento",
+          "faturamento_colab",
+          "cluster",
+          "comunidade",
+          "csat",
+          "percentual_meta",
+          "projetos"
+        ],
+        "title": "OrdemEmpresa",
+        "description": "Campos disponíveis para ordenação de EJs."
+      },
+      "PaginacaoMeta": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "title": "PaginacaoMeta",
+        "description": "Metadados de paginação."
+      },
+      "RankingItem": {
+        "properties": {
+          "posicao": {
+            "type": "integer",
+            "title": "Posicao"
+          },
+          "id_ej": {
+            "type": "integer",
+            "title": "Id Ej"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "comunidade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comunidade"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "foto_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicao",
+          "id_ej",
+          "nome",
+          "valor"
+        ],
+        "title": "RankingItem",
+        "description": "Item de um ranking de EJs."
+      },
+      "Ritmo": {
+        "type": "string",
+        "enum": [
+          "sem_vendas",
+          "minimo",
+          "significativo"
+        ],
+        "title": "Ritmo",
+        "description": "Classificação de ritmo de uma EJ no mês.\n\n- sem_vendas: faturamento_mes == 0\n- minimo: faturamento_mes \u003E 0 (já vendeu)\n- significativo: faturamento_mes \u003E= meta_mensal"
+      },
+      "TendenciaCluster": {
+        "type": "string",
+        "enum": [
+          "sobe",
+          "mantem",
+          "desce"
+        ],
+        "title": "TendenciaCluster",
+        "description": "Tendência do cluster em relação ao período anterior."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

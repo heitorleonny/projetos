@@ -1,0 +1,10 @@
+[project]
+name = "portal-fejepe-api"
+version = "0.1.0"
+description = "Backend API do Portal FEJEPE — centraliza dados e cálculos estratégicos das EJs"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
