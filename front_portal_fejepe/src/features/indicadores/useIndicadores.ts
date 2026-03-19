@@ -28,6 +28,20 @@ export function useRitmoMensal(params: IndicadoresParams) {
     });
 }
 
+export function useEmpresasRede(ano: number, cluster?: number, comunidade?: string) {
+    return useQuery({
+        queryKey: ['empresas-rede', ano, cluster, comunidade],
+        queryFn: () => fetchEmpresas({
+            ano,
+            cluster,
+            comunidade,
+            page_size: 100,
+            ordem_por: 'nome',
+            direcao: 'asc',
+        }),
+    });
+}
+
 export function useEmpresasPorCidade(ano: number, cluster?: number, comunidade?: string) {
     return useQuery({
         queryKey: ['empresas-cidade', ano, cluster, comunidade],

@@ -1,14 +1,73 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import html2canvas from 'html2canvas';
 import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
     LineChart, Line,
 } from 'recharts';
-import { useIndicadoresRede, useFaturamentoMensal, useEmpresasPorCidade, useRitmoMensal } from './useIndicadores';
+import { useIndicadoresRede, useFaturamentoMensal, useRitmoMensal, useEmpresasRede } from './useIndicadores';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
 
 const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
 const CLUSTERS = [1, 2, 3, 4, 5];
+const MESES_ESCALONADO = [
+    'JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO',
+    'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO',
+];
+
+type EscalonadoStatus = 'azul' | 'verde' | 'amarelo' | 'vermelho' | 'cinza';
+
+interface EscalonadoItem {
+    id_ej: number;
+    nome: string;
+    status: EscalonadoStatus;
+    mesPosicao: number;
+}
+
+const ESCALONADO_STATUS_STYLE: Record<EscalonadoStatus, { label: string; bg: string; text: string; border: string; countBg: string; countText?: string }> = {
+    azul: {
+        label: 'Azul',
+        bg: '#2563EB',
+        text: '#EFF6FF',
+        border: '#1D4ED8',
+        countBg: '#1D4ED825',
+    },
+    verde: {
+        label: 'Verde',
+        bg: '#16A34A',
+        text: '#F0FDF4',
+        border: '#15803D',
+        countBg: '#15803D25',
+    },
+    amarelo: {
+        label: 'Amarelo',
+        bg: '#FACC15',
+        text: '#1F2937',
+        border: '#EAB308',
+        countBg: '#FACC15',
+        countText: '#111827',
+    },
+    vermelho: {
+        label: 'Vermelho',
+        bg: '#EF4444',
+        text: '#FEF2F2',
+        border: '#DC2626',
+        countBg: '#DC262625',
+    },
+    cinza: {
+        label: 'Zeradas',
+        bg: '#6B7280',
+        text: '#F9FAFB',
+        border: '#4B5563',
+        countBg: '#4B556325',
+    },
+};
+
+function clampMes(value: number): number {
+    if (value < 1) return 1;
+    if (value > 12) return 12;
+    return value;
+}
 
 const selectClass =
     'bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all cursor-pointer appearance-none';
@@ -18,6 +77,45 @@ const selectStyle = {
     backgroundPosition: 'right 10px center',
     backgroundSize: '16px',
 };
+
+const ESCALONADO_BASE_OFFSET = 8;
+const ESCALONADO_DEGRAU_OFFSET = 10;
+const ESCALONADO_BADGE_HEIGHT = 30;
+const ESCALONADO_BADGE_GAP = 4;
+const ESCALONADO_ALTURA_MINIMA = 340;
+
+function drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number,
+) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function truncateCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+
+    const suffix = '...';
+    let result = text;
+    while (result.length > 0 && ctx.measureText(result + suffix).width > maxWidth) {
+        result = result.slice(0, -1);
+    }
+    return result + suffix;
+}
 
 export default function IndicadoresPage() {
     const [ano, setAno] = useState(2026);
@@ -29,13 +127,18 @@ export default function IndicadoresPage() {
     const ritmoRef = useRef<HTMLDivElement>(null);
     const linhaRef = useRef<HTMLDivElement>(null);
     const cidadeRef = useRef<HTMLDivElement>(null);
+    const escalonadoRef = useRef<HTMLDivElement>(null);
+    const escalonadoCaptureRef = useRef<HTMLDivElement>(null);
 
     const params = { ano, cluster, comunidade };
+    const mesAtualCalendario = new Date().getMonth() + 1;
 
     const { data: indicadores, isLoading: loadingInd } = useIndicadoresRede(params);
     const { data: faturamentoMensal, isLoading: loadingFat } = useFaturamentoMensal(params);
-    const { data: cidadeData, isLoading: loadingCid } = useEmpresasPorCidade(ano, cluster, comunidade);
+    const { data: empresasRede, isLoading: loadingEjs } = useEmpresasRede(ano, cluster, comunidade);
     const { data: ritmoMensal, isLoading: loadingRitmo } = useRitmoMensal(params);
+
+    const empresasEscalonadas = empresasRede?.data ?? [];
 
     // ── Chart data ──
 
@@ -49,7 +152,106 @@ export default function IndicadoresPage() {
             .sort((a, b) => Number(a.name.split(' ')[1]) - Number(b.name.split(' ')[1]))
         : [];
 
-    const cidadeChartData = (cidadeData ?? []).slice(0, 10);
+    const cidadeChartData = useMemo(() => {
+        const porCidade: Record<string, number> = {};
+        for (const ej of empresasEscalonadas) {
+            const cidade = ej.cidade ?? 'Nao informada';
+            porCidade[cidade] = (porCidade[cidade] ?? 0) + ej.faturamento_acumulado;
+        }
+
+        return Object.entries(porCidade)
+            .map(([cidade, faturamento]) => ({ cidade, faturamento }))
+            .sort((a, b) => b.faturamento - a.faturamento)
+            .slice(0, 10);
+    }, [empresasEscalonadas]);
+
+    const escalonadoData = useMemo(() => {
+        const limiarVerde = (mesAtualCalendario / 12) * 100;
+        const limiarAmarelo = (Math.max(0, mesAtualCalendario - 1) / 12) * 100;
+
+        const grupos: Record<number, EscalonadoItem[]> = {
+            0: [],
+            1: [],
+            2: [],
+            3: [],
+            4: [],
+            5: [],
+            6: [],
+            7: [],
+            8: [],
+            9: [],
+            10: [],
+            11: [],
+            12: [],
+        };
+
+        const contadores: Record<EscalonadoStatus, number> = {
+            cinza: 0,
+            vermelho: 0,
+            amarelo: 0,
+            verde: 0,
+            azul: 0,
+        };
+
+        let semMetaCount = 0;
+
+        for (const ej of empresasEscalonadas) {
+            const faturamento = ej.faturamento_acumulado ?? 0;
+            const percentual = ej.percentual_meta;
+
+            let status: EscalonadoStatus;
+            let mesPosicao = 0;
+
+            if (faturamento <= 0) {
+                status = 'cinza';
+                mesPosicao = 0;
+            } else {
+                const mesEstimado = percentual == null
+                    ? 1
+                    : clampMes(Math.max(1, Math.floor((percentual / 100) * 12)));
+
+                if (percentual != null && percentual >= 100) {
+                    status = 'azul';
+                    mesPosicao = 12;
+                } else if (percentual != null && percentual >= limiarVerde) {
+                    status = 'verde';
+                    mesPosicao = mesEstimado;
+                } else if (percentual != null && percentual >= limiarAmarelo) {
+                    status = 'amarelo';
+                    mesPosicao = mesEstimado;
+                } else {
+                    status = 'vermelho';
+                    mesPosicao = mesEstimado;
+                    if (percentual == null) semMetaCount += 1;
+                }
+            }
+
+            grupos[mesPosicao].push({
+                id_ej: ej.id_ej,
+                nome: ej.nome,
+                status,
+                mesPosicao,
+            });
+
+            contadores[status] += 1;
+        }
+
+        for (const key of Object.keys(grupos)) {
+            grupos[Number(key)].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        }
+
+        return {
+            grupos,
+            contadores,
+            limiarVerde,
+            limiarAmarelo,
+            mesAtualCalendario,
+            total: empresasEscalonadas.length,
+            semMetaCount,
+            houveTruncamento: (empresasRede?.meta.total ?? 0) > empresasEscalonadas.length,
+            totalReal: empresasRede?.meta.total ?? empresasEscalonadas.length,
+        };
+    }, [empresasEscalonadas, empresasRede?.meta.total, mesAtualCalendario]);
 
     const faturamentoAcumuladoData = (faturamentoMensal ?? []).map((item) => ({
         mes: item.mes,
@@ -58,6 +260,177 @@ export default function IndicadoresPage() {
     }));
 
     // ── Export ──
+
+    const downloadCanvas = (canvas: HTMLCanvasElement, fileName: string) => {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
+    const buildEscalonadoCanvas = useCallback((): HTMLCanvasElement | null => {
+        const colunas = [
+            { mes: 0, label: 'ZERADAS' },
+            ...MESES_ESCALONADO.map((label, index) => ({ mes: index + 1, label })),
+        ];
+
+        const maxItensColuna = Math.max(
+            1,
+            ...Object.values(escalonadoData.grupos).map((items) => items.length),
+        );
+
+        const alturaConteudo =
+            maxItensColuna * ESCALONADO_BADGE_HEIGHT +
+            Math.max(0, maxItensColuna - 1) * ESCALONADO_BADGE_GAP;
+
+        const alturaEscada = 11 * ESCALONADO_DEGRAU_OFFSET;
+
+        const exportAltura = Math.max(
+            ESCALONADO_ALTURA_MINIMA,
+            alturaConteudo + alturaEscada + ESCALONADO_BASE_OFFSET + 10,
+        );
+
+        const width = 1560;
+        const headerHeight = 82;
+        const footerHeight = 86;
+        const monthChipHeight = 28;
+        const graphTop = headerHeight;
+        const graphBottomPadding = 12;
+        const graphHeight = exportAltura;
+        const chipsTop = graphTop + graphHeight + graphBottomPadding;
+        const footerTop = chipsTop + monthChipHeight + 20;
+        const height = footerTop + footerHeight;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width * 2;
+        canvas.height = height * 2;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        ctx.scale(2, 2);
+        ctx.fillStyle = '#0B1220';
+        ctx.fillRect(0, 0, width, height);
+
+        const colGap = 8;
+        const paddingX = 24;
+        const innerWidth = width - paddingX * 2;
+        const colWidth = (innerWidth - (colunas.length - 1) * colGap) / colunas.length;
+
+        ctx.fillStyle = '#F8FAFC';
+        ctx.font = '700 24px sans-serif';
+        ctx.fillText('ESCALONADO DE FATURAMENTO', paddingX, 36);
+
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = '500 14px sans-serif';
+        ctx.fillText(`Monitoramento da rede | Referencia: ${MESES_ESCALONADO[mesAtualCalendario - 1]}`, paddingX, 58);
+
+        ctx.textAlign = 'right';
+        ctx.fillText(
+            `Verde >= ${escalonadoData.limiarVerde.toFixed(1)}% | Amarelo >= ${escalonadoData.limiarAmarelo.toFixed(1)}%`,
+            width - paddingX,
+            58,
+        );
+        ctx.textAlign = 'left';
+
+        colunas.forEach((coluna, index) => {
+            const x = paddingX + index * (colWidth + colGap);
+
+            drawRoundedRect(ctx, x, graphTop, colWidth, graphHeight, 10);
+            ctx.fillStyle = '#020617';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            const items = escalonadoData.grupos[coluna.mes] ?? [];
+            const degrau = coluna.mes === 0 ? 0 : (coluna.mes - 1) * ESCALONADO_DEGRAU_OFFSET;
+            const deslocamentoVertical = ESCALONADO_BASE_OFFSET - degrau;
+            const baseY = graphTop + graphHeight - 6 + deslocamentoVertical;
+
+            items.forEach((item, itemIndex) => {
+                const y = baseY - (itemIndex + 1) * (ESCALONADO_BADGE_HEIGHT + ESCALONADO_BADGE_GAP);
+                const style = ESCALONADO_STATUS_STYLE[item.status];
+                drawRoundedRect(ctx, x + 4, y, colWidth - 8, ESCALONADO_BADGE_HEIGHT, 6);
+                ctx.fillStyle = style.bg;
+                ctx.fill();
+                ctx.strokeStyle = style.border;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = style.text;
+                ctx.font = '600 12px sans-serif';
+                const label = truncateCanvasText(ctx, item.nome, colWidth - 16);
+                ctx.fillText(label, x + 8, y + 19);
+            });
+
+            drawRoundedRect(ctx, x, chipsTop, colWidth, monthChipHeight, 6);
+            ctx.fillStyle = '#1E3A8A';
+            ctx.fill();
+            ctx.strokeStyle = '#3B82F6';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = '#E2E8F0';
+            ctx.font = '700 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(coluna.label, x + colWidth / 2, chipsTop + 18);
+            ctx.textAlign = 'left';
+        });
+
+        const counters: EscalonadoStatus[] = ['cinza', 'vermelho', 'amarelo', 'verde', 'azul'];
+        const counterGap = 12;
+        let cursorX = paddingX;
+        const counterY = footerTop;
+
+        counters.forEach((status) => {
+            const style = ESCALONADO_STATUS_STYLE[status];
+            const total = escalonadoData.contadores[status];
+            const text = `${total} EJ${total !== 1 ? 's' : ''} ${style.label}`;
+
+            ctx.font = '700 13px sans-serif';
+            const textWidth = ctx.measureText(text).width;
+            const boxWidth = textWidth + 24;
+
+            drawRoundedRect(ctx, cursorX, counterY, boxWidth, 34, 17);
+            ctx.fillStyle = style.countBg;
+            ctx.fill();
+            ctx.strokeStyle = style.border;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = style.countText ?? style.text;
+            ctx.fillText(text, cursorX + 12, counterY + 22);
+
+            cursorX += boxWidth + counterGap;
+        });
+
+        return canvas;
+    }, [escalonadoData.contadores, escalonadoData.grupos, escalonadoData.limiarAmarelo, escalonadoData.limiarVerde, mesAtualCalendario]);
+
+    const exportEscalonado = useCallback(async () => {
+        const target = escalonadoCaptureRef.current ?? escalonadoRef.current;
+        if (!target) return;
+
+        try {
+            const canvas = await html2canvas(target, {
+                backgroundColor: '#0F172A',
+                scale: 2,
+                useCORS: true,
+                scrollX: 0,
+                scrollY: -window.scrollY,
+            });
+
+            downloadCanvas(canvas, `grafico-escalonado-${ano}.png`);
+        } catch {
+            const fallbackCanvas = buildEscalonadoCanvas();
+            if (fallbackCanvas) {
+                downloadCanvas(fallbackCanvas, `grafico-escalonado-${ano}.png`);
+                return;
+            }
+            alert('Nao foi possivel exportar o grafico escalonado. Tente novamente.');
+        }
+    }, [ano, buildEscalonadoCanvas]);
 
     const toggleChart = (id: string) => {
         setSelectedCharts((prev) => {
@@ -70,17 +443,26 @@ export default function IndicadoresPage() {
 
     const exportSelectedCharts = useCallback(async () => {
         const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
+            escalonado: escalonadoRef,
             cluster: clusterRef,
             ritmo: ritmoRef,
             linha: linhaRef,
             cidade: cidadeRef,
         };
 
-        const charts = selectedCharts.size > 0 ? selectedCharts : new Set(['cluster', 'ritmo', 'linha', 'cidade']);
+        const charts = selectedCharts.size > 0
+            ? selectedCharts
+            : new Set(['escalonado', 'cluster', 'ritmo', 'linha', 'cidade']);
 
         for (const chartId of charts) {
             const ref = refs[chartId];
             if (!ref?.current) continue;
+
+            // Escalonado is an HTML layout; capture the whole card as PNG.
+            if (chartId === 'escalonado') {
+                await exportEscalonado();
+                continue;
+            }
 
             const svg = ref.current.querySelector('svg');
             if (!svg) continue;
@@ -103,10 +485,7 @@ export default function IndicadoresPage() {
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, 0, 0);
 
-                    const link = document.createElement('a');
-                    link.download = `grafico-${chartId}-${ano}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
+                    downloadCanvas(canvas, `grafico-${chartId}-${ano}.png`);
 
                     URL.revokeObjectURL(url);
                     resolve();
@@ -114,17 +493,41 @@ export default function IndicadoresPage() {
                 img.src = url;
             });
         }
-    }, [selectedCharts, ano]);
+    }, [selectedCharts, ano, exportEscalonado]);
 
-    const isLoading = loadingInd || loadingFat || loadingCid || loadingRitmo;
+    const isLoading = loadingInd || loadingFat || loadingEjs || loadingRitmo;
 
-    const chartIds = ['cluster', 'ritmo', 'linha', 'cidade'];
+    const chartIds = ['escalonado', 'cluster', 'ritmo', 'linha', 'cidade'];
     const chartLabels: Record<string, string> = {
+        escalonado: 'Escalonado de Faturamento',
         cluster: 'Distribuição por Cluster',
         ritmo: 'Ritmo Mínimo e Ritmo Significativo',
         linha: 'Faturamento Acumulado',
         cidade: 'Faturamento por Cidade',
     };
+
+    const escalonadoColunas = [
+        { mes: 0, label: 'ZERADAS' },
+        ...MESES_ESCALONADO.map((label, index) => ({ mes: index + 1, label })),
+    ];
+
+    const escalonadoAltura = useMemo(() => {
+        const maxItensColuna = Math.max(
+            1,
+            ...Object.values(escalonadoData.grupos).map((items) => items.length),
+        );
+
+        const alturaConteudo =
+            maxItensColuna * ESCALONADO_BADGE_HEIGHT +
+            Math.max(0, maxItensColuna - 1) * ESCALONADO_BADGE_GAP;
+
+        const alturaEscada = 11 * ESCALONADO_DEGRAU_OFFSET;
+
+        return Math.max(
+            ESCALONADO_ALTURA_MINIMA,
+            alturaConteudo + alturaEscada + ESCALONADO_BASE_OFFSET + 10,
+        );
+    }, [escalonadoData.grupos]);
 
     return (
         <div>
@@ -249,154 +652,269 @@ export default function IndicadoresPage() {
                 </div>
             )}
 
-            {/* Charts grid */}
+            {/* Charts */}
             {!isLoading && indicadores && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* 1. Distribuição por Cluster */}
-                    <ChartCard title="Distribuição por Cluster" refProp={clusterRef}>
-                        {clusterData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={280}>
-                                <PieChart>
-                                    <Pie
-                                        data={clusterData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={3}
-                                        dataKey="value"
-                                        stroke="none"
-                                    >
-                                        {clusterData.map((entry, i) => (
-                                            <Cell key={i} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
-                                        formatter={(value, n) => [`${value} EJs`, n]}
-                                    />
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        iconType="circle"
-                                        iconSize={8}
-                                        formatter={(value: string) => <span style={{ color: '#94A3B8', fontSize: '12px' }}>{value}</span>}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <EmptyChart />
-                        )}
-                    </ChartCard>
+                <>
+                    <div ref={escalonadoRef} className="glass-card rounded-2xl p-6 mb-6">
+                        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 mb-5">
+                            <div>
+                                <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+                                    Escalonado de Faturamento
+                                </h3>
+                                <p className="text-xs text-neutral-400 mt-1">
+                                    Monitoramento da rede | Referencia: {MESES_ESCALONADO[mesAtualCalendario - 1]}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-xs text-neutral-400">
+                                    Verde {'>='} {escalonadoData.limiarVerde.toFixed(1)}% | Amarelo {'>='} {escalonadoData.limiarAmarelo.toFixed(1)}%
+                                </div>
+                                <button
+                                    onClick={exportEscalonado}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary-500/35 bg-primary-500/15 text-primary-100 hover:bg-primary-500/25 transition-colors cursor-pointer"
+                                >
+                                    Exportar Escalonado
+                                </button>
+                            </div>
+                        </div>
 
-                    {/* 2. Ritmo Mínimo e Ritmo Significativo */}
-                    <ChartCard title="Ritmo Mínimo e Ritmo Significativo" refProp={ritmoRef}>
-                        {ritmoMensal && ritmoMensal.some((d) => d.rm_percent > 0 || d.rs_percent > 0) ? (
-                            <ResponsiveContainer width="100%" height={280}>
-                                <BarChart data={ritmoMensal} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis
-                                        dataKey="label"
-                                        tick={{ fill: '#94A3B8', fontSize: 11 }}
-                                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                    />
-                                    <YAxis
-                                        tick={{ fill: '#94A3B8', fontSize: 11 }}
-                                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                        tickFormatter={(v) => `${v.toFixed(0)}%`}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
-                                        formatter={(value) => [`${Number(value).toFixed(2)}%`]}
-                                    />
-                                    <Legend
-                                        verticalAlign="top"
-                                        iconType="square"
-                                        iconSize={10}
-                                        formatter={(value: string) => <span style={{ color: '#94A3B8', fontSize: '12px' }}>{value}</span>}
-                                    />
-                                    <Bar dataKey="rm_percent" name="Ritmo Mínimo" fill="#3B82F6" radius={[3, 3, 0, 0]} barSize={16}
-                                        label={{ position: 'top', fill: '#3B82F6', fontSize: 9, formatter: (v) => Number(v) > 0 ? `${Number(v).toFixed(2)}%` : '' }}
-                                    />
-                                    <Bar dataKey="rs_percent" name="Ritmo Significativo" fill="#EF4444" radius={[3, 3, 0, 0]} barSize={16}
-                                        label={{ position: 'top', fill: '#EF4444', fontSize: 9, formatter: (v) => Number(v) > 0 ? `${Number(v).toFixed(2)}%` : '' }}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <EmptyChart />
-                        )}
-                    </ChartCard>
+                        {escalonadoData.total > 0 ? (
+                            <>
+                                <div ref={escalonadoCaptureRef} className="rounded-xl">
+                                    <div className="overflow-x-auto pb-2">
+                                        <div className="min-w-[1120px]">
+                                            <div className="flex items-end gap-2">
+                                                {escalonadoColunas.map((coluna) => {
+                                                    const items = escalonadoData.grupos[coluna.mes] ?? [];
+                                                    const degrau = coluna.mes === 0 ? 0 : (coluna.mes - 1) * ESCALONADO_DEGRAU_OFFSET;
+                                                    const deslocamentoVertical = ESCALONADO_BASE_OFFSET - degrau;
 
-                    {/* 3. Faturamento Acumulado */}
-                    <ChartCard title="Faturamento Acumulado" refProp={linhaRef} wide>
-                        {faturamentoAcumuladoData.length > 0 && faturamentoAcumuladoData.some((d) => d.faturamento_acumulado > 0) ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={faturamentoAcumuladoData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} />
-                                    <YAxis
-                                        tick={{ fill: '#94A3B8', fontSize: 12 }}
-                                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                        tickFormatter={(v) => {
-                                            if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-                                            if (v >= 1e3) return `${(v / 1e3).toFixed(0)}k`;
-                                            return v.toString();
-                                        }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
-                                        formatter={(value) => [formatCurrency(value as number), 'Faturamento Acumulado']}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="faturamento_acumulado"
-                                        stroke="#0D6EFD"
-                                        strokeWidth={2.5}
-                                        dot={{ fill: '#0D6EFD', strokeWidth: 0, r: 4 }}
-                                        activeDot={{ r: 6, strokeWidth: 0 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <EmptyChart />
-                        )}
-                    </ChartCard>
+                                                    return (
+                                                        <div key={coluna.mes} className="flex-1 min-w-[78px]">
+                                                            <div className="rounded-xl border border-white/10 bg-slate-950/35 p-1 pb-0.5 overflow-hidden" style={{ height: `${escalonadoAltura}px` }}>
+                                                                <div
+                                                                    className="h-full flex flex-col-reverse gap-1"
+                                                                    style={{ transform: `translateY(${deslocamentoVertical}px)` }}
+                                                                >
+                                                                    {items.map((item) => {
+                                                                        const style = ESCALONADO_STATUS_STYLE[item.status];
+                                                                        return (
+                                                                            <span
+                                                                                key={`${coluna.mes}-${item.id_ej}`}
+                                                                                className="block h-[30px] text-[10px] font-semibold leading-tight px-1.5 py-1 rounded whitespace-nowrap overflow-hidden text-ellipsis"
+                                                                                style={{
+                                                                                    backgroundColor: style.bg,
+                                                                                    color: style.text,
+                                                                                    border: `1px solid ${style.border}`,
+                                                                                }}
+                                                                                title={item.nome}
+                                                                            >
+                                                                                {item.nome}
+                                                                            </span>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-2 h-7 rounded-md bg-primary-500/20 border border-primary-500/30 flex items-center justify-center px-1">
+                                                                <span className="text-[10px] font-bold tracking-wide text-primary-100 text-center leading-tight">
+                                                                    {coluna.label}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
 
-                    {/* 4. Faturamento por Cidade */}
-                    <ChartCard title="Faturamento por Cidade (Top 10)" refProp={cidadeRef} wide>
-                        {cidadeChartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={cidadeChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                                    <XAxis
-                                        type="number"
-                                        tick={{ fill: '#94A3B8', fontSize: 12 }}
-                                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                        tickFormatter={(v) => {
-                                            if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-                                            if (v >= 1e3) return `${(v / 1e3).toFixed(0)}k`;
-                                            return v.toString();
-                                        }}
-                                    />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="cidade"
-                                        width={120}
-                                        tick={{ fill: '#CBD5E1', fontSize: 12 }}
-                                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
-                                        formatter={(value) => [formatCurrency(value as number), 'Faturamento']}
-                                    />
-                                    <Bar dataKey="faturamento" fill="#0D6EFD" radius={[0, 6, 6, 0]} barSize={20} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {(['cinza', 'vermelho', 'amarelo', 'verde', 'azul'] as EscalonadoStatus[]).map((status) => {
+                                            const style = ESCALONADO_STATUS_STYLE[status];
+                                            const total = escalonadoData.contadores[status];
+                                            return (
+                                                <div
+                                                    key={status}
+                                                    className="px-3 py-1.5 rounded-full border text-xs font-bold"
+                                                    style={{
+                                                        color: style.countText ?? style.text,
+                                                        backgroundColor: style.countBg,
+                                                        borderColor: style.border,
+                                                    }}
+                                                >
+                                                    {total} EJ{total !== 1 ? 's' : ''} {style.label}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {(escalonadoData.houveTruncamento || escalonadoData.semMetaCount > 0) && (
+                                        <div className="mt-3 space-y-1 text-xs">
+                                            {escalonadoData.houveTruncamento && (
+                                                <p className="text-amber-300">
+                                                    Exibindo {escalonadoData.total} de {escalonadoData.totalReal} EJs (limite desta versão: 100 por filtro).
+                                                </p>
+                                            )}
+                                            {escalonadoData.semMetaCount > 0 && (
+                                                <p className="text-neutral-400">
+                                                    {escalonadoData.semMetaCount} EJ{escalonadoData.semMetaCount !== 1 ? 's' : ''} sem meta definida foram posicionadas no início da escada.
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         ) : (
                             <EmptyChart />
                         )}
-                    </ChartCard>
-                </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* 1. Distribuição por Cluster */}
+                        <ChartCard title="Distribuição por Cluster" refProp={clusterRef}>
+                            {clusterData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <PieChart>
+                                        <Pie
+                                            data={clusterData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={3}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {clusterData.map((entry, i) => (
+                                                <Cell key={i} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+                                            formatter={(value, n) => [`${value} EJs`, n]}
+                                        />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            iconType="circle"
+                                            iconSize={8}
+                                            formatter={(value: string) => <span style={{ color: '#94A3B8', fontSize: '12px' }}>{value}</span>}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyChart />
+                            )}
+                        </ChartCard>
+
+                        {/* 2. Ritmo Mínimo e Ritmo Significativo */}
+                        <ChartCard title="Ritmo Mínimo e Ritmo Significativo" refProp={ritmoRef}>
+                            {ritmoMensal && ritmoMensal.some((d) => d.rm_percent > 0 || d.rs_percent > 0) ? (
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={ritmoMensal} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis
+                                            dataKey="label"
+                                            tick={{ fill: '#94A3B8', fontSize: 11 }}
+                                            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                        />
+                                        <YAxis
+                                            tick={{ fill: '#94A3B8', fontSize: 11 }}
+                                            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                            tickFormatter={(v) => `${v.toFixed(0)}%`}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+                                            formatter={(value) => [`${Number(value).toFixed(2)}%`]}
+                                        />
+                                        <Legend
+                                            verticalAlign="top"
+                                            iconType="square"
+                                            iconSize={10}
+                                            formatter={(value: string) => <span style={{ color: '#94A3B8', fontSize: '12px' }}>{value}</span>}
+                                        />
+                                        <Bar dataKey="rm_percent" name="Ritmo Mínimo" fill="#3B82F6" radius={[3, 3, 0, 0]} barSize={16}
+                                            label={{ position: 'top', fill: '#3B82F6', fontSize: 9, formatter: (v) => Number(v) > 0 ? `${Number(v).toFixed(2)}%` : '' }}
+                                        />
+                                        <Bar dataKey="rs_percent" name="Ritmo Significativo" fill="#EF4444" radius={[3, 3, 0, 0]} barSize={16}
+                                            label={{ position: 'top', fill: '#EF4444', fontSize: 9, formatter: (v) => Number(v) > 0 ? `${Number(v).toFixed(2)}%` : '' }}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyChart />
+                            )}
+                        </ChartCard>
+
+                        {/* 3. Faturamento Acumulado */}
+                        <ChartCard title="Faturamento Acumulado" refProp={linhaRef} wide>
+                            {faturamentoAcumuladoData.length > 0 && faturamentoAcumuladoData.some((d) => d.faturamento_acumulado > 0) ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={faturamentoAcumuladoData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} />
+                                        <YAxis
+                                            tick={{ fill: '#94A3B8', fontSize: 12 }}
+                                            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                            tickFormatter={(v) => {
+                                                if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+                                                if (v >= 1e3) return `${(v / 1e3).toFixed(0)}k`;
+                                                return v.toString();
+                                            }}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+                                            formatter={(value) => [formatCurrency(value as number), 'Faturamento Acumulado']}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="faturamento_acumulado"
+                                            stroke="#0D6EFD"
+                                            strokeWidth={2.5}
+                                            dot={{ fill: '#0D6EFD', strokeWidth: 0, r: 4 }}
+                                            activeDot={{ r: 6, strokeWidth: 0 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyChart />
+                            )}
+                        </ChartCard>
+
+                        {/* 4. Faturamento por Cidade */}
+                        <ChartCard title="Faturamento por Cidade (Top 10)" refProp={cidadeRef} wide>
+                            {cidadeChartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={cidadeChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                        <XAxis
+                                            type="number"
+                                            tick={{ fill: '#94A3B8', fontSize: 12 }}
+                                            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                            tickFormatter={(v) => {
+                                                if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+                                                if (v >= 1e3) return `${(v / 1e3).toFixed(0)}k`;
+                                                return v.toString();
+                                            }}
+                                        />
+                                        <YAxis
+                                            type="category"
+                                            dataKey="cidade"
+                                            width={120}
+                                            tick={{ fill: '#CBD5E1', fontSize: 12 }}
+                                            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+                                            formatter={(value) => [formatCurrency(value as number), 'Faturamento']}
+                                        />
+                                        <Bar dataKey="faturamento" fill="#0D6EFD" radius={[0, 6, 6, 0]} barSize={20} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyChart />
+                            )}
+                        </ChartCard>
+                    </div>
+                </>
             )}
         </div>
     );
