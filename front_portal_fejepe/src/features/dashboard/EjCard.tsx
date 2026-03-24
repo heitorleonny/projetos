@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { EmpresaComIndicadores } from '../../types/empresa';
 import { formatCurrency, formatPercent, getClusterInfo, getRitmoLabel } from '../../utils/formatters';
+import EjLogo from '../../components/EjLogo';
 
 interface EjCardProps {
     empresa: EmpresaComIndicadores;
@@ -15,13 +16,22 @@ export default function EjCard({ empresa }: EjCardProps) {
         <div className="glass-card rounded-2xl p-6 transition-all duration-300 flex flex-col gap-4 group">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                    <h3 className="font-heading font-semibold text-base text-white truncate group-hover:text-primary-300 transition-colors">
-                        {empresa.nome}
-                    </h3>
-                    <p className="text-sm text-neutral-500 truncate">
-                        {empresa.comunidade ?? 'Sem comunidade'}
-                    </p>
+                <div className="min-w-0 flex-1 flex items-center gap-3">
+                    <EjLogo
+                        nome={empresa.nome}
+                        fotoUrl={empresa.foto_url}
+                        sizeClassName="w-11 h-11"
+                        className="shrink-0 border border-white/10"
+                        initialsClassName="text-base"
+                    />
+                    <div className="min-w-0 flex-1">
+                        <h3 className="font-heading font-semibold text-base text-white truncate group-hover:text-primary-300 transition-colors">
+                            {empresa.nome}
+                        </h3>
+                        <p className="text-sm text-neutral-500 truncate">
+                            {empresa.comunidade ?? 'Sem comunidade'}
+                        </p>
+                    </div>
                 </div>
                 <span
                     className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border"

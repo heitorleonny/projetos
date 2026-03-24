@@ -5,6 +5,7 @@ import type { EmpresaComIndicadores, EmpresaListaResponse, EmpresaQueryParams } 
 
 function filterMockData(params: EmpresaQueryParams): EmpresaListaResponse {
     let filtered = [...mockEmpresaListaResponse.data];
+    const selectedClusters = params.clusters ?? (params.cluster != null ? [params.cluster] : []);
 
     // Search by name
     if (params.search) {
@@ -13,8 +14,8 @@ function filterMockData(params: EmpresaQueryParams): EmpresaListaResponse {
     }
 
     // Filter by cluster
-    if (params.cluster) {
-        filtered = filtered.filter((ej) => ej.cluster === params.cluster);
+    if (selectedClusters.length > 0) {
+        filtered = filtered.filter((ej) => ej.cluster != null && selectedClusters.includes(ej.cluster));
     }
 
     // Filter by comunidade
@@ -68,17 +69,30 @@ function getSortValue(ej: EmpresaComIndicadores, key: string): string | number {
 export async function fetchEmpresas(
     params: EmpresaQueryParams = {}
 ): Promise<EmpresaListaResponse> {
+    const selectedClusters = params.clusters ?? (params.cluster != null ? [params.cluster] : []);
+
     if (ENV.USE_MOCK) {
         await new Promise((resolve) => setTimeout(resolve, 400));
         return filterMockData(params);
     }
 
+    const clusterParam = selectedClusters.length === 1 ? selectedClusters[0] : undefined;
+
     const response = await api.get<EmpresaListaResponse>('/empresas', {
         params: {
             ...params,
+            cluster: clusterParam,
+            clusters: undefined,
             ritmo: undefined, // ritmo is not a backend param
         },
     });
+
+    if (selectedClusters.length > 0) {
+        response.data.data = response.data.data.filter(
+            (ej) => ej.cluster != null && selectedClusters.includes(ej.cluster),
+        );
+        response.data.meta.total = response.data.data.length;
+    }
 
     // Client-side ritmo filter (not supported by backend)
     if (params.ritmo) {

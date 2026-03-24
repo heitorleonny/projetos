@@ -27,7 +27,11 @@ export default function Navbar() {
                     {/* Logo */}
                     <NavLink to="/dashboard" className="flex items-center gap-3 no-underline group">
                         <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shrink-0 opacity-90 group-hover:opacity-100 transition-opacity shadow-glow">
-                            <span className="text-white font-heading font-black text-sm leading-none">FJ</span>
+                            <img
+                                src="/logo_fejepe.svg"
+                                alt="Logo FEJEPE"
+                                className="h-6 w-6 object-contain"
+                            />
                         </div>
                         <div className="hidden sm:flex flex-col leading-none">
                             <span className="text-white font-heading font-bold text-base tracking-wide">

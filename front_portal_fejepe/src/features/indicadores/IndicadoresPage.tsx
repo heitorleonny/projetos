@@ -138,7 +138,7 @@ export default function IndicadoresPage() {
     const { data: empresasRede, isLoading: loadingEjs } = useEmpresasRede(ano, cluster, comunidade);
     const { data: ritmoMensal, isLoading: loadingRitmo } = useRitmoMensal(params);
 
-    const empresasEscalonadas = empresasRede?.data ?? [];
+    const empresasEscalonadas = useMemo(() => empresasRede?.data ?? [], [empresasRede?.data]);
 
     // ── Chart data ──
 

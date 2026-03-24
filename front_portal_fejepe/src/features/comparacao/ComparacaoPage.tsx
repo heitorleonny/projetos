@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useComparacao } from './useComparacao';
 import type { EmpresaComIndicadores } from '../../types/empresa';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
+import EjLogo from '../../components/EjLogo';
 
-const ANOS_DISPONIVEIS = [2023, 2024, 2025, 2026];
+const ANOS_DISPONIVEIS = [2022, 2023, 2024, 2025, 2026];
+const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
 const MESES = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -38,12 +40,17 @@ interface EjRow {
 }
 
 export default function ComparacaoPage() {
-    const [anosSelecionados, setAnosSelecionados] = useState<number[]>([2024, 2026]);
+    const [anosSelecionados, setAnosSelecionados] = useState<number[]>([2025, 2026]);
     const [mesSelecionado, setMesSelecionado] = useState<number | undefined>(undefined);
+    const [comunidadeSelecionada, setComunidadeSelecionada] = useState<string | undefined>(undefined);
     const [indicador, setIndicador] = useState<Indicador>('faturamento');
     const [busca, setBusca] = useState('');
 
-    const { data, isLoading, isError, error } = useComparacao(anosSelecionados, mesSelecionado);
+    const { data, isLoading, isError, error } = useComparacao(
+        anosSelecionados,
+        mesSelecionado,
+        comunidadeSelecionada,
+    );
 
     const toggleAno = (ano: number) => {
         setAnosSelecionados((prev) => {
@@ -100,7 +107,7 @@ export default function ComparacaoPage() {
         return `${(value * 100).toFixed(1)}%`;
     };
 
-    const getValor = (ej: EmpresaComIndicadores | undefined): number | null => {
+    const getValor = useCallback((ej: EmpresaComIndicadores | undefined): number | null => {
         if (!ej) return null;
         switch (indicador) {
             case 'faturamento': return ej.faturamento_acumulado;
@@ -110,7 +117,7 @@ export default function ComparacaoPage() {
             case 'percentual_meta': return ej.percentual_meta;
             case 'projetos': return ej.projetos_totais;
         }
-    };
+    }, [indicador]);
 
     const formatValor = (value: number | null): string => {
         if (value == null) return '—';
@@ -154,13 +161,63 @@ export default function ComparacaoPage() {
             }
         }
         return max || 1;
-    }, [rows, anosSelecionados, indicador]);
+    }, [rows, anosSelecionados, getValor]);
 
     const anoColors: Record<number, string> = {
+        2022: '#06B6D4',
         2023: '#8B5CF6',
         2024: '#F59E0B',
         2025: '#0D6EFD',
         2026: '#16A34A',
+    };
+
+    const exportarCsv = () => {
+        const anosOrdenados = [...anosSelecionados].sort((a, b) => a - b);
+        const indicadoresExport: Array<{
+            header: string;
+            getter: (ej: EmpresaComIndicadores | undefined) => string | number;
+        }> = [
+                { header: 'faturamento', getter: (ej) => ej?.faturamento_acumulado ?? '' },
+                { header: 'faturamento_mes', getter: (ej) => ej?.faturamento_mes ?? '' },
+                { header: 'taxa_colaboracao', getter: (ej) => ej?.taxa_colaboracao ?? '' },
+                { header: 'cluster', getter: (ej) => ej?.cluster ?? '' },
+                { header: 'percentual_meta', getter: (ej) => ej?.percentual_meta ?? '' },
+                { header: 'projetos_totais', getter: (ej) => ej?.projetos_totais ?? '' },
+            ];
+
+        const headers = [
+            'id_ej',
+            'nome',
+            'comunidade',
+            ...anosOrdenados.flatMap((ano) => indicadoresExport.map((ind) => `${ind.header}_${ano}`)),
+        ];
+
+        const escapeCsv = (value: string | number) => {
+            const str = String(value);
+            if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const csvRows = rows.map((row) => {
+            const base = [row.id_ej, row.nome, row.comunidade ?? ''];
+            const porAno = anosOrdenados.flatMap((ano) => {
+                const ejAno = row.porAno[ano];
+                return indicadoresExport.map((ind) => ind.getter(ejAno));
+            });
+            return [...base, ...porAno].map(escapeCsv).join(';');
+        });
+
+        const bom = '\uFEFF';
+        const csv = bom + [headers.join(';'), ...csvRows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `comparacao_${anosOrdenados.join('_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -283,6 +340,38 @@ export default function ComparacaoPage() {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Community dropdown */}
+                        <div className="sm:w-56">
+                            <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
+                                Comunidade
+                            </label>
+                            <select
+                                value={comunidadeSelecionada ?? ''}
+                                onChange={(e) => setComunidadeSelecionada(e.target.value || undefined)}
+                                className={selectClass}
+                                style={selectStyle}
+                            >
+                                <option value="" className="bg-neutral-800">
+                                    Todas
+                                </option>
+                                {COMUNIDADES.map((c) => (
+                                    <option key={c} value={c} className="bg-neutral-800">
+                                        {c}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="sm:ml-auto">
+                            <button
+                                onClick={exportarCsv}
+                                disabled={rows.length === 0}
+                                className="h-[42px] px-4 rounded-xl glass-card text-sm font-medium text-primary-400 hover:text-white hover:bg-primary-500/20 border border-primary-500/20 hover:border-primary-500/40 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                Exportar CSV
+                            </button>
+                        </div>
                     </div>
 
                     {/* Row 2: Indicator pills */}
@@ -404,15 +493,13 @@ export default function ComparacaoPage() {
                                     {/* Top: EJ info + variation badge */}
                                     <div className="flex items-center gap-3 mb-4">
                                         {/* Avatar */}
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500/30 to-primary-700/30 flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
-                                            {row.foto_url ? (
-                                                <img src={row.foto_url} alt={row.nome} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-sm font-bold text-primary-300">
-                                                    {row.nome.charAt(0).toUpperCase()}
-                                                </span>
-                                            )}
-                                        </div>
+                                        <EjLogo
+                                            nome={row.nome}
+                                            fotoUrl={row.foto_url}
+                                            sizeClassName="w-10 h-10"
+                                            roundedClassName="rounded-full"
+                                            className="shrink-0 border border-white/10"
+                                        />
                                         <div className="min-w-0 flex-1">
                                             <h3 className="font-semibold text-sm text-white truncate group-hover:text-primary-300 transition-colors">
                                                 {row.nome}

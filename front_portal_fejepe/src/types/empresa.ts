@@ -59,6 +59,7 @@ export interface EmpresaQueryParams {
     ano?: number;
     mes?: number;
     cluster?: number;
+    clusters?: number[];
     comunidade?: string;
     status?: string;
     search?: string;

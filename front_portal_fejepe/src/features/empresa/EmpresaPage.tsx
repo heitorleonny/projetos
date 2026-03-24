@@ -7,6 +7,7 @@ import {
 import { useEmpresaPerfil } from './useEmpresaPerfil';
 import { formatCurrency, formatPercent, getClusterInfo, getRitmoLabel } from '../../utils/formatters';
 import type { FaturamentoMensal, MetaVsRealizado } from '../../types/empresa';
+import EjLogo from '../../components/EjLogo';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -51,9 +52,6 @@ export default function EmpresaPage() {
     const ritmo = getRitmoLabel(indicadores.ritmo);
     const percentMeta = indicadores.percentual_meta ?? 0;
 
-    const fotoUrl = empresa.foto_url;
-    const hasFoto = fotoUrl && fotoUrl.trim().length > 0;
-
     return (
         <div className="space-y-8">
             {/* Back navigation */}
@@ -72,23 +70,13 @@ export default function EmpresaPage() {
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     {/* Photo */}
                     <div className="shrink-0">
-                        {hasFoto ? (
-                            <img
-                                src={fotoUrl}
-                                alt={`Logo ${empresa.nome}`}
-                                className="w-28 h-28 rounded-2xl object-cover border-2 border-white/10"
-                                onError={(e) => {
-                                    const target = e.currentTarget;
-                                    target.style.display = 'none';
-                                    target.nextElementSibling?.classList.remove('hidden');
-                                }}
-                            />
-                        ) : null}
-                        <div className={`w-28 h-28 rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-700/20 border-2 border-white/10 flex items-center justify-center ${hasFoto ? 'hidden' : ''}`}>
-                            <span className="text-3xl font-heading font-bold text-primary-400">
-                                {empresa.nome.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                            </span>
-                        </div>
+                        <EjLogo
+                            nome={empresa.nome}
+                            fotoUrl={empresa.foto_url}
+                            sizeClassName="w-28 h-28"
+                            className="border-2 border-white/10"
+                            initialsClassName="text-3xl text-primary-400"
+                        />
                     </div>
 
                     {/* Info */}

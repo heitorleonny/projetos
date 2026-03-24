@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDashboard } from './useDashboard';
 import EjCard from './EjCard';
 import DashboardFilters from './DashboardFilters';
@@ -15,6 +15,14 @@ export default function DashboardPage() {
 
     const { data, isLoading, isError, error } = useDashboard(filters);
     const [showExport, setShowExport] = useState(false);
+    const restoreScrollRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (!isLoading && restoreScrollRef.current != null) {
+            window.scrollTo({ top: restoreScrollRef.current, behavior: 'auto' });
+            restoreScrollRef.current = null;
+        }
+    }, [isLoading, data]);
 
     return (
         <div>
@@ -85,7 +93,7 @@ export default function DashboardPage() {
             )}
 
             {/* Loading State */}
-            {isLoading && (
+            {isLoading && !data && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Array.from({ length: 6 }).map((_, i) => (
                         <div
@@ -137,12 +145,13 @@ export default function DashboardPage() {
                                 Exibindo {data.data.length} de {data.meta.total} EJs
                             </p>
                             <button
-                                onClick={() =>
+                                onClick={() => {
+                                    restoreScrollRef.current = window.scrollY;
                                     setFilters((prev) => ({
                                         ...prev,
                                         page_size: (prev.page_size ?? 20) + 20,
-                                    }))
-                                }
+                                    }));
+                                }}
                                 className="px-6 py-2.5 rounded-xl glass-card text-sm font-medium text-primary-400 hover:text-white hover:bg-primary-500/20 border border-primary-500/20 hover:border-primary-500/40 transition-all cursor-pointer"
                             >
                                 Carregar mais

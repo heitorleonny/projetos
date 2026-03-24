@@ -9,12 +9,14 @@ export interface ComparacaoAno {
 export async function fetchComparacaoAnos(
     anos: number[],
     mes?: number,
+    comunidade?: string,
 ): Promise<ComparacaoAno[]> {
     const results = await Promise.all(
         anos.map(async (ano) => {
             const params: EmpresaQueryParams = {
                 ano,
                 mes,
+                comunidade,
                 page_size: 100,
                 ordem_por: 'faturamento',
                 direcao: 'desc',

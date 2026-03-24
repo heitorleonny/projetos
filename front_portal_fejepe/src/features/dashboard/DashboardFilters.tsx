@@ -29,8 +29,27 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
         onChange({ ...filters, ...partial });
     };
 
+    const selectedClusters = filters.clusters ?? (filters.cluster != null ? [filters.cluster] : []);
+
+    const toggleCluster = (clusterValue: number) => {
+        const next = selectedClusters.includes(clusterValue)
+            ? selectedClusters.filter((c) => c !== clusterValue)
+            : [...selectedClusters, clusterValue].sort((a, b) => a - b);
+
+        update({
+            clusters: next.length > 0 ? next : undefined,
+            cluster: undefined,
+        });
+    };
+
+    const clusterLabel = selectedClusters.length > 1
+        ? `${selectedClusters.length} clusters selecionados`
+        : selectedClusters.length === 1
+            ? `C${selectedClusters[0]}`
+            : 'Todos os Clusters';
+
     const activeCount = [
-        filters.cluster,
+        selectedClusters.length > 0,
         filters.comunidade,
         filters.search,
         filters.cidade,
@@ -99,20 +118,55 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
                                focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all"
                 />
 
-                {/* Cluster */}
-                <select
-                    value={filters.cluster ?? ''}
-                    onChange={(e) => update({ cluster: e.target.value ? Number(e.target.value) : undefined })}
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white
-                               focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all 
-                               cursor-pointer appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '16px' }}
-                >
-                    <option value="" className="bg-neutral-800">Todos os Clusters</option>
-                    {clusters.map((c) => (
-                        <option key={c} value={c} className="bg-neutral-800">Cluster {c}</option>
-                    ))}
-                </select>
+                {/* Cluster (multiseleção) */}
+                <details className="relative z-[120] group">
+                    <summary
+                        className="list-none bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white
+                                   focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
+                                   cursor-pointer flex items-center justify-between gap-3"
+                    >
+                        <span className="truncate">{clusterLabel}</span>
+                        <svg className="w-4 h-4 text-neutral-500 group-open:rotate-180 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+
+                    <div className="absolute z-[9999] mt-2 w-full min-w-[240px] rounded-lg border border-white/10 bg-slate-900/95 backdrop-blur p-3 shadow-2xl">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-neutral-400 uppercase tracking-wider">Clusters</span>
+                            {selectedClusters.length > 0 && (
+                                <button
+                                    onClick={() => update({ clusters: undefined, cluster: undefined })}
+                                    className="text-[11px] text-neutral-500 hover:text-primary-400 transition-colors cursor-pointer"
+                                >
+                                    Limpar
+                                </button>
+                            )}
+                        </div>
+                        <div className="space-y-1.5">
+                            {clusters.map((c) => {
+                                const isActive = selectedClusters.includes(c);
+                                return (
+                                    <label
+                                        key={c}
+                                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md border transition-all cursor-pointer ${isActive
+                                            ? 'bg-primary-500/15 text-primary-300 border-primary-500/30'
+                                            : 'bg-white/[0.03] text-neutral-400 border-white/10 hover:bg-white/[0.06] hover:text-neutral-200'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isActive}
+                                            onChange={() => toggleCluster(c)}
+                                            className="w-3.5 h-3.5 rounded border border-white/20 bg-white/5 accent-primary-500 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-semibold">Cluster {c}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </details>
 
             </div>
 
