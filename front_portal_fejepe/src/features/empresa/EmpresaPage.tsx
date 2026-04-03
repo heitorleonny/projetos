@@ -175,7 +175,7 @@ export default function EmpresaPage() {
             </div>
 
             {/* ── KPI Cards ── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                 <KpiCard
                     label="Faturamento"
                     value={formatCurrency(indicadores.faturamento_acumulado)}
@@ -185,6 +185,11 @@ export default function EmpresaPage() {
                     label="Projetos"
                     value={String(indicadores.projetos_totais)}
                     icon={<path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />}
+                />
+                <KpiCard
+                    label="Proj. Colab"
+                    value={String(indicadores.projetos_colab_totais ?? 0)}
+                    icon={<path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5V4H2v16h5m10 0v-8a2 2 0 00-2-2H9a2 2 0 00-2 2v8m10 0H7" />}
                 />
                 <KpiCard
                     label="CSAT Médio"

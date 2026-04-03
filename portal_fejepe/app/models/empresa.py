@@ -100,6 +100,7 @@ class FaturamentoMensal(BaseModel):
     faturamento: float
     faturamento_colab: float
     projetos_vendidos: int
+    projetos_colab_vendidos: int = 0
     csat: float | None = None
 
 
@@ -144,6 +145,7 @@ class EmpresaComIndicadores(BaseModel):
     faturamento_colab_acumulado: float = 0
     faturamento_mes: float = 0
     projetos_totais: int = 0
+    projetos_colab_totais: int = 0
     csat_medio: float | None = None
     percentual_meta: float | None = None
     ritmo: Ritmo = Ritmo.sem_vendas

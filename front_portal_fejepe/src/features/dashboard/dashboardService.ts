@@ -28,6 +28,11 @@ function filterMockData(params: EmpresaQueryParams): EmpresaListaResponse {
         filtered = filtered.filter((ej) => ej.ritmo === params.ritmo);
     }
 
+    // Filter by at least one collaborative project sold
+    if (params.fora_do_zero_colab) {
+        filtered = filtered.filter((ej) => ej.projetos_colab_totais > 0);
+    }
+
     // Sort
     const sortKey = params.ordem_por ?? 'faturamento';
     const dir = params.direcao === 'asc' ? 1 : -1;

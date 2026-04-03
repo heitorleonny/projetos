@@ -3,6 +3,7 @@ import { useComparacao } from './useComparacao';
 import type { EmpresaComIndicadores } from '../../types/empresa';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
 import EjLogo from '../../components/EjLogo';
+import ComparacaoExportModal, { type ComparacaoExportField } from './ComparacaoExportModal';
 
 const ANOS_DISPONIVEIS = [2022, 2023, 2024, 2025, 2026];
 const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
@@ -22,6 +23,45 @@ const INDICADORES: { key: Indicador; label: string; icon: string }[] = [
     { key: 'projetos', label: 'Projetos', icon: '📊' },
 ];
 
+type BaseExportFieldKey =
+    | 'id_ej'
+    | 'nome'
+    | 'comunidade'
+    | 'cidade'
+    | 'universidade'
+    | 'status';
+
+type AnoExportFieldKey =
+    | 'faturamento_acumulado'
+    | 'faturamento_mes'
+    | 'faturamento_colab_acumulado'
+    | 'projetos_totais'
+    | 'projetos_colab_totais'
+    | 'taxa_colaboracao'
+    | 'cluster'
+    | 'percentual_meta'
+    | 'csat_medio'
+    | 'ritmo';
+
+const EXPORT_FIELDS: ComparacaoExportField[] = [
+    { key: 'id_ej', label: 'ID EJ', scope: 'base', defaultSelected: true },
+    { key: 'nome', label: 'Nome', scope: 'base', defaultSelected: true },
+    { key: 'comunidade', label: 'Comunidade', scope: 'base', defaultSelected: true },
+    { key: 'cidade', label: 'Cidade', scope: 'base' },
+    { key: 'universidade', label: 'Universidade', scope: 'base' },
+    { key: 'status', label: 'Status', scope: 'base' },
+    { key: 'faturamento_acumulado', label: 'Faturamento', scope: 'ano', defaultSelected: true },
+    { key: 'projetos_totais', label: 'Projetos', scope: 'ano', defaultSelected: true },
+    { key: 'faturamento_mes', label: 'Faturamento Mes', scope: 'ano' },
+    { key: 'faturamento_colab_acumulado', label: 'Faturamento Colab.', scope: 'ano' },
+    { key: 'projetos_colab_totais', label: 'Projetos Colab.', scope: 'ano' },
+    { key: 'taxa_colaboracao', label: 'Taxa Colaboracao', scope: 'ano' },
+    { key: 'cluster', label: 'Cluster', scope: 'ano' },
+    { key: 'percentual_meta', label: '% Meta', scope: 'ano' },
+    { key: 'csat_medio', label: 'CSAT Medio', scope: 'ano' },
+    { key: 'ritmo', label: 'Ritmo', scope: 'ano' },
+];
+
 const selectClass =
     'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all cursor-pointer appearance-none';
 const selectStyle = {
@@ -36,6 +76,9 @@ interface EjRow {
     nome: string;
     comunidade: string | null;
     foto_url: string | null;
+    cidade: string | null;
+    universidade: string | null;
+    status: string | null;
     porAno: Record<number, EmpresaComIndicadores | undefined>;
 }
 
@@ -45,6 +88,10 @@ export default function ComparacaoPage() {
     const [comunidadeSelecionada, setComunidadeSelecionada] = useState<string | undefined>(undefined);
     const [indicador, setIndicador] = useState<Indicador>('faturamento');
     const [busca, setBusca] = useState('');
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [selectedExportFields, setSelectedExportFields] = useState<string[]>(
+        () => EXPORT_FIELDS.filter((field) => field.defaultSelected).map((field) => field.key),
+    );
 
     const { data, isLoading, isError, error } = useComparacao(
         anosSelecionados,
@@ -71,6 +118,9 @@ export default function ComparacaoPage() {
             for (const ej of empresas) {
                 if (!map.has(ej.id_ej)) {
                     map.set(ej.id_ej, {
+                        cidade: ej.cidade,
+                        universidade: ej.universidade,
+                        status: ej.status,
                         id_ej: ej.id_ej,
                         nome: ej.nome,
                         comunidade: ej.comunidade,
@@ -81,6 +131,9 @@ export default function ComparacaoPage() {
                 const row = map.get(ej.id_ej)!;
                 row.porAno[ano] = ej;
                 if (ano === Math.max(...anosSelecionados)) {
+                    row.cidade = ej.cidade;
+                    row.universidade = ej.universidade;
+                    row.status = ej.status;
                     row.nome = ej.nome;
                     row.comunidade = ej.comunidade;
                     row.foto_url = ej.foto_url;
@@ -171,25 +224,45 @@ export default function ComparacaoPage() {
         2026: '#16A34A',
     };
 
-    const exportarCsv = () => {
+    const exportarCsv = (selectedFieldKeys: string[]) => {
+        if (selectedFieldKeys.length === 0) return;
+
         const anosOrdenados = [...anosSelecionados].sort((a, b) => a - b);
-        const indicadoresExport: Array<{
-            header: string;
-            getter: (ej: EmpresaComIndicadores | undefined) => string | number;
-        }> = [
-                { header: 'faturamento', getter: (ej) => ej?.faturamento_acumulado ?? '' },
-                { header: 'faturamento_mes', getter: (ej) => ej?.faturamento_mes ?? '' },
-                { header: 'taxa_colaboracao', getter: (ej) => ej?.taxa_colaboracao ?? '' },
-                { header: 'cluster', getter: (ej) => ej?.cluster ?? '' },
-                { header: 'percentual_meta', getter: (ej) => ej?.percentual_meta ?? '' },
-                { header: 'projetos_totais', getter: (ej) => ej?.projetos_totais ?? '' },
-            ];
+        const selectedOrdered = EXPORT_FIELDS.filter((field) => selectedFieldKeys.includes(field.key));
+
+        const baseFields = selectedOrdered.filter(
+            (field) => field.scope === 'base',
+        ) as Array<ComparacaoExportField & { key: BaseExportFieldKey; scope: 'base' }>;
+
+        const anoFields = selectedOrdered.filter(
+            (field) => field.scope === 'ano',
+        ) as Array<ComparacaoExportField & { key: AnoExportFieldKey; scope: 'ano' }>;
+
+        const baseFieldGetters: Record<BaseExportFieldKey, (row: EjRow) => string | number> = {
+            id_ej: (row) => row.id_ej,
+            nome: (row) => row.nome,
+            comunidade: (row) => row.comunidade ?? '',
+            cidade: (row) => row.cidade ?? '',
+            universidade: (row) => row.universidade ?? '',
+            status: (row) => row.status ?? '',
+        };
+
+        const anoFieldGetters: Record<AnoExportFieldKey, (ej: EmpresaComIndicadores | undefined) => string | number> = {
+            faturamento_acumulado: (ej) => ej?.faturamento_acumulado ?? '',
+            faturamento_mes: (ej) => ej?.faturamento_mes ?? '',
+            faturamento_colab_acumulado: (ej) => ej?.faturamento_colab_acumulado ?? '',
+            projetos_totais: (ej) => ej?.projetos_totais ?? '',
+            projetos_colab_totais: (ej) => ej?.projetos_colab_totais ?? '',
+            taxa_colaboracao: (ej) => ej?.taxa_colaboracao ?? '',
+            cluster: (ej) => ej?.cluster ?? '',
+            percentual_meta: (ej) => ej?.percentual_meta ?? '',
+            csat_medio: (ej) => ej?.csat_medio ?? '',
+            ritmo: (ej) => ej?.ritmo ?? '',
+        };
 
         const headers = [
-            'id_ej',
-            'nome',
-            'comunidade',
-            ...anosOrdenados.flatMap((ano) => indicadoresExport.map((ind) => `${ind.header}_${ano}`)),
+            ...baseFields.map((field) => field.label),
+            ...anosOrdenados.flatMap((ano) => anoFields.map((field) => `${field.label} (${ano})`)),
         ];
 
         const escapeCsv = (value: string | number) => {
@@ -201,10 +274,10 @@ export default function ComparacaoPage() {
         };
 
         const csvRows = rows.map((row) => {
-            const base = [row.id_ej, row.nome, row.comunidade ?? ''];
+            const base = baseFields.map((field) => baseFieldGetters[field.key](row));
             const porAno = anosOrdenados.flatMap((ano) => {
                 const ejAno = row.porAno[ano];
-                return indicadoresExport.map((ind) => ind.getter(ejAno));
+                return anoFields.map((field) => anoFieldGetters[field.key](ejAno));
             });
             return [...base, ...porAno].map(escapeCsv).join(';');
         });
@@ -218,6 +291,12 @@ export default function ComparacaoPage() {
         link.download = `comparacao_${anosOrdenados.join('_')}_${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
+    };
+
+    const handleExportConfirm = (selectedFieldKeys: string[]) => {
+        setSelectedExportFields(selectedFieldKeys);
+        exportarCsv(selectedFieldKeys);
+        setShowExportModal(false);
     };
 
     return (
@@ -365,11 +444,11 @@ export default function ComparacaoPage() {
 
                         <div className="sm:ml-auto">
                             <button
-                                onClick={exportarCsv}
+                                onClick={() => setShowExportModal(true)}
                                 disabled={rows.length === 0}
                                 className="h-[42px] px-4 rounded-xl glass-card text-sm font-medium text-primary-400 hover:text-white hover:bg-primary-500/20 border border-primary-500/20 hover:border-primary-500/40 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                Exportar CSV
+                                Exportar planilha
                             </button>
                         </div>
                     </div>
@@ -584,6 +663,15 @@ export default function ComparacaoPage() {
                         {busca ? 'Nenhuma EJ corresponde à busca.' : 'Nenhum dado disponível para os anos selecionados.'}
                     </p>
                 </div>
+            )}
+
+            {showExportModal && (
+                <ComparacaoExportModal
+                    fields={EXPORT_FIELDS}
+                    initialSelectedKeys={selectedExportFields}
+                    onClose={() => setShowExportModal(false)}
+                    onConfirm={handleExportConfirm}
+                />
             )}
         </div>
     );

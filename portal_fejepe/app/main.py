@@ -7,6 +7,7 @@ das Empresas Juniores da FEJEPE.
 Endpoints disponíveis:
     /api/v1/empresas     — Consulta, filtro e comparação de EJs
     /api/v1/rede         — Indicadores consolidados e ranking
+    /api/v1/eventos      — Monitoramento de metas de eventos
     /docs                — Swagger UI (documentação interativa)
     /redoc               — ReDoc (documentação alternativa)
 """
@@ -17,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import empresas, rede
+from app.routers import empresas, eventos, rede
 
 
 @asynccontextmanager
@@ -52,6 +53,7 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────
 app.include_router(empresas.router)
+app.include_router(eventos.router)
 app.include_router(rede.router)
 
 

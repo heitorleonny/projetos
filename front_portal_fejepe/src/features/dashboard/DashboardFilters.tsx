@@ -56,6 +56,7 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
         filters.universidade,
         filters.mes,
         filters.ritmo,
+        filters.fora_do_zero_colab,
     ].filter(Boolean).length;
 
     return (
@@ -215,6 +216,17 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
                         <option key={r.value} value={r.value} className="bg-neutral-800">{r.label}</option>
                     ))}
                 </select>
+
+                {/* Fora do zero de colab */}
+                <label className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-neutral-300 cursor-pointer hover:border-primary-500/30 transition-all">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(filters.fora_do_zero_colab)}
+                        onChange={(e) => update({ fora_do_zero_colab: e.target.checked ? true : undefined })}
+                        className="w-4 h-4 rounded border border-white/20 bg-white/5 accent-primary-500 cursor-pointer"
+                    />
+                    <span>Fora do zero de colab</span>
+                </label>
 
                 {/* Ordenação */}
                 <div className="flex gap-2">

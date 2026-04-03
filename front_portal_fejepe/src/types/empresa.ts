@@ -32,6 +32,7 @@ export interface EmpresaComIndicadores {
     faturamento_colab_acumulado: number;
     faturamento_mes: number;
     projetos_totais: number;
+    projetos_colab_totais: number;
     csat_medio: number | null;
     percentual_meta: number | null;
     ritmo: Ritmo;
@@ -58,6 +59,7 @@ export interface EmpresaListaResponse {
 export interface EmpresaQueryParams {
     ano?: number;
     mes?: number;
+    fora_do_zero_colab?: boolean;
     cluster?: number;
     clusters?: number[];
     comunidade?: string;
@@ -98,6 +100,7 @@ export interface FaturamentoMensal {
     faturamento: number;
     faturamento_colab: number;
     projetos_vendidos: number;
+    projetos_colab_vendidos: number;
     csat: number | null;
 }
 

@@ -6,6 +6,7 @@ import { ENV } from '../config/env';
 const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/comparacao', label: 'Comparação' },
+    { to: '/eventos', label: 'Eventos' },
     { to: '/indicadores', label: 'Indicadores' },
     { to: '/simulacao', label: 'Simulação' },
 ];

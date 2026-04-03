@@ -42,6 +42,7 @@ def listar_empresas(
     *,
     ano: int,
     mes: int | None = None,
+    fora_do_zero_colab: bool = False,
     cluster: int | None = None,
     comunidade: str | None = None,
     status: str | None = None,
@@ -141,6 +142,12 @@ def listar_empresas(
     # 5b. Calcular tendência de cluster (requer dados do ano anterior)
     _preencher_tendencia_cluster(sb, empresas_com_indicadores, ano)
 
+    # 5c. Filtro opcional: apenas EJs com ao menos 1 projeto colaborativo vendido
+    if fora_do_zero_colab:
+        empresas_com_indicadores = [
+            ej for ej in empresas_com_indicadores if ej.projetos_colab_totais > 0
+        ]
+
     # 6. Ordenar
     empresas_com_indicadores = _ordenar_empresas(empresas_com_indicadores, ordem_por, direcao)
 
@@ -223,6 +230,7 @@ def buscar_empresa(
             faturamento=m.get("faturamento_mes", 0) or 0,
             faturamento_colab=m.get("faturamento_colab_mes", 0) or 0,
             projetos_vendidos=m.get("projetos_vendidos_mes", 0) or 0,
+            projetos_colab_vendidos=m.get("projetos_colab_mes", 0) or 0,
             csat=m.get("csat"),
         )
         for m in mon_filtrado
@@ -370,6 +378,7 @@ def _calcular_indicadores_ej(
     faturamento_acum = 0.0
     faturamento_colab_acum = 0.0
     projetos_totais = 0
+    projetos_colab_totais = 0
     faturamento_mes_atual = 0.0
 
     if monitoramentos_sorted:
@@ -379,6 +388,9 @@ def _calcular_indicadores_ej(
         projetos_totais = int(ultimo.get("projetos_totais", 0) or 0)
         if not projetos_totais:
             projetos_totais = sum(int(m.get("projetos_vendidos_mes", 0) or 0) for m in monitoramentos_sorted)
+        projetos_colab_totais = sum(
+            int(m.get("projetos_colab_mes", 0) or 0) for m in monitoramentos_sorted
+        )
         faturamento_mes_atual = float(ultimo.get("faturamento_mes", 0) or 0)
 
     # CSAT médio
@@ -430,6 +442,7 @@ def _calcular_indicadores_ej(
         faturamento_colab_acumulado=faturamento_colab_acum,
         faturamento_mes=faturamento_mes_atual,
         projetos_totais=projetos_totais,
+        projetos_colab_totais=projetos_colab_totais,
         csat_medio=csat_medio,
         percentual_meta=percentual_meta,
         ritmo=ritmo,

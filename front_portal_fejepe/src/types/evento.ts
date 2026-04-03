@@ -1,0 +1,46 @@
+export type EventoMetaTipo = 'fora_do_zero' | 'verde_abril' | 'colab_tracking';
+
+export interface EventoResumo {
+    id_evento: string;
+    nome: string;
+    descricao: string | null;
+    ativo: boolean;
+    ano: number;
+    mes_referencia: number;
+}
+
+export interface EventoMetaParticipante {
+    id_ej: number;
+    nome: string;
+    comunidade: string | null;
+    cluster: number | null;
+    status: string | null;
+    faturamento_acumulado: number;
+    percentual_meta: number | null;
+    projetos_colab_totais: number;
+    atende_cluster_1_2: boolean;
+}
+
+export interface EventoMetaResultado {
+    tipo: EventoMetaTipo;
+    titulo: string;
+    descricao: string;
+    meta_percentual: number;
+    meta_contagem: number;
+    resultado_percentual: number;
+    resultado_contagem: number;
+    gap_percentual: number;
+    gap_contagem: number;
+    submeta_titulo: string | null;
+    submeta_percentual: number | null;
+    submeta_contagem: number | null;
+    subresultado_contagem: number | null;
+    subgap_contagem: number | null;
+    participantes: EventoMetaParticipante[];
+}
+
+export interface EventoDetalheResponse {
+    evento: EventoResumo;
+    total_ejs: number;
+    metas: EventoMetaResultado[];
+}

@@ -116,9 +116,15 @@ const MANUAL_LOGO_MAP: Record<string, string> = {
 const ALIAS_TO_LOGO_KEY: Record<string, string> = {
     // Variacoes comuns de nomes institucionais e siglas
     ejunicapconsultoria: 'ejunicap',
+    empresajuniorunicap: 'ejunicap',
+    unicap: 'ejunicap',
     poli: 'polipj',
+    polijuniorengenharia: 'polipj',
+    polijunior: 'polipj',
     poliprojetos: 'polipj',
     poliempresajunior: 'polipj',
+    porticojrsolucoesemengenhariacivil: 'portis',
+    porticojr: 'portis',
     portisconsultoria: 'portis',
     projetosej: 'projetosjr',
     projetosjunior: 'projetosjr',

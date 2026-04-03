@@ -19,6 +19,7 @@ const EXPORT_FIELDS: ExportField[] = [
     { key: 'faturamento_colab_acumulado', label: 'Faturamento Colab. Acumulado' },
     { key: 'faturamento_mes', label: 'Faturamento do Mês' },
     { key: 'projetos_totais', label: 'Projetos Totais' },
+    { key: 'projetos_colab_totais', label: 'Projetos Colab. Totais' },
     { key: 'csat_medio', label: 'CSAT Médio' },
     { key: 'percentual_meta', label: '% Meta' },
     { key: 'ritmo', label: 'Ritmo' },

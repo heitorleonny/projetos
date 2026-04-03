@@ -42,6 +42,7 @@ router = APIRouter(prefix="/api/v1/empresas", tags=["Empresas"])
 def list_empresas(
     ano: int = Query(default=settings.ANO_DEFAULT, description="Ano de referência"),
     mes: int | None = Query(default=None, ge=1, le=12, description="Mês de referência (1-12). Omita para usar acumulado até o último mês disponível."),
+    fora_do_zero_colab: bool = Query(default=False, description="Filtrar apenas EJs com faturamento colaborativo acumulado maior que zero"),
     cluster: int | None = Query(default=None, ge=1, le=5, description="Filtrar por cluster (1-5)"),
     comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
     status: str | None = Query(default=None, description="Filtrar por status da EJ"),
@@ -59,6 +60,7 @@ def list_empresas(
         sb,
         ano=ano,
         mes=mes,
+        fora_do_zero_colab=fora_do_zero_colab,
         cluster=cluster,
         comunidade=comunidade,
         status=status,

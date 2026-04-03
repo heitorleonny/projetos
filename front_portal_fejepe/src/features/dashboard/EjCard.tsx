@@ -68,6 +68,12 @@ export default function EjCard({ empresa }: EjCardProps) {
                         {ritmo.label}
                     </p>
                 </div>
+                <div className="bg-white/[0.03] rounded-lg p-2.5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Proj. Colab.</p>
+                    <p className="text-sm font-semibold text-white">
+                        {empresa.projetos_colab_totais ?? 0}
+                    </p>
+                </div>
             </div>
 
             {/* Progress bar — % Meta */}
