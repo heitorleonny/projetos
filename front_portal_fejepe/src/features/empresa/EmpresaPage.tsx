@@ -10,12 +10,14 @@ import type { FaturamentoMensal, MetaVsRealizado } from '../../types/empresa';
 import EjLogo from '../../components/EjLogo';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MESES_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 export default function EmpresaPage() {
     const { idEj } = useParams<{ idEj: string }>();
     const [ano, setAno] = useState(2026);
+    const [mes, setMes] = useState<number | undefined>(undefined);
 
-    const { data, isLoading, isError } = useEmpresaPerfil(Number(idEj) || 0, ano);
+    const { data, isLoading, isError } = useEmpresaPerfil(Number(idEj) || 0, ano, mes);
 
     if (isLoading) {
         return (
@@ -47,7 +49,7 @@ export default function EmpresaPage() {
         );
     }
 
-    const { empresa, indicadores, serie_mensal, metas, projecao_anual, ritmo_necessario, crescimento_mensal, crescimento_anual } = data;
+    const { empresa, indicadores, serie_mensal, metas, projecao_anual, ritmo_necessario, crescimento_mensal, crescimento_anual, indice_cluster, indice_cluster_calculado, indice_meta_csat, indice_meta_csat_calculado, tracking_cluster, tracking_cluster_calculado } = data;
     const cluster = getClusterInfo(indicadores.cluster);
     const ritmo = getRitmoLabel(indicadores.ritmo);
     const percentMeta = indicadores.percentual_meta ?? 0;
@@ -148,28 +150,53 @@ export default function EmpresaPage() {
                         )}
                     </div>
 
-                    {/* Year selector */}
-                    <div className="shrink-0">
-                        <label className="block text-[10px] text-neutral-500 uppercase tracking-wider mb-1.5 font-semibold">
-                            Ano de referência
-                        </label>
-                        <select
-                            value={ano}
-                            onChange={(e) => setAno(Number(e.target.value))}
-                            className="bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white
-                                       focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
-                                       cursor-pointer appearance-none min-w-[100px]"
-                            style={{
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'right 10px center',
-                                backgroundSize: '16px',
-                            }}
-                        >
-                            {[2026, 2025, 2024, 2023].map((y) => (
-                                <option key={y} value={y} className="bg-neutral-800">{y}</option>
-                            ))}
-                        </select>
+                    {/* Year + Month selector */}
+                    <div className="shrink-0 flex gap-3">
+                        <div>
+                            <label className="block text-[10px] text-neutral-500 uppercase tracking-wider mb-1.5 font-semibold">
+                                Ano
+                            </label>
+                            <select
+                                value={ano}
+                                onChange={(e) => setAno(Number(e.target.value))}
+                                className="bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white
+                                           focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
+                                           cursor-pointer appearance-none min-w-[100px]"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right 10px center',
+                                    backgroundSize: '16px',
+                                }}
+                            >
+                                {[2026, 2025, 2024, 2023].map((y) => (
+                                    <option key={y} value={y} className="bg-neutral-800">{y}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-neutral-500 uppercase tracking-wider mb-1.5 font-semibold">
+                                Mês
+                            </label>
+                            <select
+                                value={mes ?? ''}
+                                onChange={(e) => setMes(e.target.value === '' ? undefined : Number(e.target.value))}
+                                className="bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white
+                                           focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
+                                           cursor-pointer appearance-none min-w-[140px]"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right 10px center',
+                                    backgroundSize: '16px',
+                                }}
+                            >
+                                <option value="" className="bg-neutral-800">Todos</option>
+                                {MESES_FULL.map((m, i) => (
+                                    <option key={i + 1} value={i + 1} className="bg-neutral-800">{m}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -203,6 +230,43 @@ export default function EmpresaPage() {
                     accent={percentMeta >= 80 ? '#16A34A' : percentMeta >= 50 ? '#F59E0B' : '#DC2626'}
                 />
             </div>
+
+            {/* ── Índices de Cluster ── */}
+            {(indice_cluster != null || indice_meta_csat != null || tracking_cluster != null) && (
+                <div className="glass-card rounded-2xl p-6">
+                    <h3 className="text-sm font-heading font-semibold text-white uppercase tracking-wider mb-5">
+                        Índices de Cluster
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <IndiceClusterCard
+                            label="Índice de Cluster"
+                            subtitle="Snapshot atual — valores reais"
+                            value={indice_cluster}
+                            clusterNum={indice_cluster_calculado}
+                        />
+                        <IndiceClusterCard
+                            label="Índice c/ Meta CSAT"
+                            subtitle="Fat. real × meta CSAT × engajamento real"
+                            value={indice_meta_csat}
+                            clusterNum={indice_meta_csat_calculado}
+                            compareValue={indice_cluster}
+                        />
+                        <IndiceClusterCard
+                            label="Tracking de Cluster"
+                            subtitle="Projeção anual com metas de qualidade"
+                            value={tracking_cluster}
+                            clusterNum={tracking_cluster_calculado}
+                            compareValue={indice_cluster}
+                            debugValues={serie_mensal.length > 0 ? {
+                                fatAnualizado: (indicadores.faturamento_acumulado / serie_mensal[serie_mensal.length - 1].mes) * 12,
+                                metaCsat: metas?.meta_csat ?? null,
+                                metaEngajamento: metas?.meta_engajamento_mej ?? null,
+                                taxaColab: indicadores.taxa_colaboracao,
+                            } : undefined}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* ── Progress Bar (Meta) ── */}
             <div className="glass-card rounded-2xl p-6">
@@ -294,7 +358,7 @@ export default function EmpresaPage() {
                     <InfoItem label="Universidade" value={empresa.universidade} />
                     <InfoItem label="Cidade/UF" value={empresa.cidade && empresa.estado ? `${empresa.cidade}/${empresa.estado}` : null} />
                     <InfoItem label="CNPJ" value={empresa.cnpj} mono />
-                    <InfoItem label="Taxa de Colaboração" value={indicadores.taxa_colaboracao != null ? `${indicadores.taxa_colaboracao.toFixed(1)}%` : null} />
+                    <InfoItem label="Taxa de Colaboração" value={indicadores.taxa_colaboracao != null ? `${(indicadores.taxa_colaboracao * 100).toFixed(1)}%` : null} />
                 </div>
             </div>
         </div>
@@ -367,7 +431,13 @@ function FaturamentoChart({ data }: { data: FaturamentoMensal[] }) {
                                 <p className="text-xs font-semibold text-white mb-1.5">{d.nome}</p>
                                 <p className="text-sm text-primary-300 font-bold">{formatCurrency(d.faturamento)}</p>
                                 {d.faturamento_colab > 0 && (
-                                    <p className="text-xs text-neutral-400 mt-1">Colab: {formatCurrency(d.faturamento_colab)}</p>
+                                    <>
+                                        <p className="text-xs text-neutral-400 mt-1">Colab mês: {formatCurrency(d.faturamento_colab)}</p>
+                                        <p className="text-xs text-neutral-400">
+                                            Colab acum: {formatCurrency(d.faturamento_colab_acumulado)}
+                                            {d.taxa_colaboracao != null && ` (${(d.taxa_colaboracao * 100).toFixed(1)}%)`}
+                                        </p>
+                                    </>
                                 )}
                                 {d.projetos_vendidos > 0 && (
                                     <p className="text-xs text-neutral-400">{d.projetos_vendidos} projeto{d.projetos_vendidos > 1 ? 's' : ''}</p>
@@ -398,8 +468,8 @@ function MetaTable({ metas }: { metas: MetaVsRealizado }) {
     const rows = [
         { label: 'Faturamento', meta: metas.meta_faturamento != null ? formatCurrency(metas.meta_faturamento) : '—', real: formatCurrency(metas.faturamento_acumulado), pct: metas.percentual_meta },
         { label: 'CSAT', meta: metas.meta_csat?.toFixed(1) ?? '—', real: metas.csat_medio?.toFixed(2) ?? '—', pct: null },
-        { label: 'Taxa Colaboração', meta: metas.meta_taxa_colaboracao != null ? `${metas.meta_taxa_colaboracao}%` : '—', real: metas.taxa_colaboracao != null ? `${metas.taxa_colaboracao.toFixed(1)}%` : '—', pct: null },
-        { label: 'Engajamento MEJ', meta: metas.meta_engajamento_mej != null ? `${metas.meta_engajamento_mej}%` : '—', real: '—', pct: null },
+        { label: 'Taxa Colaboração', meta: metas.meta_taxa_colaboracao != null ? `${metas.meta_taxa_colaboracao}%` : '—', real: metas.taxa_colaboracao != null ? `${(metas.taxa_colaboracao * 100).toFixed(1)}%` : '—', pct: null },
+        { label: 'Engajamento MEJ', meta: metas.meta_engajamento_mej != null ? `${metas.meta_engajamento_mej}%` : '—', real: metas.engajamento_mej != null ? `${(metas.engajamento_mej * 100).toFixed(1)}%` : '—', pct: null },
     ];
 
     return (
@@ -434,6 +504,107 @@ function ProjecaoItem({ label, value, accent }: { label: string; value: string; 
         <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
             <span className="text-sm text-neutral-400">{label}</span>
             <span className="text-sm font-bold" style={{ color: accent ?? '#FFFFFF' }}>{value}</span>
+        </div>
+    );
+}
+
+function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, debugValues }: {
+    label: string;
+    subtitle: string;
+    value: number | null;
+    clusterNum: number | null;
+    compareValue?: number | null;
+    debugValues?: {
+        fatAnualizado: number;
+        metaCsat: number | null;
+        metaEngajamento: number | null;
+        taxaColab: number | null;
+    };
+}) {
+    const cluster = getClusterInfo(clusterNum);
+
+    const formatIndice = (v: number) => {
+        if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+        if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+        return v.toFixed(0);
+    };
+
+    let trend: 'sobe' | 'mantem' | 'desce' | null = null;
+    if (compareValue != null && value != null) {
+        if (value > compareValue * 1.001) trend = 'sobe';
+        else if (value < compareValue * 0.999) trend = 'desce';
+        else trend = 'mantem';
+    }
+
+    return (
+        <div
+            className="rounded-xl p-5 border flex flex-col gap-3"
+            style={{
+                backgroundColor: `${cluster.color}08`,
+                borderColor: `${cluster.color}25`,
+            }}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">{label}</p>
+                    <p className="text-[10px] text-neutral-600 mt-0.5">{subtitle}</p>
+                </div>
+                {clusterNum != null && (
+                    <span
+                        className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide border"
+                        style={{
+                            color: cluster.color,
+                            backgroundColor: `${cluster.color}15`,
+                            borderColor: `${cluster.color}30`,
+                        }}
+                    >
+                        {cluster.label}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex items-end gap-3">
+                <p
+                    className="text-3xl font-bold tabular-nums"
+                    style={{ color: value != null ? cluster.color : '#475569' }}
+                >
+                    {value != null ? formatIndice(value) : '—'}
+                </p>
+                {trend === 'sobe' && (
+                    <svg className="w-5 h-5 mb-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                    </svg>
+                )}
+                {trend === 'desce' && (
+                    <svg className="w-5 h-5 mb-1 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                )}
+                {trend === 'mantem' && (
+                    <svg className="w-5 h-5 mb-1 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+                    </svg>
+                )}
+            </div>
+
+            {debugValues && (
+                <div className="mt-1 pt-3 border-t border-white/5 space-y-1.5">
+                    <p className="text-[9px] uppercase tracking-widest text-neutral-600 font-semibold mb-2">Valores utilizados</p>
+                    <DebugRow label="Fat. anualizado" value={formatCurrency(debugValues.fatAnualizado)} />
+                    <DebugRow label="CSAT (meta)" value={debugValues.metaCsat != null ? debugValues.metaCsat.toFixed(2) : '—'} />
+                    <DebugRow label="Engajamento MEJ (meta)" value={debugValues.metaEngajamento != null ? String(debugValues.metaEngajamento) : '—'} />
+                    <DebugRow label="% Fat. Colaborativo" value={debugValues.taxaColab != null ? `${(debugValues.taxaColab * 100).toFixed(1)}%` : '—'} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function DebugRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between">
+            <span className="text-[10px] text-neutral-600">{label}</span>
+            <span className="text-[10px] font-mono text-neutral-500">{value}</span>
         </div>
     );
 }

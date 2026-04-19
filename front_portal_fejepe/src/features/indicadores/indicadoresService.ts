@@ -92,6 +92,36 @@ export interface RitmoMesData {
     rs_percent: number;
 }
 
+/* ── SDE ── */
+
+export interface EjMovimento {
+    id_ej: number;
+    nome: string;
+    cluster_atual: number | null;
+    cluster_calculado: number | null;
+    foto_url: string | null;
+}
+
+export interface SdeCenario {
+    nome: string;
+    descricao: string;
+    sde: number | null;
+    subindo: EjMovimento[];
+    mantendo: EjMovimento[];
+    descendo: EjMovimento[];
+}
+
+export interface SdeResponse {
+    ano: number;
+    mes: number | null;
+    cenarios: SdeCenario[];
+}
+
+export async function fetchSdeCenarios(params: IndicadoresParams): Promise<SdeResponse> {
+    const response = await api.get<SdeResponse>('/rede/sde', { params });
+    return response.data;
+}
+
 export async function fetchRitmoMensal(params: IndicadoresParams): Promise<RitmoMesData[]> {
     const response = await api.get<RitmoMensalResponse>('/rede/ritmo-mensal', { params });
     const { meses } = response.data;

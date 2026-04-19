@@ -22,6 +22,7 @@ from app.services.calculo_service import (
     calcular_crescimento,
     calcular_media_csat,
     calcular_percentual_meta,
+    calcular_pontos_cluster,
     calcular_pontos_cluster_adaptativo,
     calcular_ritmo_necessario,
     calcular_taxa_colaboracao,
@@ -224,17 +225,24 @@ def buscar_empresa(
     _preencher_tendencia_cluster(sb, [indicadores], ano)
 
     # Série mensal (todos os meses disponíveis até o filtro)
-    serie_mensal = [
-        FaturamentoMensal(
-            mes=m["mes"],
-            faturamento=m.get("faturamento_mes", 0) or 0,
-            faturamento_colab=m.get("faturamento_colab_mes", 0) or 0,
-            projetos_vendidos=m.get("projetos_vendidos_mes", 0) or 0,
-            projetos_colab_vendidos=m.get("projetos_colab_mes", 0) or 0,
-            csat=m.get("csat"),
+    colab_acumulado = 0.0
+    serie_mensal = []
+    for m in mon_filtrado:
+        colab_acumulado += float(m.get("faturamento_colab_mes", 0) or 0)
+        fat_acum_mes = float(m.get("faturamento_acumulado", 0) or 0)
+        taxa_colab_mes = (
+            round(colab_acumulado / fat_acum_mes, 4) if fat_acum_mes > 0 else None
         )
-        for m in mon_filtrado
-    ]
+        serie_mensal.append(FaturamentoMensal(
+            mes=m["mes"],
+            faturamento=float(m.get("faturamento_mes", 0) or 0),
+            faturamento_colab=float(m.get("faturamento_colab_mes", 0) or 0),
+            faturamento_colab_acumulado=colab_acumulado,
+            taxa_colaboracao=taxa_colab_mes,
+            projetos_vendidos=int(m.get("projetos_vendidos_mes", 0) or 0),
+            projetos_colab_vendidos=int(m.get("projetos_colab_mes", 0) or 0),
+            csat=m.get("csat"),
+        ))
 
     # Metas vs realizado
     metas_vs = None
@@ -250,6 +258,7 @@ def buscar_empresa(
             taxa_colaboracao=indicadores.taxa_colaboracao,
             meta_projetos_impacto=meta_raw.get("meta_projetos_impacto"),
             meta_engajamento_mej=meta_raw.get("meta_engajamento_mej"),
+            engajamento_mej=indicadores.engajamento_mej,
         )
 
     # Projeção anual
@@ -275,6 +284,56 @@ def buscar_empresa(
         sb, ej_raw["id_ej"], ano, indicadores.faturamento_acumulado
     )
 
+    # Índice de Cluster (snapshot com valores reais acumulados)
+    indice_cluster = None
+    indice_cluster_calc = None
+    if (
+        indicadores.csat_medio is not None
+        and indicadores.engajamento_mej is not None
+        and indicadores.faturamento_acumulado > 0
+    ):
+        indice = calcular_pontos_cluster(
+            indicadores.faturamento_acumulado,
+            indicadores.csat_medio,
+            indicadores.engajamento_mej,
+            indicadores.taxa_colaboracao or 0.0,
+        )
+        indice_cluster = round(indice, 2)
+        indice_cluster_calc = classificar_cluster(indice)
+
+    # Índice real com meta de CSAT (fat real × meta_csat × engajamento real × colab real)
+    indice_meta_csat = None
+    indice_meta_csat_calc = None
+    if meta_raw and indicadores.engajamento_mej is not None and indicadores.faturamento_acumulado > 0:
+        meta_csat_para_indice = meta_raw.get("meta_csat")
+        if meta_csat_para_indice:
+            indice_mc = calcular_pontos_cluster(
+                indicadores.faturamento_acumulado,
+                meta_csat_para_indice,
+                indicadores.engajamento_mej,
+                indicadores.taxa_colaboracao or 0.0,
+            )
+            indice_meta_csat = round(indice_mc, 2)
+            indice_meta_csat_calc = classificar_cluster(indice_mc)
+
+    # Tracking de Cluster (anualização simples × metas de qualidade)
+    tracking_cluster = None
+    tracking_cluster_calc = None
+    if meta_raw and serie_mensal and indicadores.faturamento_acumulado > 0:
+        meta_csat_val = meta_raw.get("meta_csat")
+        meta_eng_val = float(meta_raw.get("meta_engajamento_mej") or 0) / 100
+        mes_atual_num = serie_mensal[-1].mes
+        if meta_csat_val and mes_atual_num > 0:
+            fat_anualizado = (indicadores.faturamento_acumulado / mes_atual_num) * MESES_ANO
+            tracking = calcular_pontos_cluster(
+                fat_anualizado,
+                meta_csat_val,
+                meta_eng_val,
+                indicadores.taxa_colaboracao or 0.0,
+            )
+            tracking_cluster = round(tracking, 2)
+            tracking_cluster_calc = classificar_cluster(tracking)
+
     return EmpresaPerfilCompleto(
         empresa=empresa,
         indicadores=indicadores,
@@ -284,6 +343,12 @@ def buscar_empresa(
         ritmo_necessario=ritmo_necessario,
         crescimento_mensal=crescimento_mensal,
         crescimento_anual=crescimento_anual,
+        indice_cluster=indice_cluster,
+        indice_cluster_calculado=indice_cluster_calc,
+        indice_meta_csat=indice_meta_csat,
+        indice_meta_csat_calculado=indice_meta_csat_calc,
+        tracking_cluster=tracking_cluster,
+        tracking_cluster_calculado=tracking_cluster_calc,
     )
 
 
@@ -384,7 +449,9 @@ def _calcular_indicadores_ej(
     if monitoramentos_sorted:
         ultimo = monitoramentos_sorted[-1]
         faturamento_acum = float(ultimo.get("faturamento_acumulado", 0) or 0)
-        faturamento_colab_acum = float(ultimo.get("faturamento_colab_acumulado", 0) or 0)
+        faturamento_colab_acum = sum(
+            float(m.get("faturamento_colab_mes", 0) or 0) for m in monitoramentos_sorted
+        )
         projetos_totais = int(ultimo.get("projetos_totais", 0) or 0)
         if not projetos_totais:
             projetos_totais = sum(int(m.get("projetos_vendidos_mes", 0) or 0) for m in monitoramentos_sorted)
@@ -396,6 +463,18 @@ def _calcular_indicadores_ej(
     # CSAT médio
     valores_csat = [m.get("csat") for m in monitoramentos_sorted]
     csat_medio = calcular_media_csat(valores_csat)
+
+    # Engajamento MEJ real: max(membros_engajados_mes) / numero_membros
+    # membros_engajados_mes é 0 nos meses sem evento MEJ, então o máximo
+    # representa o melhor mês e reflete o alcance real do engajamento.
+    engajamento_real = None
+    if monitoramentos_sorted:
+        numero_membros = int(monitoramentos_sorted[-1].get("numero_membros") or 0)
+        max_engajados = max(
+            int(m.get("membros_engajados_mes") or 0) for m in monitoramentos_sorted
+        )
+        if numero_membros > 0:
+            engajamento_real = round(max_engajados / numero_membros, 4)
 
     # Meta
     meta_fat = meta_raw.get("meta_faturamento") if meta_raw else None
@@ -423,7 +502,7 @@ def _calcular_indicadores_ej(
         meta_csat=meta_csat,
         csat_real=csat_medio,
         meta_engajamento_mej=meta_engajamento,
-        engajamento_real=meta_engajamento,  # TODO: substituir por engajamento real quando disponível no monitoramento
+        engajamento_real=engajamento_real,
         taxa_colaboracao=taxa_colab,
     )
     cluster_calc = classificar_cluster(pontos) if pontos is not None else None
@@ -447,6 +526,7 @@ def _calcular_indicadores_ej(
         percentual_meta=percentual_meta,
         ritmo=ritmo,
         taxa_colaboracao=taxa_colab,
+        engajamento_mej=engajamento_real,
         pontos_cluster=round(pontos, 2) if pontos is not None else None,
         cluster_calculado=cluster_calc,
         tendencia_cluster=None,   # Requer dados do ano anterior

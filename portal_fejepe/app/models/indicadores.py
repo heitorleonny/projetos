@@ -64,3 +64,32 @@ class RankingItem(BaseModel):
     comunidade: str | None = None
     valor: float
     foto_url: str | None = None
+
+
+class EjMovimento(BaseModel):
+    """EJ com seu movimento de cluster em um cenário SDE."""
+
+    id_ej: int
+    nome: str
+    cluster_atual: int | None = None
+    cluster_calculado: int | None = None
+    foto_url: str | None = None
+
+
+class SdeCenario(BaseModel):
+    """SDE calculado para um cenário de índice de cluster."""
+
+    nome: str
+    descricao: str
+    sde: float | None = None
+    subindo: list[EjMovimento] = []
+    mantendo: list[EjMovimento] = []
+    descendo: list[EjMovimento] = []
+
+
+class SdeResponse(BaseModel):
+    """Três cenários de SDE da rede."""
+
+    ano: int
+    mes: int | None = None
+    cenarios: list[SdeCenario] = []

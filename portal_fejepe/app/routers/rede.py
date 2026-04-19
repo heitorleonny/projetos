@@ -12,8 +12,8 @@ from supabase import Client
 
 from app.config import settings
 from app.dependencies import get_supabase
-from app.models.indicadores import IndicadoresRede, RankingItem, RitmoMensalResponse
-from app.services.rede_service import calcular_indicadores_rede, calcular_ritmo_mensal, gerar_ranking
+from app.models.indicadores import IndicadoresRede, RankingItem, RitmoMensalResponse, SdeResponse
+from app.services.rede_service import calcular_indicadores_rede, calcular_ritmo_mensal, calcular_sde_cenarios, gerar_ranking
 
 router = APIRouter(prefix="/api/v1/rede", tags=["Rede"])
 
@@ -67,6 +67,26 @@ def get_ritmo_mensal(
         cluster=cluster,
         comunidade=comunidade,
     )
+
+
+@router.get(
+    "/sde",
+    response_model=SdeResponse,
+    summary="SDE da rede (3 cenários)",
+    description=(
+        "Calcula o Saldo de Desenvolvimento Estratégico em três cenários: "
+        "Índice de Cluster, Índice c/ Meta CSAT e Tracking de Cluster."
+    ),
+)
+def get_sde(
+    ano: int = Query(default=settings.ANO_DEFAULT, description="Ano de referência"),
+    mes: int | None = Query(default=None, ge=1, le=12, description="Mês de referência"),
+    cluster: int | None = Query(default=None, ge=1, le=5, description="Filtrar por cluster"),
+    comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
+    sb: Client = Depends(get_supabase),
+) -> SdeResponse:
+    """Calcula SDE da rede em três cenários de índice de cluster."""
+    return calcular_sde_cenarios(sb, ano=ano, mes=mes, cluster=cluster, comunidade=comunidade)
 
 
 @router.get(

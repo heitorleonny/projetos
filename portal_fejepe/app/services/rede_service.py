@@ -8,16 +8,19 @@ por cluster, participação por comunidade, etc.
 from supabase import Client
 
 from app.models.empresa import EmpresaComIndicadores, Ritmo
-from app.models.indicadores import IndicadoresRede, RankingItem, RitmoMensalResponse, RitmoMesItem
+from app.models.indicadores import EjMovimento, IndicadoresRede, RankingItem, RitmoMensalResponse, RitmoMesItem, SdeCenario, SdeResponse
 from app.services.calculo_service import (
     calcular_crescimento,
     calcular_media_csat,
+    calcular_pontos_cluster,
     calcular_sde,
     calcular_taxa_colaboracao,
+    classificar_cluster,
     classificar_ritmo,
     calcular_percentual_meta,
 )
 from app.utils.cluster import get_cluster_column_name, get_cluster_value_for_year
+from app.utils.constants import MESES_ANO
 
 
 def calcular_indicadores_rede(
@@ -262,6 +265,158 @@ def gerar_ranking(
             )
         )
     return ranking
+
+
+def calcular_sde_cenarios(
+    sb: Client,
+    *,
+    ano: int,
+    mes: int | None = None,
+    cluster: int | None = None,
+    comunidade: str | None = None,
+) -> SdeResponse:
+    """
+    Calcula o SDE da rede em três cenários, comparando o cluster calculado
+    de cada EJ com seu cluster oficial atual.
+
+    Cenários:
+        1. Índice de Cluster (fat real × CSAT real × engaj real × colab real)
+        2. Índice c/ Meta CSAT (fat real × meta CSAT × engaj real × colab real)
+        3. Tracking de Cluster (fat anualizado × meta CSAT × meta engaj × colab real)
+    """
+    # 1. Buscar EJs
+    ej_query = sb.table("empresa_junior").select("*")
+    if cluster is not None:
+        ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
+    if comunidade:
+        ej_query = ej_query.eq("comunidade", comunidade)
+    empresas = (ej_query.execute()).data or []
+
+    if not empresas:
+        return SdeResponse(ano=ano, mes=mes)
+
+    empresa_ids = [e["id_ej"] for e in empresas]
+
+    # 2. Monitoramento
+    mon_query = sb.table("monitoramento").select("*").eq("ano", ano).in_("id_ej", empresa_ids)
+    if mes is not None:
+        mon_query = mon_query.lte("mes", mes)
+    monitoramentos = (mon_query.execute()).data or []
+
+    # 3. Metas
+    metas_data = (
+        sb.table("metas").select("*").eq("ano", ano).in_("id_ej", empresa_ids).execute()
+    ).data or []
+
+    mon_por_empresa: dict[int, list[dict]] = {}
+    for m in monitoramentos:
+        mon_por_empresa.setdefault(m["id_ej"], []).append(m)
+
+    metas_por_empresa: dict[int, dict] = {}
+    for mt in metas_data:
+        metas_por_empresa[mt["id_ej"]] = mt
+
+    # 4. Calcular índices por EJ e determinar movimento
+    subidas: list[list[int]] = [[0] * 5, [0] * 5, [0] * 5]
+    descidas: list[list[int]] = [[0] * 5, [0] * 5, [0] * 5]
+
+    movimentos: list[list[EjMovimento]] = [[], [], []]
+    NOMES_CENARIOS = [
+        ("Índice de Cluster", "Faturamento real × CSAT real × Engajamento real"),
+        ("Índice c/ Meta CSAT", "Faturamento real × Meta CSAT × Engajamento real"),
+        ("Tracking de Cluster", "Faturamento anualizado × Meta CSAT × Meta Engajamento"),
+    ]
+
+    for ej in empresas:
+        eid = ej["id_ej"]
+        cluster_atual = get_cluster_value_for_year(ej, ano) or 1
+        mons = sorted(mon_por_empresa.get(eid, []), key=lambda m: m["mes"])
+        meta_raw = metas_por_empresa.get(eid)
+
+        if not mons:
+            continue
+
+        ultimo = mons[-1]
+        fat_acum = float(ultimo.get("faturamento_acumulado", 0) or 0)
+        if fat_acum <= 0:
+            continue
+
+        # CSAT médio real
+        csat_real = calcular_media_csat([m.get("csat") for m in mons])
+
+        # Engajamento real (decimal)
+        numero_membros = int(ultimo.get("numero_membros") or 0)
+        max_engajados = max(int(m.get("membros_engajados_mes") or 0) for m in mons)
+        engaj_real = round(max_engajados / numero_membros, 4) if numero_membros > 0 else None
+
+        # Taxa colaboração (decimal)
+        fat_colab_acum = sum(float(m.get("faturamento_colab_mes", 0) or 0) for m in mons)
+        taxa_colab = calcular_taxa_colaboracao(fat_colab_acum, fat_acum) or 0.0
+
+        # Metas
+        meta_csat = meta_raw.get("meta_csat") if meta_raw else None
+        meta_engaj = float(meta_raw.get("meta_engajamento_mej") or 0) / 100 if meta_raw else 0.0
+
+        # Faturamento anualizado (cenário 3)
+        mes_atual_num = mons[-1]["mes"]
+        fat_anualizado = (fat_acum / mes_atual_num) * MESES_ANO if mes_atual_num > 0 else 0.0
+
+        # Calcular os três índices
+        indices: list[float | None] = [None, None, None]
+
+        if csat_real is not None and engaj_real is not None:
+            indices[0] = calcular_pontos_cluster(fat_acum, csat_real, engaj_real, taxa_colab)
+            indices[1] = calcular_pontos_cluster(fat_acum, meta_csat, engaj_real, taxa_colab) if meta_csat else None
+
+        if meta_csat and fat_anualizado > 0:
+            indices[2] = calcular_pontos_cluster(fat_anualizado, meta_csat, meta_engaj, taxa_colab)
+
+        # Determinar movimento em cada cenário
+        idx_cluster = cluster_atual - 1  # 0-based
+        for i, indice in enumerate(indices):
+            if indice is None:
+                continue
+            cluster_calc = classificar_cluster(indice)
+
+            # Regra temporária: EJs em Cluster 4 sempre descendo no Índice de Cluster
+            # pois dependem de um indicador ainda não implementado.
+            if i == 0 and cluster_atual == 4:
+                cluster_calc = min(cluster_calc, 3)
+
+            ej_mov = EjMovimento(
+                id_ej=eid,
+                nome=ej["nome"],
+                cluster_atual=cluster_atual,
+                cluster_calculado=cluster_calc,
+                foto_url=ej.get("foto_url"),
+            )
+            if cluster_calc > cluster_atual:
+                subidas[i][idx_cluster] += 1
+                movimentos[i].append(ej_mov)
+            elif cluster_calc < cluster_atual:
+                descidas[i][idx_cluster] += 1
+                movimentos[i].append(ej_mov)
+            else:
+                movimentos[i].append(ej_mov)
+
+    # 5. Montar cenários
+    cenarios: list[SdeCenario] = []
+    for i in range(3):
+        nome, descricao = NOMES_CENARIOS[i]
+        sde_val = calcular_sde(subidas[i], descidas[i])
+        subindo = [m for m in movimentos[i] if m.cluster_calculado is not None and m.cluster_atual is not None and m.cluster_calculado > m.cluster_atual]
+        descendo = [m for m in movimentos[i] if m.cluster_calculado is not None and m.cluster_atual is not None and m.cluster_calculado < m.cluster_atual]
+        mantendo = [m for m in movimentos[i] if m.cluster_calculado is not None and m.cluster_atual is not None and m.cluster_calculado == m.cluster_atual]
+        cenarios.append(SdeCenario(
+            nome=nome,
+            descricao=descricao,
+            sde=round(sde_val, 4),
+            subindo=sorted(subindo, key=lambda e: e.nome),
+            mantendo=sorted(mantendo, key=lambda e: e.nome),
+            descendo=sorted(descendo, key=lambda e: e.nome),
+        ))
+
+    return SdeResponse(ano=ano, mes=mes, cenarios=cenarios)
 
 
 def calcular_ritmo_mensal(

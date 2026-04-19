@@ -37,6 +37,7 @@ export interface EmpresaComIndicadores {
     percentual_meta: number | null;
     ritmo: Ritmo;
     taxa_colaboracao: number | null;
+    engajamento_mej: number | null;
     pontos_cluster: number | null;
     cluster_calculado: number | null;
     tendencia_cluster: TendenciaCluster | null;
@@ -99,6 +100,8 @@ export interface FaturamentoMensal {
     mes: number;
     faturamento: number;
     faturamento_colab: number;
+    faturamento_colab_acumulado: number;
+    taxa_colaboracao: number | null;
     projetos_vendidos: number;
     projetos_colab_vendidos: number;
     csat: number | null;
@@ -114,6 +117,7 @@ export interface MetaVsRealizado {
     taxa_colaboracao: number | null;
     meta_projetos_impacto: number | null;
     meta_engajamento_mej: number | null;
+    engajamento_mej: number | null;
 }
 
 export interface EmpresaPerfilCompleto {
@@ -125,4 +129,10 @@ export interface EmpresaPerfilCompleto {
     ritmo_necessario: number | null;
     crescimento_mensal: number | null;
     crescimento_anual: number | null;
+    indice_cluster: number | null;
+    indice_cluster_calculado: number | null;
+    indice_meta_csat: number | null;
+    indice_meta_csat_calculado: number | null;
+    tracking_cluster: number | null;
+    tracking_cluster_calculado: number | null;
 }

@@ -5,7 +5,8 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
     LineChart, Line,
 } from 'recharts';
-import { useIndicadoresRede, useFaturamentoMensal, useRitmoMensal, useEmpresasRede } from './useIndicadores';
+import { useIndicadoresRede, useFaturamentoMensal, useRitmoMensal, useEmpresasRede, useSdeCenarios } from './useIndicadores';
+import type { EjMovimento, SdeCenario } from './indicadoresService';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
 
 const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
@@ -137,6 +138,7 @@ export default function IndicadoresPage() {
     const { data: faturamentoMensal, isLoading: loadingFat } = useFaturamentoMensal(params);
     const { data: empresasRede, isLoading: loadingEjs } = useEmpresasRede(ano, cluster, comunidade);
     const { data: ritmoMensal, isLoading: loadingRitmo } = useRitmoMensal(params);
+    const { data: sdeCenarios, isLoading: loadingSde } = useSdeCenarios(params);
 
     const empresasEscalonadas = useMemo(() => empresasRede?.data ?? [], [empresasRede?.data]);
 
@@ -914,6 +916,34 @@ export default function IndicadoresPage() {
                             )}
                         </ChartCard>
                     </div>
+
+                    {/* ── SDE ── */}
+                    <div className="glass-card rounded-2xl p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-sm font-heading font-semibold text-white uppercase tracking-wider">
+                                    SDE — Saldo de Desenvolvimento Estratégico
+                                </h3>
+                                <p className="text-xs text-neutral-500 mt-1">
+                                    Compara o índice calculado de cada EJ com seu cluster oficial atual
+                                </p>
+                            </div>
+                        </div>
+
+                        {loadingSde ? (
+                            <div className="flex justify-center py-8">
+                                <div className="w-8 h-8 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+                            </div>
+                        ) : sdeCenarios?.cenarios && sdeCenarios.cenarios.length > 0 ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                {sdeCenarios.cenarios.map((cenario) => (
+                                    <SdeCenarioCard key={cenario.nome} cenario={cenario} />
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyChart />
+                        )}
+                    </div>
                 </>
             )}
         </div>
@@ -957,6 +987,121 @@ function EmptyChart() {
     return (
         <div className="flex items-center justify-center h-52 text-neutral-600 text-sm">
             Sem dados disponíveis
+        </div>
+    );
+}
+
+function SdeCenarioCard({ cenario }: { cenario: SdeCenario }) {
+    const [expanded, setExpanded] = useState(false);
+
+    const sdeColor = cenario.sde == null ? '#64748B'
+        : cenario.sde > 0 ? '#16A34A'
+        : cenario.sde < 0 ? '#DC2626'
+        : '#F59E0B';
+
+    const sdeLabel = cenario.sde == null ? '—'
+        : cenario.sde > 0 ? `+${cenario.sde.toFixed(4)}`
+        : cenario.sde.toFixed(4);
+
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="p-5 flex flex-col gap-3">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">{cenario.nome}</p>
+                    <p className="text-[10px] text-neutral-600 mt-0.5">{cenario.descricao}</p>
+                </div>
+
+                <p className="text-3xl font-bold tabular-nums" style={{ color: sdeColor }}>{sdeLabel}</p>
+
+                {/* Contagens */}
+                <div className="flex gap-3 text-xs">
+                    <span className="flex items-center gap-1 text-green-400 font-semibold">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                        </svg>
+                        {cenario.subindo.length}
+                    </span>
+                    <span className="flex items-center gap-1 text-neutral-500 font-semibold">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+                        </svg>
+                        {cenario.mantendo.length}
+                    </span>
+                    <span className="flex items-center gap-1 text-red-400 font-semibold">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        {cenario.descendo.length}
+                    </span>
+                </div>
+            </div>
+
+            {/* Toggle expandir — só aparece se há EJs mudando */}
+            {(cenario.subindo.length > 0 || cenario.descendo.length > 0) && (
+                <>
+                    <button
+                        onClick={() => setExpanded((v) => !v)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 border-t border-white/5 text-[11px] text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.02] transition-colors"
+                    >
+                        {expanded ? 'Recolher' : `Ver EJs em movimento (${cenario.subindo.length + cenario.descendo.length})`}
+                        <svg
+                            className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {/* Lista expandida — apenas subindo e descendo */}
+                    {expanded && (
+                        <div className="border-t border-white/5 divide-y divide-white/5 max-h-96 overflow-y-auto">
+                            <EjMovimentoGroup label="Subindo" ejs={cenario.subindo} color="#16A34A" arrow="up" />
+                            <EjMovimentoGroup label="Descendo" ejs={cenario.descendo} color="#DC2626" arrow="down" />
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+function EjMovimentoGroup({ label, ejs, color, arrow }: {
+    label: string;
+    ejs: EjMovimento[];
+    color: string;
+    arrow: 'up' | 'right' | 'down';
+}) {
+    if (ejs.length === 0) return null;
+
+    const arrowPath = arrow === 'up'
+        ? 'M5 15l7-7 7 7'
+        : arrow === 'down'
+        ? 'M19 9l-7 7-7-7'
+        : 'M5 12h14';
+
+    return (
+        <div>
+            <p className="px-4 py-2 text-[10px] uppercase tracking-widest font-semibold" style={{ color }}>
+                {label} ({ejs.length})
+            </p>
+            {ejs.map((ej) => (
+                <div key={ej.id_ej} className="flex items-center justify-between px-4 py-2 hover:bg-white/[0.02]">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <svg className="w-3.5 h-3.5 shrink-0" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={arrowPath} />
+                        </svg>
+                        <span className="text-xs text-neutral-300 truncate">{ej.nome}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className="text-[10px] text-neutral-600">C{ej.cluster_atual}</span>
+                        <svg className="w-3 h-3 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span className="text-[10px] font-semibold" style={{ color }}>C{ej.cluster_calculado}</span>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }

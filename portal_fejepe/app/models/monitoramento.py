@@ -24,6 +24,8 @@ class Monitoramento(BaseModel):
     projetos_colab_mes: int = 0
     projetos_totais: int = 0
     csat: float | None = None
+    numero_membros: int | None = None
+    membros_engajados_mes: int | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}

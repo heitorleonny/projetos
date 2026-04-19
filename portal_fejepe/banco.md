@@ -46,4 +46,6 @@
 | projetos_vendidos_mes       | integer | number  |             |
 | projetos_totais             | integer | number  |             |
 | csat                        | numeric | number  |             |
+| numero_membros              | integer | number  | Total de membros da EJ |
+| membros_engajados_mes       | integer | number  | Membros que participaram de evento MEJ no mês (0 se nenhum) |
 | created_at                  | timestamp without time zone | string |             |

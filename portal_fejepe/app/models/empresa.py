@@ -99,6 +99,8 @@ class FaturamentoMensal(BaseModel):
     mes: int = Field(..., ge=1, le=12)
     faturamento: float
     faturamento_colab: float
+    faturamento_colab_acumulado: float = 0
+    taxa_colaboracao: float | None = None
     projetos_vendidos: int
     projetos_colab_vendidos: int = 0
     csat: float | None = None
@@ -120,6 +122,7 @@ class MetaVsRealizado(BaseModel):
     meta_projetos_impacto: int | None = None
 
     meta_engajamento_mej: float | None = None
+    engajamento_mej: float | None = None
 
 
 class EmpresaComIndicadores(BaseModel):
@@ -150,6 +153,7 @@ class EmpresaComIndicadores(BaseModel):
     percentual_meta: float | None = None
     ritmo: Ritmo = Ritmo.sem_vendas
     taxa_colaboracao: float | None = None
+    engajamento_mej: float | None = None
 
     # Tracking de cluster
     pontos_cluster: float | None = None
@@ -181,6 +185,14 @@ class EmpresaPerfilCompleto(BaseModel):
     ritmo_necessario: float | None = None
     crescimento_mensal: float | None = None
     crescimento_anual: float | None = None
+
+    # Índices de cluster
+    indice_cluster: float | None = None
+    indice_cluster_calculado: int | None = None
+    indice_meta_csat: float | None = None
+    indice_meta_csat_calculado: int | None = None
+    tracking_cluster: float | None = None
+    tracking_cluster_calculado: int | None = None
 
 
 class PaginacaoMeta(BaseModel):

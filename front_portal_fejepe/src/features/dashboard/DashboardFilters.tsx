@@ -1,3 +1,5 @@
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { EmpresaQueryParams, OrdemEmpresa, Ritmo } from '../../types/empresa';
 
 interface DashboardFiltersProps {
@@ -59,6 +61,29 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
         filters.fora_do_zero_colab,
     ].filter(Boolean).length;
 
+    const [clusterOpen, setClusterOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 0 });
+
+    useEffect(() => {
+        if (clusterOpen && triggerRef.current) {
+            const r = triggerRef.current.getBoundingClientRect();
+            setPanelPos({ top: r.bottom + 4, left: r.left, width: r.width });
+        }
+    }, [clusterOpen]);
+
+    useEffect(() => {
+        if (!clusterOpen) return;
+        const onDown = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!triggerRef.current?.contains(t) && !panelRef.current?.contains(t))
+                setClusterOpen(false);
+        };
+        document.addEventListener('mousedown', onDown);
+        return () => document.removeEventListener('mousedown', onDown);
+    }, [clusterOpen]);
+
     return (
         <div className="glass-card rounded-2xl p-5 mb-8">
             <div className="flex items-center gap-3 mb-4">
@@ -94,7 +119,7 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
                         placeholder="Buscar EJ por nome..."
                         value={filters.search ?? ''}
                         onChange={(e) => update({ search: e.target.value || undefined })}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-neutral-500 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-neutral-500
                                    focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all"
                     />
                 </div>
@@ -119,56 +144,59 @@ export default function DashboardFilters({ filters, onChange }: DashboardFilters
                                focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all"
                 />
 
-                {/* Cluster (multiseleção) */}
-                <details className="relative z-[120] group">
-                    <summary
-                        className="list-none bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white
-                                   focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
-                                   cursor-pointer flex items-center justify-between gap-3"
-                    >
-                        <span className="truncate">{clusterLabel}</span>
-                        <svg className="w-4 h-4 text-neutral-500 group-open:rotate-180 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </summary>
+                {/* Cluster — multiseleção via portal */}
+                <button
+                    ref={triggerRef}
+                    type="button"
+                    onClick={() => setClusterOpen((o) => !o)}
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white
+                               focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all
+                               cursor-pointer appearance-none flex items-center justify-between gap-2 w-full"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '16px', paddingRight: '2rem' }}
+                >
+                    <span className="truncate text-left">{clusterLabel}</span>
+                </button>
 
-                    <div className="absolute z-[9999] mt-2 w-full min-w-[240px] rounded-lg border border-white/10 bg-slate-900/95 backdrop-blur p-3 shadow-2xl">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-neutral-400 uppercase tracking-wider">Clusters</span>
-                            {selectedClusters.length > 0 && (
+                {clusterOpen && createPortal(
+                    <div
+                        ref={panelRef}
+                        style={{ position: 'fixed', top: panelPos.top, left: panelPos.left, width: Math.max(panelPos.width, 180), zIndex: 9999 }}
+                        className="rounded-lg border border-white/10 bg-neutral-900 shadow-2xl overflow-hidden"
+                    >
+                        {selectedClusters.length > 0 && (
+                            <div className="flex items-center justify-end px-3 pt-2">
                                 <button
                                     onClick={() => update({ clusters: undefined, cluster: undefined })}
                                     className="text-[11px] text-neutral-500 hover:text-primary-400 transition-colors cursor-pointer"
                                 >
                                     Limpar
                                 </button>
-                            )}
-                        </div>
-                        <div className="space-y-1.5">
+                            </div>
+                        )}
+                        <div className="p-1.5">
                             {clusters.map((c) => {
                                 const isActive = selectedClusters.includes(c);
                                 return (
                                     <label
                                         key={c}
-                                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md border transition-all cursor-pointer ${isActive
-                                            ? 'bg-primary-500/15 text-primary-300 border-primary-500/30'
-                                            : 'bg-white/[0.03] text-neutral-400 border-white/10 hover:bg-white/[0.06] hover:text-neutral-200'
-                                            }`}
+                                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors ${
+                                            isActive ? 'text-primary-300 bg-primary-500/10' : 'text-neutral-300 hover:bg-white/5'
+                                        }`}
                                     >
                                         <input
                                             type="checkbox"
                                             checked={isActive}
                                             onChange={() => toggleCluster(c)}
-                                            className="w-3.5 h-3.5 rounded border border-white/20 bg-white/5 accent-primary-500 cursor-pointer"
+                                            className="w-3.5 h-3.5 accent-primary-500 cursor-pointer"
                                         />
-                                        <span className="text-xs font-semibold">Cluster {c}</span>
+                                        Cluster {c}
                                     </label>
                                 );
                             })}
                         </div>
-                    </div>
-                </details>
-
+                    </div>,
+                    document.body
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

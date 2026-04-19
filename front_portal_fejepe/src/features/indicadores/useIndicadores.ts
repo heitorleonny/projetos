@@ -3,6 +3,7 @@ import {
     fetchIndicadoresRede,
     fetchFaturamentoMensal,
     fetchRitmoMensal,
+    fetchSdeCenarios,
     type IndicadoresParams,
 } from './indicadoresService';
 import { fetchEmpresas } from '../dashboard/dashboardService';
@@ -25,6 +26,13 @@ export function useRitmoMensal(params: IndicadoresParams) {
     return useQuery({
         queryKey: ['ritmo-mensal', params.ano, params.cluster, params.comunidade],
         queryFn: () => fetchRitmoMensal(params),
+    });
+}
+
+export function useSdeCenarios(params: IndicadoresParams) {
+    return useQuery({
+        queryKey: ['sde-cenarios', params],
+        queryFn: () => fetchSdeCenarios(params),
     });
 }
 
