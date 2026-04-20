@@ -1,5 +1,0 @@
-{
-  "framework": "vite",
-  "installCommand": "cd calculadora_cluster && npm install",
-  "buildCommand": "cd calculadora_cluster && npm run build"
-}
