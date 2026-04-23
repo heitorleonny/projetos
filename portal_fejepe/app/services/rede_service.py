@@ -338,7 +338,23 @@ def calcular_sde_cenarios(
 
         ultimo = mons[-1]
         fat_acum = float(ultimo.get("faturamento_acumulado", 0) or 0)
+
+        # EJs sem faturamento têm índice 0 → cluster 1 calculado
         if fat_acum <= 0:
+            idx_cluster = cluster_atual - 1
+            for i in range(3):
+                ej_mov = EjMovimento(
+                    id_ej=eid,
+                    nome=ej["nome"],
+                    cluster_atual=cluster_atual,
+                    cluster_calculado=1,
+                    foto_url=ej.get("foto_url"),
+                )
+                if 1 > cluster_atual:
+                    subidas[i][idx_cluster] += 1
+                elif 1 < cluster_atual:
+                    descidas[i][idx_cluster] += 1
+                movimentos[i].append(ej_mov)
             continue
 
         # CSAT médio real
