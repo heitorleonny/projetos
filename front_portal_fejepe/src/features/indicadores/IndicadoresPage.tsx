@@ -1037,14 +1037,14 @@ function SdeCenarioCard({ cenario }: { cenario: SdeCenario }) {
                 </div>
             </div>
 
-            {/* Toggle expandir — só aparece se há EJs mudando */}
-            {(cenario.subindo.length > 0 || cenario.descendo.length > 0) && (
+            {/* Toggle expandir */}
+            {(cenario.subindo.length > 0 || cenario.descendo.length > 0 || cenario.mantendo.length > 0) && (
                 <>
                     <button
                         onClick={() => setExpanded((v) => !v)}
                         className="w-full flex items-center justify-center gap-1.5 py-2.5 border-t border-white/5 text-[11px] text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.02] transition-colors"
                     >
-                        {expanded ? 'Recolher' : `Ver EJs em movimento (${cenario.subindo.length + cenario.descendo.length})`}
+                        {expanded ? 'Recolher' : `Ver todas as EJs (${cenario.subindo.length + cenario.mantendo.length + cenario.descendo.length})`}
                         <svg
                             className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
                             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -1053,10 +1053,10 @@ function SdeCenarioCard({ cenario }: { cenario: SdeCenario }) {
                         </svg>
                     </button>
 
-                    {/* Lista expandida — apenas subindo e descendo */}
                     {expanded && (
                         <div className="border-t border-white/5 divide-y divide-white/5 max-h-96 overflow-y-auto">
                             <EjMovimentoGroup label="Subindo" ejs={cenario.subindo} color="#16A34A" arrow="up" />
+                            <EjMovimentoGroup label="Mantendo" ejs={cenario.mantendo} color="#94A3B8" arrow="right" />
                             <EjMovimentoGroup label="Descendo" ejs={cenario.descendo} color="#DC2626" arrow="down" />
                         </div>
                     )}

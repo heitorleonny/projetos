@@ -4,7 +4,8 @@
       "Bash(python -m pytest tests/test_empresas.py -v)",
       "Bash(python -m pytest tests/ -v)",
       "Bash(python -m pytest tests/ -q)",
-      "Bash(grep -E \"\\\\.\\(svg|png|jpg|webp\\)$\")"
+      "Bash(grep -E \"\\\\.\\(svg|png|jpg|webp\\)$\")",
+      "Bash(python -m pytest tests/test_calculos.py -q)"
     ]
   }
 }
