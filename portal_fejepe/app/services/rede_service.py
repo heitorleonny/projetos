@@ -334,6 +334,15 @@ def calcular_sde_cenarios(
         meta_raw = metas_por_empresa.get(eid)
 
         if not mons:
+            # Sem dados de monitoramento: mantém cluster atual em todos os cenários
+            for i in range(3):
+                movimentos[i].append(EjMovimento(
+                    id_ej=eid,
+                    nome=ej["nome"],
+                    cluster_atual=cluster_atual,
+                    cluster_calculado=cluster_atual,
+                    foto_url=ej.get("foto_url"),
+                ))
             continue
 
         ultimo = mons[-1]
@@ -391,6 +400,14 @@ def calcular_sde_cenarios(
         idx_cluster = cluster_atual - 1  # 0-based
         for i, indice in enumerate(indices):
             if indice is None:
+                # Dados insuficientes para o cenário: mantém cluster atual
+                movimentos[i].append(EjMovimento(
+                    id_ej=eid,
+                    nome=ej["nome"],
+                    cluster_atual=cluster_atual,
+                    cluster_calculado=cluster_atual,
+                    foto_url=ej.get("foto_url"),
+                ))
                 continue
             cluster_calc = classificar_cluster(indice)
 
