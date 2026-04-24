@@ -926,6 +926,9 @@ export default function IndicadoresPage() {
                                 </h3>
                                 <p className="text-xs text-neutral-500 mt-1">
                                     Compara o índice calculado de cada EJ com seu cluster oficial atual
+                                    {sdeCenarios?.total_ejs != null && (
+                                        <span className="ml-2 text-neutral-600">· {sdeCenarios.total_ejs} EJs processadas</span>
+                                    )}
                                 </p>
                             </div>
                         </div>

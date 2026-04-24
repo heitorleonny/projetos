@@ -290,7 +290,7 @@ def calcular_sde_cenarios(
         ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
     if comunidade:
         ej_query = ej_query.eq("comunidade", comunidade)
-    empresas = (ej_query.execute()).data or []
+    empresas = (ej_query.limit(1000).execute()).data or []
 
     if not empresas:
         return SdeResponse(ano=ano, mes=mes)
@@ -301,11 +301,11 @@ def calcular_sde_cenarios(
     mon_query = sb.table("monitoramento").select("*").eq("ano", ano).in_("id_ej", empresa_ids)
     if mes is not None:
         mon_query = mon_query.lte("mes", mes)
-    monitoramentos = (mon_query.execute()).data or []
+    monitoramentos = (mon_query.limit(10000).execute()).data or []
 
     # 3. Metas
     metas_data = (
-        sb.table("metas").select("*").eq("ano", ano).in_("id_ej", empresa_ids).execute()
+        sb.table("metas").select("*").eq("ano", ano).in_("id_ej", empresa_ids).limit(1000).execute()
     ).data or []
 
     mon_por_empresa: dict[int, list[dict]] = {}
@@ -449,7 +449,7 @@ def calcular_sde_cenarios(
             descendo=sorted(descendo, key=lambda e: e.nome),
         ))
 
-    return SdeResponse(ano=ano, mes=mes, cenarios=cenarios)
+    return SdeResponse(ano=ano, mes=mes, total_ejs=len(empresas), cenarios=cenarios)
 
 
 def calcular_ritmo_mensal(

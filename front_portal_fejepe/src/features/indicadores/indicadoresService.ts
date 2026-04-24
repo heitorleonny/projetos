@@ -114,6 +114,7 @@ export interface SdeCenario {
 export interface SdeResponse {
     ano: number;
     mes: number | null;
+    total_ejs: number;
     cenarios: SdeCenario[];
 }
 

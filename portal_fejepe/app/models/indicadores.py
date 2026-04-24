@@ -92,4 +92,5 @@ class SdeResponse(BaseModel):
 
     ano: int
     mes: int | None = None
+    total_ejs: int = 0
     cenarios: list[SdeCenario] = []
