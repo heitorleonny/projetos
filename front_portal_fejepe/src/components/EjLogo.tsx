@@ -84,14 +84,18 @@ function LogoWithFallback({
     const baseClass = `${sizeClassName} ${roundedClassName} ${className}`.trim();
 
     if (currentSrc) {
+        const webpSrc = currentSrc.replace(/\.(png|jpe?g)(\?.*)?$/i, '.webp$2');
         return (
-            <img
-                src={currentSrc}
-                alt={`Logo ${nome}`}
-                className={`${baseClass} object-cover`}
-                loading="lazy"
-                onError={handleError}
-            />
+            <picture>
+                <source srcSet={webpSrc} type="image/webp" />
+                <img
+                    src={currentSrc}
+                    alt={`Logo ${nome}`}
+                    className={`${baseClass} object-cover`}
+                    loading="lazy"
+                    onError={handleError}
+                />
+            </picture>
         );
     }
 

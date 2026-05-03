@@ -1,4 +1,4 @@
-export type EventoMetaTipo = 'fora_do_zero' | 'verde_abril' | 'colab_tracking';
+export type EventoMetaTipo = 'faturamento_zero' | 'colab_zero' | 'verde_mes' | 'cluster_tracking';
 
 export interface EventoResumo {
     id_evento: string;
@@ -16,9 +16,11 @@ export interface EventoMetaParticipante {
     cluster: number | null;
     status: string | null;
     faturamento_acumulado: number;
+    faturamento_colab_acumulado: number;
     percentual_meta: number | null;
     projetos_colab_totais: number;
     atende_cluster_1_2: boolean;
+    tendencia_cluster?: 'sobe' | 'mantem' | 'desce' | null;
 }
 
 export interface EventoMetaResultado {

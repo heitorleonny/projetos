@@ -8,9 +8,10 @@ interface EventoMetaCardProps {
 }
 
 const META_THEME: Record<EventoMetaResultado['tipo'], { accent: string; glow: string }> = {
-    fora_do_zero: { accent: '#0D6EFD', glow: '#0D6EFD22' },
-    verde_abril: { accent: '#16A34A', glow: '#16A34A22' },
-    colab_tracking: { accent: '#F59E0B', glow: '#F59E0B22' },
+    faturamento_zero: { accent: '#0D6EFD', glow: '#0D6EFD22' },
+    colab_zero: { accent: '#F5C500', glow: '#F5C50022' },
+    verde_mes: { accent: '#10B981', glow: '#10B98122' },
+    cluster_tracking: { accent: '#8B5CF6', glow: '#8B5CF622' },
 };
 
 function formatCount(value: number): string {
@@ -115,6 +116,11 @@ export default function EventoMetaCard({ meta, expanded, onToggle }: EventoMetaC
                                         {participante.atende_cluster_1_2 && (
                                             <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
                                                 Cluster 1/2
+                                            </span>
+                                        )}
+                                        {meta.tipo === 'cluster_tracking' && participante.tendencia_cluster && (
+                                            <span className={`text-[10px] px-2 py-1 rounded-full border ${participante.tendencia_cluster === 'sobe' ? 'bg-purple-500/15 text-purple-300 border-purple-500/20' : 'bg-neutral-500/15 text-neutral-300 border-neutral-500/20'}`}>
+                                                {participante.tendencia_cluster === 'sobe' ? '↑ sobe' : '→ mantém'}
                                             </span>
                                         )}
                                         <span className="text-[10px] px-2 py-1 rounded-full border" style={{ backgroundColor: `${clusterInfo.color}15`, borderColor: `${clusterInfo.color}30`, color: clusterInfo.color }}>

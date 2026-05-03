@@ -13,14 +13,14 @@ export async function fetchEventos(): Promise<EventoResumo[]> {
     return response.data;
 }
 
-export async function fetchEventoDetalhe(eventoId: string, ano = 2026, mes = 4): Promise<EventoDetalheResponse> {
+export async function fetchEventoDetalhe(eventoId: string, ano = 2026, mes?: number): Promise<EventoDetalheResponse> {
     if (ENV.USE_MOCK) {
         await new Promise((resolve) => setTimeout(resolve, 250));
         return getMockEventoDetalhe(eventoId);
     }
 
     const response = await api.get<EventoDetalheResponse>(`/eventos/${eventoId}`, {
-        params: { ano, mes },
+        params: mes !== undefined ? { ano, mes } : { ano },
     });
 
     return response.data;

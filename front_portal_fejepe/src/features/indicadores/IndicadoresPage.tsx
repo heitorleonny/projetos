@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
-import html2canvas from 'html2canvas';
 import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -415,6 +414,7 @@ export default function IndicadoresPage() {
         if (!target) return;
 
         try {
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(target, {
                 backgroundColor: '#0F172A',
                 scale: 2,

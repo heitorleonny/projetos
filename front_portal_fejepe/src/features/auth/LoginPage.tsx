@@ -43,6 +43,7 @@ export default function LoginPage() {
         }
 
         sessionStorage.setItem(SHOW_WELCOME_AFTER_LOGIN_KEY, '1');
+        import('../../features/dashboard/DashboardPage');
         navigate(redirectTo, { replace: true });
     };
 

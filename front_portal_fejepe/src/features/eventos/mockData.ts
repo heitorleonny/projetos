@@ -19,66 +19,40 @@ type EventoMetaDef = {
 
 const EVENTOS_MOCK: EventoResumo[] = [
     {
-        id_evento: 'encontro-das-instancias',
-        nome: 'Encontro das Instancias',
-        descricao: 'Monitoramento das metas operacionais do encontro de abril.',
+        id_evento: 'ciranda-mej-26',
+        nome: "CirandaMEJ'26: O Que Ecoa Entre Nós?",
+        descricao: "Monitoramento das metas do CirandaMEJ'26 — evento de fevereiro a maio de 2026.",
         ativo: true,
         ano: 2026,
-        mes_referencia: 4,
-    },
-    {
-        id_evento: 'proximo-evento-fejepe',
-        nome: 'Próximo Evento FEJEPE',
-        descricao: 'Configuração base para a próxima edição do monitoramento.',
-        ativo: false,
-        ano: 2026,
-        mes_referencia: 4,
+        mes_referencia: 5,
     },
 ];
 
 const EVENTOS_META: Record<string, EventoMetaDef[]> = {
-    'encontro-das-instancias': [
+    'ciranda-mej-26': [
         {
-            tipo: 'fora_do_zero',
-            titulo: 'EJs fora do zero',
+            tipo: 'faturamento_zero',
+            titulo: 'Fora do zero de faturamento',
             descricao: 'EJs com faturamento acumulado maior que zero.',
-            meta_percentual: 70,
+            meta_percentual: 72,
         },
         {
-            tipo: 'verde_abril',
-            titulo: 'Verde de Abril',
-            descricao: 'EJs que bateram a meta de faturamento acumulado até abril.',
-            meta_percentual: 35,
-            submeta_titulo: 'Cluster 1 ou 2 dentro do Verde',
-            submeta_percentual: 15,
+            tipo: 'colab_zero',
+            titulo: 'Fora do zero de colab',
+            descricao: 'EJs com faturamento colaborativo acumulado maior que zero.',
+            meta_percentual: 34,
         },
         {
-            tipo: 'colab_tracking',
-            titulo: 'Tracking de colab',
-            descricao: 'EJs com pelo menos um projeto colaborativo vendido.',
-            meta_percentual: 15,
-        },
-    ],
-    'proximo-evento-fejepe': [
-        {
-            tipo: 'fora_do_zero',
-            titulo: 'EJs fora do zero',
-            descricao: 'EJs com faturamento acumulado maior que zero.',
-            meta_percentual: 60,
-        },
-        {
-            tipo: 'verde_abril',
-            titulo: 'Verde do período',
-            descricao: 'EJs que bateram a meta do recorte escolhido.',
+            tipo: 'verde_mes',
+            titulo: 'No verde de maio',
+            descricao: 'EJs que bateram a meta de faturamento acumulado até maio.',
             meta_percentual: 30,
-            submeta_titulo: 'Cluster 1 ou 2 dentro do Verde',
-            submeta_percentual: 15,
         },
         {
-            tipo: 'colab_tracking',
-            titulo: 'Tracking de colab',
-            descricao: 'EJs com pelo menos um projeto colaborativo vendido.',
-            meta_percentual: 10,
+            tipo: 'cluster_tracking',
+            titulo: 'Se mantendo ou subindo de cluster',
+            descricao: 'EJs com tendência de cluster estável ou crescente.',
+            meta_percentual: 67,
         },
     ],
 };
@@ -96,25 +70,35 @@ function toParticipant(ej: EmpresaComIndicadores): EventoMetaParticipante {
         cluster: ej.cluster,
         status: ej.status,
         faturamento_acumulado: ej.faturamento_acumulado,
+        faturamento_colab_acumulado: ej.faturamento_colab_acumulado,
         percentual_meta: ej.percentual_meta,
         projetos_colab_totais: ej.projetos_colab_totais,
         atende_cluster_1_2: ej.cluster === 1 || ej.cluster === 2,
+        tendencia_cluster: ej.tendencia_cluster ?? null,
     };
 }
 
 function filterParticipants(tipo: EventoMetaTipo, empresas: EmpresaComIndicadores[], mesRef: number) {
-    if (tipo === 'fora_do_zero') {
+    if (tipo === 'faturamento_zero') {
         return empresas.filter((empresa) => empresa.faturamento_acumulado > 0);
     }
 
-    if (tipo === 'verde_abril') {
+    if (tipo === 'colab_zero') {
+        return empresas.filter((empresa) => empresa.faturamento_colab_acumulado > 0);
+    }
+
+    if (tipo === 'verde_mes') {
         const limiarPercentual = (mesRef / 12) * 100;
         return empresas.filter(
             (empresa) => empresa.percentual_meta != null && empresa.percentual_meta >= limiarPercentual,
         );
     }
 
-    return empresas.filter((empresa) => empresa.projetos_colab_totais > 0);
+    if (tipo === 'cluster_tracking') {
+        return empresas.filter((empresa) => empresa.tendencia_cluster === 'sobe' || empresa.tendencia_cluster === 'mantem');
+    }
+
+    return [];
 }
 
 function buildMeta(
@@ -130,10 +114,10 @@ function buildMeta(
     const gapContagem = Math.max(metaContagem - resultadoContagem, 0);
     const gapPercentual = Math.max(Number((metaDef.meta_percentual - resultadoPercentual).toFixed(1)), 0);
 
-    const submetaContagem = metaDef.tipo === 'verde_abril' && metaContagem > 0
+    const submetaContagem = metaDef.tipo === 'verde_mes' && metaContagem > 0
         ? Math.ceil((metaDef.submeta_percentual ?? 0) / 100 * metaContagem)
         : null;
-    const subresultadoContagem = metaDef.tipo === 'verde_abril'
+    const subresultadoContagem = metaDef.tipo === 'verde_mes'
         ? participantes.filter((ej) => ej.cluster === 1 || ej.cluster === 2).length
         : null;
     const subgapContagem = submetaContagem != null && subresultadoContagem != null
@@ -163,7 +147,7 @@ export const mockEventos = EVENTOS_MOCK;
 
 export function getMockEventoDetalhe(eventoId: string): EventoDetalheResponse {
     const evento = EVENTOS_MOCK.find((item) => item.id_evento === eventoId) ?? EVENTOS_MOCK[0];
-    const metas = EVENTOS_META[evento.id_evento] ?? EVENTOS_META['encontro-das-instancias'];
+    const metas = EVENTOS_META[evento.id_evento] ?? EVENTOS_META['ciranda-mej-26'];
     const empresas = mockEmpresaListaResponse.data.filter(isActiveEj);
 
     return {

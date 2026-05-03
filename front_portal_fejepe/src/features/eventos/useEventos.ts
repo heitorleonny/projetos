@@ -9,7 +9,7 @@ export function useEventos() {
     });
 }
 
-export function useEventoDetalhe(eventoId: string | null | undefined, ano = 2026, mes = 4) {
+export function useEventoDetalhe(eventoId: string | null | undefined, ano = 2026, mes?: number) {
     return useQuery({
         queryKey: ['evento-detalhe', eventoId, ano, mes],
         queryFn: () => fetchEventoDetalhe(eventoId as string, ano, mes),
