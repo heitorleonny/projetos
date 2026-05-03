@@ -19,7 +19,7 @@ function formatCount(value: number): string {
 }
 
 export default function EventoMetaCard({ meta, expanded, onToggle }: EventoMetaCardProps) {
-    const theme = META_THEME[meta.tipo];
+    const theme = META_THEME[meta.tipo] ?? { accent: '#6B7280', glow: '#6B728022' };
     const progress = meta.meta_contagem > 0
         ? Math.min(100, (meta.resultado_contagem / meta.meta_contagem) * 100)
         : 0;

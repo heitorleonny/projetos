@@ -19,7 +19,7 @@ function formatCount(n: number) {
 }
 
 export default function CirandaMetaCard({ meta, expanded, onToggle }: CirandaMetaCardProps) {
-    const theme = CIRANDA_THEME[meta.tipo];
+    const theme = CIRANDA_THEME[meta.tipo] ?? { accent: '#6B7280', bg: 'rgba(107,114,128,0.08)', label: meta.tipo };
     const progress = meta.meta_contagem > 0
         ? Math.min(100, (meta.resultado_contagem / meta.meta_contagem) * 100)
         : 0;
