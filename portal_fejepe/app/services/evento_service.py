@@ -44,68 +44,42 @@ class _MetaDef(BaseModel):
 
 EVENTOS: list[_EventoDef] = [
     _EventoDef(
-        id_evento="encontro-das-instancias",
-        nome="Encontro das Instancias",
-        descricao="Monitoramento das metas operacionais do encontro de abril.",
+        id_evento="ciranda-mej-26",
+        nome="CirandaMEJ'26: O Que Ecoa Entre Nós?",
+        descricao="Monitoramento das metas do CirandaMEJ'26 — evento de fevereiro a maio de 2026.",
         ativo=True,
         ano=settings.ANO_DEFAULT,
-        mes_referencia=4,
-    ),
-    _EventoDef(
-        id_evento="proximo-evento-fejepe",
-        nome="Próximo Evento FEJEPE",
-        descricao="Configuração base para a próxima edição do monitoramento.",
-        ativo=False,
-        ano=settings.ANO_DEFAULT,
-        mes_referencia=4,
+        mes_referencia=5,
     ),
 ]
 
 EVENTOS_POR_ID = {evento.id_evento: evento for evento in EVENTOS}
 
 METAS_EVENTO: dict[str, list[_MetaDef]] = {
-    "encontro-das-instancias": [
+    "ciranda-mej-26": [
         _MetaDef(
-            tipo=EventoMetaTipo.fora_do_zero,
-            titulo="EJs fora do zero",
+            tipo=EventoMetaTipo.faturamento_zero,
+            titulo="Fora do zero de faturamento",
             descricao="EJs com faturamento acumulado maior que zero.",
-            meta_percentual=70,
+            meta_percentual=72,
         ),
         _MetaDef(
-            tipo=EventoMetaTipo.verde_abril,
-            titulo="Verde de Abril",
-            descricao="EJs que bateram a meta de faturamento acumulado até abril.",
-            meta_percentual=35,
-            submeta_titulo="Cluster 1 ou 2 dentro do Verde",
-            submeta_percentual=15,
+            tipo=EventoMetaTipo.colab_zero,
+            titulo="Fora do zero de colab",
+            descricao="EJs com faturamento colaborativo acumulado maior que zero.",
+            meta_percentual=34,
         ),
         _MetaDef(
-            tipo=EventoMetaTipo.colab_tracking,
-            titulo="Tracking de colab",
-            descricao="EJs com pelo menos um projeto colaborativo vendido.",
-            meta_percentual=15,
-        ),
-    ],
-    "proximo-evento-fejepe": [
-        _MetaDef(
-            tipo=EventoMetaTipo.fora_do_zero,
-            titulo="EJs fora do zero",
-            descricao="EJs com faturamento acumulado maior que zero.",
-            meta_percentual=60,
-        ),
-        _MetaDef(
-            tipo=EventoMetaTipo.verde_abril,
-            titulo="Verde do período",
-            descricao="EJs que bateram a meta do recorte escolhido.",
+            tipo=EventoMetaTipo.verde_mes,
+            titulo="No verde de maio",
+            descricao="EJs que bateram a meta de faturamento acumulado até maio.",
             meta_percentual=30,
-            submeta_titulo="Cluster 1 ou 2 dentro do Verde",
-            submeta_percentual=15,
         ),
         _MetaDef(
-            tipo=EventoMetaTipo.colab_tracking,
-            titulo="Tracking de colab",
-            descricao="EJs com pelo menos um projeto colaborativo vendido.",
-            meta_percentual=10,
+            tipo=EventoMetaTipo.cluster_tracking,
+            titulo="Se mantendo ou subindo de cluster",
+            descricao="EJs com tendência de cluster estável ou crescente.",
+            meta_percentual=67,
         ),
     ],
 }
@@ -204,7 +178,7 @@ def _calcular_meta(
     submeta_titulo = meta_def.submeta_titulo
     submeta_percentual = meta_def.submeta_percentual
 
-    if meta_def.tipo == EventoMetaTipo.verde_abril and meta_contagem > 0:
+    if meta_def.tipo == EventoMetaTipo.verde_mes and meta_contagem > 0:
         submeta_contagem = ceil(((submeta_percentual or 0) / 100) * meta_contagem)
         subresultado_contagem = sum(1 for ej in participantes if ej.cluster in (1, 2))
         subgap_contagem = max(submeta_contagem - subresultado_contagem, 0)
@@ -233,10 +207,13 @@ def _filtrar_participantes(
     empresas: list[EmpresaComIndicadores],
     mes_ref: int,
 ) -> list[EmpresaComIndicadores]:
-    if tipo == EventoMetaTipo.fora_do_zero:
+    if tipo == EventoMetaTipo.faturamento_zero:
         return [empresa for empresa in empresas if empresa.faturamento_acumulado > 0]
 
-    if tipo == EventoMetaTipo.verde_abril:
+    if tipo == EventoMetaTipo.colab_zero:
+        return [empresa for empresa in empresas if empresa.faturamento_colab_acumulado > 0]
+
+    if tipo == EventoMetaTipo.verde_mes:
         limiar_percentual = (mes_ref / 12) * 100
         return [
             empresa
@@ -244,8 +221,12 @@ def _filtrar_participantes(
             if empresa.percentual_meta is not None and empresa.percentual_meta >= limiar_percentual
         ]
 
-    if tipo == EventoMetaTipo.colab_tracking:
-        return [empresa for empresa in empresas if empresa.projetos_colab_totais > 0]
+    if tipo == EventoMetaTipo.cluster_tracking:
+        return [
+            empresa for empresa in empresas
+            if empresa.tracking_cluster_calculado is not None
+            and empresa.tracking_cluster_calculado >= (empresa.cluster or 1)
+        ]
 
     return []
 
@@ -258,9 +239,11 @@ def _to_participante(ej: EmpresaComIndicadores) -> EventoMetaParticipante:
         cluster=ej.cluster,
         status=ej.status,
         faturamento_acumulado=ej.faturamento_acumulado,
+        faturamento_colab_acumulado=ej.faturamento_colab_acumulado,
         percentual_meta=ej.percentual_meta,
         projetos_colab_totais=ej.projetos_colab_totais,
         atende_cluster_1_2=ej.cluster in (1, 2),
+        tendencia_cluster=ej.tendencia_cluster.value if ej.tendencia_cluster is not None else None,
     )
 
 

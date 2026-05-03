@@ -159,6 +159,8 @@ class EmpresaComIndicadores(BaseModel):
     pontos_cluster: float | None = None
     cluster_calculado: int | None = None
     tendencia_cluster: TendenciaCluster | None = None
+    tracking_cluster: float | None = None
+    tracking_cluster_calculado: int | None = None
 
 
 class EmpresaPerfilCompleto(BaseModel):

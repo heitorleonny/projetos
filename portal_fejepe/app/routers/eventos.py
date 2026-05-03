@@ -34,7 +34,7 @@ def get_eventos() -> list[EventoResumo]:
 def get_evento(
     evento_id: str,
     ano: int = Query(default=settings.ANO_DEFAULT, description="Ano de referência"),
-    mes: int = Query(default=4, ge=1, le=12, description="Mês de referência"),
+    mes: int | None = Query(default=None, ge=1, le=12, description="Mês de referência"),
     sb: Client = Depends(get_supabase),
 ) -> EventoDetalheResponse:
     evento = obter_evento(evento_id)

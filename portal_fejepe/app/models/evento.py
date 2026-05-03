@@ -13,9 +13,10 @@ from pydantic import BaseModel, Field
 class EventoMetaTipo(str, Enum):
     """Tipos de meta monitorados no evento."""
 
-    fora_do_zero = "fora_do_zero"
-    verde_abril = "verde_abril"
-    colab_tracking = "colab_tracking"
+    faturamento_zero = "faturamento_zero"
+    colab_zero = "colab_zero"
+    verde_mes = "verde_mes"
+    cluster_tracking = "cluster_tracking"
 
 
 class EventoResumo(BaseModel):
@@ -38,9 +39,11 @@ class EventoMetaParticipante(BaseModel):
     cluster: int | None = None
     status: str | None = None
     faturamento_acumulado: float = 0
+    faturamento_colab_acumulado: float = 0
     percentual_meta: float | None = None
     projetos_colab_totais: int = 0
     atende_cluster_1_2: bool = False
+    tendencia_cluster: str | None = None
 
 
 class EventoMetaResultado(BaseModel):

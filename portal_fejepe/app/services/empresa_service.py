@@ -507,6 +507,31 @@ def _calcular_indicadores_ej(
     )
     cluster_calc = classificar_cluster(pontos) if pontos is not None else None
 
+    # Tracking de Cluster — replica exatamente o cenário 3 da rede_service:
+    # sem mons → mantendo; fat=0 → cluster 1; sem meta_csat → mantendo; com tudo → fórmula
+    cluster_atual_val = get_cluster_value_for_year(ej_raw, ano) or 1
+    tracking_cluster_val = None
+    tracking_cluster_calc: int
+    if not monitoramentos_sorted:
+        tracking_cluster_calc = cluster_atual_val
+    elif faturamento_acum <= 0:
+        tracking_cluster_calc = 1
+    else:
+        meta_csat_val = meta_raw.get("meta_csat") if meta_raw else None
+        if meta_csat_val and mes_atual > 0:
+            meta_eng_val = float(meta_raw.get("meta_engajamento_mej") or 0) / 100
+            fat_anualizado = (faturamento_acum / mes_atual) * MESES_ANO
+            tracking = calcular_pontos_cluster(
+                fat_anualizado,
+                meta_csat_val,
+                meta_eng_val,
+                taxa_colab or 0.0,
+            )
+            tracking_cluster_val = round(tracking, 2)
+            tracking_cluster_calc = classificar_cluster(tracking)
+        else:
+            tracking_cluster_calc = cluster_atual_val
+
     return EmpresaComIndicadores(
         id=ej_raw["id"],
         id_ej=ej_raw["id_ej"],
@@ -529,7 +554,9 @@ def _calcular_indicadores_ej(
         engajamento_mej=engajamento_real,
         pontos_cluster=round(pontos, 2) if pontos is not None else None,
         cluster_calculado=cluster_calc,
-        tendencia_cluster=None,   # Requer dados do ano anterior
+        tendencia_cluster=None,
+        tracking_cluster=tracking_cluster_val,
+        tracking_cluster_calculado=tracking_cluster_calc,
     )
 
 
