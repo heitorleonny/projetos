@@ -41,6 +41,16 @@ export interface EmpresaComIndicadores {
     pontos_cluster: number | null;
     cluster_calculado: number | null;
     tendencia_cluster: TendenciaCluster | null;
+    tracking_cluster: number | null;
+    tracking_cluster_calculado: number | null;
+    indice_cluster: number | null;
+    indice_cluster_calculado: number | null;
+    meta_faturamento: number | null;
+    meta_csat: number | null;
+    meta_engajamento_mej: number | null;
+    meta_taxa_colaboracao: number | null;
+    faturamento_para_proximo_cluster: number | null;
+    faturamento_colab_para_proximo_cluster: number | null;
 }
 
 export interface PaginacaoMeta {
@@ -63,6 +73,7 @@ export interface EmpresaQueryParams {
     fora_do_zero_colab?: boolean;
     cluster?: number;
     clusters?: number[];
+    cluster_track?: number;
     comunidade?: string;
     status?: string;
     search?: string;

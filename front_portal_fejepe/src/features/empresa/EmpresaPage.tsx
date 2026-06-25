@@ -257,6 +257,7 @@ export default function EmpresaPage() {
                             value={tracking_cluster}
                             clusterNum={tracking_cluster_calculado}
                             compareValue={indice_cluster}
+                            faltaProximoCluster={indicadores.faturamento_para_proximo_cluster ?? null}
                             debugValues={serie_mensal.length > 0 ? {
                                 fatAnualizado: (indicadores.faturamento_acumulado / serie_mensal[serie_mensal.length - 1].mes) * 12,
                                 metaCsat: metas?.meta_csat ?? null,
@@ -508,12 +509,13 @@ function ProjecaoItem({ label, value, accent }: { label: string; value: string; 
     );
 }
 
-function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, debugValues }: {
+function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, faltaProximoCluster, debugValues }: {
     label: string;
     subtitle: string;
     value: number | null;
     clusterNum: number | null;
     compareValue?: number | null;
+    faltaProximoCluster?: number | null;
     debugValues?: {
         fatAnualizado: number;
         metaCsat: number | null;
@@ -586,6 +588,21 @@ function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, d
                     </svg>
                 )}
             </div>
+
+            {faltaProximoCluster != null && clusterNum != null && clusterNum < 5 && (
+                <div className="mt-1 pt-3 border-t border-white/5">
+                    <p className="text-[9px] uppercase tracking-widest text-neutral-600 font-semibold mb-1.5">Falta para o Cluster {clusterNum + 1}</p>
+                    <p className="text-base font-bold text-primary-300">
+                        {formatCurrency(faltaProximoCluster)}
+                    </p>
+                    <p className="text-[10px] text-neutral-600 mt-0.5">em faturamento acumulado</p>
+                </div>
+            )}
+            {clusterNum === 5 && (
+                <div className="mt-1 pt-3 border-t border-white/5">
+                    <p className="text-[10px] text-green-400 font-medium">Cluster máximo atingido</p>
+                </div>
+            )}
 
             {debugValues && (
                 <div className="mt-1 pt-3 border-t border-white/5 space-y-1.5">

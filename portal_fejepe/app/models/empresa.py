@@ -162,6 +162,21 @@ class EmpresaComIndicadores(BaseModel):
     tracking_cluster: float | None = None
     tracking_cluster_calculado: int | None = None
 
+    # Índice real (fat acumulado × csat real × engaj real × colab)
+    indice_cluster: float | None = None
+    indice_cluster_calculado: int | None = None
+
+    # Metas anuais expostas para exibição na listagem
+    meta_faturamento: float | None = None
+    meta_csat: float | None = None
+    meta_engajamento_mej: float | None = None
+    meta_taxa_colaboracao: float | None = None
+
+    # Faturamento acumulado adicional para o próximo cluster (tracking)
+    faturamento_para_proximo_cluster: float | None = None
+    # Faturamento colaborativo adicional para o próximo cluster (cada real conta dobro)
+    faturamento_colab_para_proximo_cluster: float | None = None
+
 
 class EmpresaPerfilCompleto(BaseModel):
     """

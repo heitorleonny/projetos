@@ -89,6 +89,7 @@ export async function fetchEmpresas(
             cluster: clusterParam,
             clusters: undefined,
             ritmo: undefined, // ritmo is not a backend param
+            cluster_track: params.cluster_track,
         },
     });
 

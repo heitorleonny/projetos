@@ -5,6 +5,7 @@ import { ENV } from '../config/env';
 
 const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
+    { to: '/cluster-track', label: 'Cluster Track' },
     { to: '/comparacao', label: 'Comparação' },
     { to: '/eventos', label: 'Eventos' },
     { to: '/indicadores', label: 'Indicadores' },

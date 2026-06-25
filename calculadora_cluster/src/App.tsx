@@ -191,37 +191,76 @@ export default function App() {
   const mesAtual = new Date().getMonth() + 1; // automático
 
   const [faturamento, setFaturamento] = useState('');
-  const [fatColab, setFatColab] = useState(0);      // R$ colaborativo (slider)
+  const [fatColab, setFatColab] = useState('');     // R$ colaborativo (digitável)
   const [csatReal, setCsatReal] = useState(0);      // 0-5
   const [metaCsat, setMetaCsat] = useState(0);      // 0-5
   const [engajReal, setEngajReal] = useState(0);    // 0-100
   const [metaEngaj, setMetaEngaj] = useState(0);    // 0-100
 
   const fat = parseFloat(faturamento) || 0;
-  const cl = fat > 0 ? fatColab / fat : 0;           // taxa colab decimal
+  const fatColabVal = parseFloat(fatColab) || 0;
+  const cl = fat > 0 ? fatColabVal / fat : 0;        // taxa colab decimal
   const cr = csatReal;
   const mc = metaCsat;
   const er = engajReal / 100;
   const me = metaEngaj / 100;
   const fatAnual = mesAtual > 0 ? (fat / mesAtual) * 12 : 0;
 
-  // Clamp colab slider when faturamento changes
-  const colabMax = fat > 0 ? fat : 100_000;
-
   const results = useMemo(() => {
     const hasBase = fat > 0;
     const c1 = hasBase && cr > 0 ? calcularPontos(fat, cr, er, cl) : null;
     const c2 = hasBase && mc > 0 ? calcularPontos(fat, mc, er, cl) : null;
     const c3 = hasBase && mc > 0 ? calcularPontos(fatAnual, mc, me, cl) : null;
+    const cluster1 = c1 != null ? classificarCluster(c1) : null;
+    const cluster2 = c2 != null ? classificarCluster(c2) : null;
+    const cluster3 = c3 != null ? classificarCluster(c3) : null;
+
+    // Gaps do Tracking — o que falta em cada variável para subir de cluster
+    let gaps: { fat: number | null; colab: number | null; csat: number | null; engaj: number | null } = { fat: null, colab: null, csat: null, engaj: null };
+    if (fat > 0 && mc > 0 && mesAtual > 0 && cluster3 != null && cluster3 < 5) {
+      const limiar = CLUSTER_RANGES.find(([,, c]) => c === cluster3 + 1)?.[0] ?? null;
+      if (limiar != null) {
+        // 1. Falta de faturamento acumulado (manter tudo mais, aumentar fat)
+        const qFat = mc * (1 + me) * (1 + cl) * 100;
+        if (qFat > 0) {
+          const fatNec = (limiar * mesAtual) / (12 * qFat);
+          gaps.fat = Math.max(0, Math.round((fatNec - fat) * 100) / 100);
+        }
+
+        // 2. Falta de faturamento colab (cada real colab conta duplo via taxa)
+        // (fat + fat_colab + 2X) * mc * (1+me) * 100 / mes * 12 = limiar => X = (limiar*mes/(12*qColab) - fat - fat_colab) / 2
+        const qColab = mc * (1 + me) * 100;
+        if (qColab > 0) {
+          const fatColabNec = ((limiar * mesAtual) / (12 * qColab) - fat - fatColabVal) / 2;
+          gaps.colab = Math.max(0, Math.round(fatColabNec * 100) / 100);
+        }
+
+        // 3. Meta CSAT necessária (manter fat, engaj, colab)
+        const baseCsat = (fatAnual) * (1 + me) * (1 + cl) * 100;
+        if (baseCsat > 0) {
+          const csatNec = limiar / baseCsat;
+          gaps.csat = csatNec > mc ? Math.round((csatNec - mc) * 100) / 100 : 0;
+        }
+
+        // 4. Meta Engajamento necessário (manter fat, csat, colab)
+        const baseEngaj = fatAnual * mc * (1 + cl) * 100;
+        if (baseEngaj > 0) {
+          const engajNec = limiar / baseEngaj - 1; // decimal
+          gaps.engaj = engajNec > me ? Math.round((engajNec - me) * 10000) / 100 : 0; // em %
+        }
+      }
+    }
+
     return {
-      c1: { pontos: c1, cluster: c1 != null ? classificarCluster(c1) : null },
-      c2: { pontos: c2, cluster: c2 != null ? classificarCluster(c2) : null },
-      c3: { pontos: c3, cluster: c3 != null ? classificarCluster(c3) : null },
+      c1: { pontos: c1, cluster: cluster1 },
+      c2: { pontos: c2, cluster: cluster2 },
+      c3: { pontos: c3, cluster: cluster3 },
+      gaps,
     };
-  }, [fat, cl, cr, mc, er, me, fatAnual]);
+  }, [fat, cl, cr, mc, er, me, fatAnual, mesAtual]);
 
   const hasAnyResult = results.c1.pontos != null || results.c2.pontos != null || results.c3.pontos != null;
-  const colabPct = fat > 0 ? (fatColab / fat) * 100 : 0;
+  const colabPct = fat > 0 ? (fatColabVal / fat) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-grid-pattern relative">
@@ -282,16 +321,30 @@ export default function App() {
                 </p>
               )}
 
-              <SliderField
-                label="Faturamento colaborativo"
-                hint="valor faturado em projetos colaborativos"
-                value={Math.min(fatColab, colabMax)}
-                onChange={(v) => setFatColab(Math.min(v, fat > 0 ? fat : v))}
-                min={0}
-                max={colabMax}
-                step={Math.max(1, Math.floor(colabMax / 200))}
-                formatValue={(v) => `${formatCurrency(v)}${fat > 0 ? ` (${((v / fat) * 100).toFixed(1)}%)` : ''}`}
-              />
+              <div>
+                <CurrencyField
+                  label="Faturamento colaborativo"
+                  hint="valor faturado em projetos colaborativos"
+                  value={fatColab}
+                  onChange={(v) => {
+                    const num = parseFloat(v) || 0;
+                    if (fat > 0 && num > fat) setFatColab(String(fat));
+                    else setFatColab(v);
+                  }}
+                  placeholder="0"
+                />
+                {fat > 0 && fatColabVal > 0 && (
+                  <p className="text-[11px] text-neutral-600 mt-1.5">
+                    Taxa de colaboração:&nbsp;
+                    <span className="text-neutral-400 font-mono">{colabPct.toFixed(1)}%</span>
+                  </p>
+                )}
+                {fat > 0 && fatColabVal > fat && (
+                  <p className="text-[11px] text-red-500 mt-1">
+                    Não pode ser maior que o faturamento total.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -366,7 +419,7 @@ export default function App() {
                   { label: 'Faturamento', value: formatCurrency(fat) },
                   { label: 'CSAT real', value: cr.toFixed(1) },
                   { label: 'Engajamento real', value: `${engajReal}%` },
-                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColab)} (${colabPct.toFixed(1)}%)` },
+                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColabVal)} (${colabPct.toFixed(1)}%)` },
                 ]}
               />
               <ResultCard
@@ -378,7 +431,7 @@ export default function App() {
                   { label: 'Faturamento', value: formatCurrency(fat) },
                   { label: 'Meta CSAT', value: mc.toFixed(1) },
                   { label: 'Engajamento real', value: `${engajReal}%` },
-                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColab)} (${colabPct.toFixed(1)}%)` },
+                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColabVal)} (${colabPct.toFixed(1)}%)` },
                 ]}
               />
               <ResultCard
@@ -390,10 +443,33 @@ export default function App() {
                   { label: 'Fat. anualizado', value: formatCurrency(fatAnual) },
                   { label: 'Meta CSAT', value: mc.toFixed(1) },
                   { label: 'Meta Engajamento', value: `${metaEngaj}%` },
-                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColab)} (${colabPct.toFixed(1)}%)` },
+                  { label: 'Fat. Colaborativo', value: `${formatCurrency(fatColabVal)} (${colabPct.toFixed(1)}%)` },
                 ]}
               />
             </div>
+
+            {/* Gaps do Tracking — o que falta em cada variável */}
+            {results.c3.cluster != null && (
+              <div className="glass-card rounded-2xl px-6 py-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                    Falta para Cluster {results.c3.cluster < 5 ? results.c3.cluster + 1 : 5} no Tracking
+                  </p>
+                  {results.c3.cluster >= 5
+                    ? <span className="text-xs font-semibold text-green-400">Cluster máximo atingido</span>
+                    : (() => { const ci = CLUSTER_COLORS[results.c3.cluster + 1]; return <span className="px-2.5 py-1 rounded-full text-xs font-bold border" style={{ color: ci.color, backgroundColor: ci.bg, borderColor: ci.border }}>C{results.c3.cluster + 1}</span>; })()
+                  }
+                </div>
+                {results.c3.cluster < 5 && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <TrackingGapRow label="Faturamento acumulado" value={results.gaps.fat != null ? formatCurrency(results.gaps.fat) : '—'} />
+                    <TrackingGapRow label="Faturamento colab" value={results.gaps.colab != null ? formatCurrency(results.gaps.colab) : '—'} hint="cada real conta duplo" />
+                    <TrackingGapRow label="Meta CSAT" value={results.gaps.csat != null ? (results.gaps.csat === 0 ? 'já atingido' : `+${results.gaps.csat.toFixed(2)}`) : '—'} hint={mc > 0 ? `atual ${mc.toFixed(1)} → necessário ${mc > 0 && results.gaps.csat != null ? (mc + results.gaps.csat).toFixed(2) : '—'}` : undefined} />
+                    <TrackingGapRow label="Meta Engajamento" value={results.gaps.engaj != null ? (results.gaps.engaj === 0 ? 'já atingido' : `+${results.gaps.engaj.toFixed(1)}%`) : '—'} hint={metaEngaj > 0 ? `atual ${metaEngaj}% → necessário ${results.gaps.engaj != null ? (metaEngaj + results.gaps.engaj).toFixed(1) : '—'}%` : undefined} />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Cluster legend */}
             <div className="glass-card rounded-xl px-5 py-4">
@@ -427,6 +503,18 @@ export default function App() {
           FEJEPE — Federação das Empresas Juniores de Pernambuco
         </footer>
       </main>
+    </div>
+  );
+}
+
+function TrackingGapRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3 flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wide">{label}</p>
+        {hint && <p className="text-[10px] text-neutral-600 mt-0.5 truncate">{hint}</p>}
+      </div>
+      <p className="text-sm font-bold text-primary-300 tabular-nums shrink-0">{value}</p>
     </div>
   );
 }

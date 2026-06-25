@@ -5,12 +5,13 @@ import LoginPage from './features/auth/LoginPage';
 import ProtectedRoute from './auth/ProtectedRoute';
 import FullPageSpinner from './components/FullPageSpinner';
 
-const DashboardPage   = lazy(() => import('./features/dashboard/DashboardPage'));
-const ComparacaoPage  = lazy(() => import('./features/comparacao/ComparacaoPage'));
-const EventosPage     = lazy(() => import('./features/eventos/EventosPage'));
-const SimulacaoPage   = lazy(() => import('./features/simulacao/SimulacaoPage'));
-const EmpresaPage     = lazy(() => import('./features/empresa/EmpresaPage'));
-const IndicadoresPage = lazy(() => import('./features/indicadores/IndicadoresPage'));
+const DashboardPage    = lazy(() => import('./features/dashboard/DashboardPage'));
+const ComparacaoPage   = lazy(() => import('./features/comparacao/ComparacaoPage'));
+const EventosPage      = lazy(() => import('./features/eventos/EventosPage'));
+const SimulacaoPage    = lazy(() => import('./features/simulacao/SimulacaoPage'));
+const EmpresaPage      = lazy(() => import('./features/empresa/EmpresaPage'));
+const IndicadoresPage  = lazy(() => import('./features/indicadores/IndicadoresPage'));
+const ClusterTrackPage = lazy(() => import('./features/cluster-track/ClusterTrackPage'));
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/eventos" element={<EventosPage />} />
             <Route path="/indicadores" element={<IndicadoresPage />} />
             <Route path="/simulacao" element={<SimulacaoPage />} />
+            <Route path="/cluster-track" element={<ClusterTrackPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

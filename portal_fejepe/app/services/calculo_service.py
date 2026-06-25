@@ -436,7 +436,129 @@ def calcular_ritmo_necessario(
     return round(restante / meses_restantes, 2)
 
 
-# ── 11. Média de CSAT ────────────────────────────────────────
+# ── 11. Faturamento para Próximo Cluster ─────────────────────
+
+
+def calcular_faturamento_para_proximo_cluster(
+    fat_acumulado: float,
+    mes_atual: int,
+    meta_csat: float | None,
+    meta_engajamento: float,
+    taxa_colaboracao: float,
+    tracking_cluster_atual: int,
+) -> float | None:
+    """
+    Calcula quanto de faturamento acumulado adicional é necessário para
+    o Tracking de Cluster passar para o próximo cluster.
+
+    Isola fat_acum da fórmula de tracking:
+        tracking = (fat_acum / mes_atual * 12) * qualidade * 100
+        fat_acum_necessario = limiar_proximo / (12 / mes_atual * qualidade * 100)
+
+    Args:
+        fat_acumulado: Faturamento acumulado atual.
+        mes_atual: Mês atual (1–12).
+        meta_csat: Meta de CSAT da EJ.
+        meta_engajamento: Meta de engajamento MEJ em decimal (0–1).
+        taxa_colaboracao: Taxa de faturamento colaborativo em decimal.
+        tracking_cluster_atual: Cluster de tracking calculado atualmente (1–5).
+
+    Returns:
+        Valor adicional de faturamento acumulado necessário (R$), ou None se já
+        estiver no cluster máximo ou dados insuficientes para o cálculo.
+    """
+    if tracking_cluster_atual >= 5:
+        return None
+    if mes_atual <= 0 or fat_acumulado < 0:
+        return None
+    if not meta_csat or meta_csat <= 0:
+        return None
+
+    quality = (
+        meta_csat
+        * (1 + meta_engajamento)
+        * (1 + taxa_colaboracao)
+        * FATOR_ESCALA_PONTOS
+    )
+    if quality <= 0:
+        return None
+
+    # Limiar mínimo do próximo cluster
+    proximo_cluster = tracking_cluster_atual + 1
+    limiar: float | None = None
+    for min_val, _, c in CLUSTER_RANGES:
+        if c == proximo_cluster:
+            limiar = min_val
+            break
+
+    if limiar is None:
+        return None
+
+    fat_necessario = limiar * mes_atual / (MESES_ANO * quality)
+    falta = fat_necessario - fat_acumulado
+    return round(max(0.0, falta), 2)
+
+
+# ── 12. Faturamento Colab para Próximo Cluster ───────────────
+
+
+def calcular_faturamento_colab_para_proximo_cluster(
+    fat_acumulado: float,
+    fat_colab_acumulado: float,
+    meta_csat: float | None,
+    engajamento_real: float,
+    indice_cluster_atual: int,
+) -> float | None:
+    """
+    Calcula quanto de faturamento COLABORATIVO adicional é necessário para
+    subir de cluster no índice c/ meta CSAT.
+
+    Cada real de faturamento colab conta duplo na fórmula:
+        pontos = fat_acum × (1 + taxa_colab) × quality
+               = (fat_acum + fat_colab) × quality
+
+    Adicionando X de faturamento colab (fat_acum e fat_colab crescem em X):
+        (fat_acum + fat_colab + 2X) × quality = limiar
+        X = (limiar / quality − fat_acum − fat_colab) / 2
+
+    Args:
+        fat_acumulado: Faturamento total acumulado atual.
+        fat_colab_acumulado: Faturamento colaborativo acumulado atual.
+        meta_csat: Meta de CSAT da EJ.
+        engajamento_real: Engajamento real medido (decimal 0–1).
+        indice_cluster_atual: Cluster resultante do índice real atual.
+
+    Returns:
+        Valor adicional de faturamento colaborativo necessário (R$), ou None se
+        já no cluster máximo ou dados insuficientes.
+    """
+    if indice_cluster_atual >= 5:
+        return None
+    if fat_acumulado <= 0:
+        return None
+    if not meta_csat or meta_csat <= 0:
+        return None
+
+    # quality sem (1 + taxa_colab) — já expandido na derivação acima
+    quality = meta_csat * (1 + engajamento_real) * FATOR_ESCALA_PONTOS
+    if quality <= 0:
+        return None
+
+    proximo_cluster = indice_cluster_atual + 1
+    limiar: float | None = None
+    for min_val, _, c in CLUSTER_RANGES:
+        if c == proximo_cluster:
+            limiar = min_val
+            break
+
+    if limiar is None:
+        return None
+
+    falta = (limiar / quality - fat_acumulado - fat_colab_acumulado) / 2
+    return round(max(0.0, falta), 2)
+
+
+# ── 13. Média de CSAT ────────────────────────────────────────
 
 
 def calcular_media_csat(valores_csat: list[float | None]) -> float | None:

@@ -20,6 +20,8 @@ from app.models.empresa import (
 )
 from app.services.calculo_service import (
     calcular_crescimento,
+    calcular_faturamento_colab_para_proximo_cluster,
+    calcular_faturamento_para_proximo_cluster,
     calcular_media_csat,
     calcular_percentual_meta,
     calcular_pontos_cluster,
@@ -45,6 +47,7 @@ def listar_empresas(
     mes: int | None = None,
     fora_do_zero_colab: bool = False,
     cluster: int | None = None,
+    cluster_track: int | None = None,
     comunidade: str | None = None,
     status: str | None = None,
     search: str | None = None,
@@ -147,6 +150,13 @@ def listar_empresas(
     if fora_do_zero_colab:
         empresas_com_indicadores = [
             ej for ej in empresas_com_indicadores if ej.projetos_colab_totais > 0
+        ]
+
+    # 5d. Filtro por Cluster Track calculado
+    if cluster_track is not None:
+        empresas_com_indicadores = [
+            ej for ej in empresas_com_indicadores
+            if ej.tracking_cluster_calculado == cluster_track
         ]
 
     # 6. Ordenar
@@ -532,6 +542,48 @@ def _calcular_indicadores_ej(
         else:
             tracking_cluster_calc = cluster_atual_val
 
+    # Índice real (fat acumulado × csat real × engaj real × colab real)
+    indice_cluster_val: float | None = None
+    indice_cluster_calc: int | None = None
+    if csat_medio and engajamento_real is not None and faturamento_acum > 0:
+        pts_real = calcular_pontos_cluster(
+            faturamento_acum,
+            csat_medio,
+            engajamento_real,
+            taxa_colab or 0.0,
+        )
+        indice_cluster_val = round(pts_real, 2)
+        indice_cluster_calc = classificar_cluster(pts_real)
+
+    # Metas anuais
+    meta_csat_val = meta_raw.get("meta_csat") if meta_raw else None
+    meta_eng_raw = meta_raw.get("meta_engajamento_mej") if meta_raw else None
+    meta_taxa_colab_val = meta_raw.get("meta_taxa_colaboracao") if meta_raw else None
+
+    # Falta para o próximo cluster — variante Tracking
+    falta_proximo: float | None = None
+    if tracking_cluster_calc and meta_csat_val and mes_atual > 0:
+        meta_eng_dec = float(meta_eng_raw or 0) / 100
+        falta_proximo = calcular_faturamento_para_proximo_cluster(
+            faturamento_acum,
+            mes_atual,
+            meta_csat_val,
+            meta_eng_dec,
+            taxa_colab or 0.0,
+            tracking_cluster_calc,
+        )
+
+    # Falta para o próximo cluster — variante Faturamento Colab (cada real conta dobro)
+    falta_proximo_colab: float | None = None
+    if indice_cluster_calc and meta_csat_val and engajamento_real is not None:
+        falta_proximo_colab = calcular_faturamento_colab_para_proximo_cluster(
+            faturamento_acum,
+            faturamento_colab_acum,
+            meta_csat_val,
+            engajamento_real,
+            indice_cluster_calc,
+        )
+
     return EmpresaComIndicadores(
         id=ej_raw["id"],
         id_ej=ej_raw["id_ej"],
@@ -557,6 +609,14 @@ def _calcular_indicadores_ej(
         tendencia_cluster=None,
         tracking_cluster=tracking_cluster_val,
         tracking_cluster_calculado=tracking_cluster_calc,
+        indice_cluster=indice_cluster_val,
+        indice_cluster_calculado=indice_cluster_calc,
+        meta_faturamento=float(meta_raw.get("meta_faturamento") or 0) or None if meta_raw else None,
+        meta_csat=float(meta_csat_val) if meta_csat_val else None,
+        meta_engajamento_mej=float(meta_eng_raw) if meta_eng_raw is not None else None,
+        meta_taxa_colaboracao=float(meta_taxa_colab_val) if meta_taxa_colab_val else None,
+        faturamento_para_proximo_cluster=falta_proximo,
+        faturamento_colab_para_proximo_cluster=falta_proximo_colab,
     )
 
 
