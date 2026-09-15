@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Ambiente local do compose
+.env
+
+# Dados reais exportados para o laboratório do TCC
+infra/db/seed/
+!infra/db/seed/.gitkeep
