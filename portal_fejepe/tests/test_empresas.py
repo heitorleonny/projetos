@@ -17,13 +17,27 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.dependencies import get_supabase
+from app.dependencies import get_current_user, get_supabase
 
 
 @pytest.fixture
 def client():
     """TestClient do FastAPI."""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _autenticado():
+    """
+    Autentica todos os testes deste módulo.
+
+    Os endpoints `/api/v1` exigem JWT válido do Supabase; aqui o foco é a
+    lógica de negócio, então a dependency de autenticação é mockada.
+    A cobertura do gate de autenticação em si fica em `test_seguranca.py`.
+    """
+    app.dependency_overrides[get_current_user] = lambda: {"id": "usuario-de-teste"}
+    yield
+    app.dependency_overrides.clear()
 
 
 class MockSupabaseResponse:

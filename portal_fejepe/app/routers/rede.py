@@ -11,11 +11,15 @@ from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.config import settings
-from app.dependencies import get_supabase
+from app.dependencies import get_current_user, get_supabase
 from app.models.indicadores import IndicadoresRede, RankingItem, RitmoMensalResponse, SdeResponse
 from app.services.rede_service import calcular_indicadores_rede, calcular_ritmo_mensal, calcular_sde_cenarios, gerar_ranking
 
-router = APIRouter(prefix="/api/v1/rede", tags=["Rede"])
+router = APIRouter(
+    prefix="/api/v1/rede",
+    tags=["Rede"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(

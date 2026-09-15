@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from supabase import Client
 
 from app.config import settings
-from app.dependencies import get_supabase
+from app.dependencies import get_current_user, get_supabase
 from app.models.empresa import (
     Direcao,
     EmpresaComIndicadores,
@@ -26,7 +26,11 @@ from app.services.empresa_service import (
     listar_empresas,
 )
 
-router = APIRouter(prefix="/api/v1/empresas", tags=["Empresas"])
+router = APIRouter(
+    prefix="/api/v1/empresas",
+    tags=["Empresas"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(

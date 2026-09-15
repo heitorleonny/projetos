@@ -8,11 +8,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from supabase import Client
 
 from app.config import settings
-from app.dependencies import get_supabase
+from app.dependencies import get_current_user, get_supabase
 from app.models.evento import EventoDetalheResponse, EventoResumo
 from app.services.evento_service import calcular_evento, listar_eventos, obter_evento
 
-router = APIRouter(prefix="/api/v1/eventos", tags=["Eventos"])
+router = APIRouter(
+    prefix="/api/v1/eventos",
+    tags=["Eventos"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(
