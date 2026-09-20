@@ -9,6 +9,7 @@ from supabase import Client
 
 from app.models.empresa import EmpresaComIndicadores, Ritmo
 from app.models.indicadores import EjMovimento, IndicadoresRede, RankingItem, RitmoMensalResponse, RitmoMesItem, SdeCenario, SdeResponse
+from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
     calcular_crescimento,
     calcular_media_csat,
@@ -30,6 +31,7 @@ def calcular_indicadores_rede(
     mes: int | None = None,
     cluster: int | None = None,
     comunidade: str | None = None,
+    federacao_id: int | None = None,
 ) -> IndicadoresRede:
     """
     Calcula os KPIs consolidados da rede FEJEPE.
@@ -47,7 +49,7 @@ def calcular_indicadores_rede(
         IndicadoresRede com todos os KPIs calculados.
     """
     # 1. Buscar todas as EJs (com filtros)
-    ej_query = sb.table("empresa_junior").select("*")
+    ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
         ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
     if comunidade:
@@ -177,6 +179,7 @@ def gerar_ranking(
     cluster: int | None = None,
     comunidade: str | None = None,
     limit: int = 20,
+    federacao_id: int | None = None,
 ) -> list[RankingItem]:
     """
     Gera ranking dinâmico de EJs por critério.
@@ -196,7 +199,7 @@ def gerar_ranking(
         Lista de RankingItem ordenada por valor decrescente.
     """
     # Buscar EJs
-    ej_query = sb.table("empresa_junior").select("*")
+    ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
         ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
     if comunidade:
@@ -274,6 +277,7 @@ def calcular_sde_cenarios(
     mes: int | None = None,
     cluster: int | None = None,
     comunidade: str | None = None,
+    federacao_id: int | None = None,
 ) -> SdeResponse:
     """
     Calcula o SDE da rede em três cenários, comparando o cluster calculado
@@ -285,7 +289,7 @@ def calcular_sde_cenarios(
         3. Tracking de Cluster (fat anualizado × meta CSAT × meta engaj × colab real)
     """
     # 1. Buscar EJs
-    ej_query = sb.table("empresa_junior").select("*")
+    ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
         ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
     if comunidade:
@@ -458,6 +462,7 @@ def calcular_ritmo_mensal(
     ano: int,
     cluster: int | None = None,
     comunidade: str | None = None,
+    federacao_id: int | None = None,
 ) -> RitmoMensalResponse:
     """
     Calcula ritmo mínimo e significativo para cada mês do ano.
@@ -475,7 +480,7 @@ def calcular_ritmo_mensal(
         RitmoMensalResponse com 12 itens (jan–dez).
     """
     # 1. Buscar EJs
-    ej_query = sb.table("empresa_junior").select("*")
+    ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
         ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
     if comunidade:

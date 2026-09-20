@@ -5,6 +5,11 @@ Endpoints:
     GET /api/v1/empresas          — Listar EJs com filtros, ordenação e paginação
     GET /api/v1/empresas/comparar — Comparar múltiplas EJs lado a lado
     GET /api/v1/empresas/{id_ej}  — Perfil completo de uma EJ
+
+Papel mínimo por endpoint (decisão registrada aqui porque o código sozinho não
+a explica): LEITURA exige `membro`; ESCRITA, quando existir, exige `admin`.
+Hoje o router é só de leitura, então na prática nada muda — mas quem adicionar
+o primeiro POST/PUT/DELETE precisa saber a regra antes de escrever a rota.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from supabase import Client
 
 from app.config import settings
-from app.dependencies import get_current_user, get_supabase
+from app.dependencies import get_current_user, get_federacao_id, get_supabase, require_papel
 from app.models.empresa import (
     Direcao,
     EmpresaComIndicadores,
@@ -29,7 +34,7 @@ from app.services.empresa_service import (
 router = APIRouter(
     prefix="/api/v1/empresas",
     tags=["Empresas"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_papel("membro"))],
 )
 
 
@@ -59,6 +64,7 @@ def list_empresas(
     page: int = Query(default=1, ge=1, description="Página atual"),
     page_size: int = Query(default=20, ge=1, le=100, description="Itens por página"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> EmpresaListaResponse:
     """Lista EJs com filtros, indicadores calculados, ordenação e paginação."""
     return listar_empresas(
@@ -77,6 +83,7 @@ def list_empresas(
         direcao=direcao,
         page=page,
         page_size=page_size,
+        federacao_id=federacao_id,
     )
 
 
@@ -94,9 +101,10 @@ def compare_empresas(
     ano: int = Query(default=settings.ANO_DEFAULT, description="Ano de referência"),
     mes: int | None = Query(default=None, ge=1, le=12, description="Mês de referência"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> list[EmpresaComIndicadores]:
     """Compara EJs lado a lado com indicadores calculados."""
-    return comparar_empresas(sb, ids, ano=ano, mes=mes)
+    return comparar_empresas(sb, ids, ano=ano, mes=mes, federacao_id=federacao_id)
 
 
 @router.get(
@@ -114,9 +122,10 @@ def get_empresa(
     ano: int = Query(default=settings.ANO_DEFAULT, description="Ano de referência"),
     mes: int | None = Query(default=None, ge=1, le=12, description="Mês de referência"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> EmpresaPerfilCompleto:
     """Retorna perfil completo de uma EJ individual."""
-    result = buscar_empresa(sb, id_ej, ano=ano, mes=mes)
+    result = buscar_empresa(sb, id_ej, ano=ano, mes=mes, federacao_id=federacao_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"EJ com id_ej={id_ej} não encontrada.")
     return result

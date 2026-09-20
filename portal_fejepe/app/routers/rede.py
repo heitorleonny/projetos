@@ -4,6 +4,11 @@ Router de endpoints para indicadores da rede FEJEPE.
 Endpoints:
     GET /api/v1/rede/indicadores — KPIs consolidados da rede
     GET /api/v1/rede/ranking     — Ranking dinâmico de EJs
+
+Papel mínimo por endpoint (decisão registrada aqui porque o código sozinho não
+a explica): LEITURA exige `membro`; ESCRITA, quando existir, exige `admin`.
+Hoje o router é só de leitura, então na prática nada muda — mas quem adicionar
+o primeiro POST/PUT/DELETE precisa saber a regra antes de escrever a rota.
 """
 
 from fastapi import APIRouter, Depends, Query
@@ -11,14 +16,14 @@ from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.config import settings
-from app.dependencies import get_current_user, get_supabase
+from app.dependencies import get_current_user, get_federacao_id, get_supabase, require_papel
 from app.models.indicadores import IndicadoresRede, RankingItem, RitmoMensalResponse, SdeResponse
 from app.services.rede_service import calcular_indicadores_rede, calcular_ritmo_mensal, calcular_sde_cenarios, gerar_ranking
 
 router = APIRouter(
     prefix="/api/v1/rede",
     tags=["Rede"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(require_papel("membro"))],
 )
 
 
@@ -38,6 +43,7 @@ def get_indicadores_rede(
     cluster: int | None = Query(default=None, ge=1, le=5, description="Filtrar por cluster"),
     comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> IndicadoresRede:
     """Calcula e retorna indicadores consolidados da rede."""
     return calcular_indicadores_rede(
@@ -46,6 +52,7 @@ def get_indicadores_rede(
         mes=mes,
         cluster=cluster,
         comunidade=comunidade,
+        federacao_id=federacao_id,
     )
 
 
@@ -63,6 +70,7 @@ def get_ritmo_mensal(
     cluster: int | None = Query(default=None, ge=1, le=5, description="Filtrar por cluster"),
     comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> RitmoMensalResponse:
     """Calcula ritmo mínimo e significativo para cada mês do ano."""
     return calcular_ritmo_mensal(
@@ -70,6 +78,7 @@ def get_ritmo_mensal(
         ano=ano,
         cluster=cluster,
         comunidade=comunidade,
+        federacao_id=federacao_id,
     )
 
 
@@ -88,9 +97,12 @@ def get_sde(
     cluster: int | None = Query(default=None, ge=1, le=5, description="Filtrar por cluster"),
     comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> SdeResponse:
     """Calcula SDE da rede em três cenários de índice de cluster."""
-    return calcular_sde_cenarios(sb, ano=ano, mes=mes, cluster=cluster, comunidade=comunidade)
+    return calcular_sde_cenarios(
+        sb, ano=ano, mes=mes, cluster=cluster, comunidade=comunidade, federacao_id=federacao_id
+    )
 
 
 @router.get(
@@ -115,6 +127,7 @@ def get_ranking(
     comunidade: str | None = Query(default=None, description="Filtrar por comunidade"),
     limit: int = Query(default=20, ge=1, le=100, description="Máximo de itens no ranking"),
     sb: Client = Depends(get_supabase),
+    federacao_id: int | None = Depends(get_federacao_id),
 ) -> list[RankingItem]:
     """Gera ranking dinâmico de EJs."""
     return gerar_ranking(
@@ -125,4 +138,5 @@ def get_ranking(
         cluster=cluster,
         comunidade=comunidade,
         limit=limit,
+        federacao_id=federacao_id,
     )

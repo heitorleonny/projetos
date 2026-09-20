@@ -18,6 +18,7 @@ from app.models.empresa import (
     OrdemEmpresa,
     PaginacaoMeta,
 )
+from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
     calcular_crescimento,
     calcular_faturamento_colab_para_proximo_cluster,
@@ -57,6 +58,7 @@ def listar_empresas(
     direcao: Direcao = Direcao.asc,
     page: int = 1,
     page_size: int = 20,
+    federacao_id: int | None = None,
 ) -> EmpresaListaResponse:
     """
     Lista EJs com filtros, ordenação e paginação.
@@ -79,12 +81,14 @@ def listar_empresas(
         direcao: Direção da ordenação (asc/desc).
         page: Página atual.
         page_size: Itens por página.
+        federacao_id: Tenant de quem consulta (None = sem filtro no código).
 
     Returns:
         EmpresaListaResponse com dados paginados e indicadores.
     """
-    # 1. Buscar EJs com filtros
-    query = sb.table("empresa_junior").select("*")
+    # 1. Buscar EJs com filtros. O tenant entra primeiro, antes de qualquer
+    #    filtro de usuário — ver app/services/tenant.py.
+    query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
 
     if cluster is not None:
         query = query.eq(get_cluster_column_name(ano), cluster)
@@ -180,6 +184,7 @@ def buscar_empresa(
     *,
     ano: int,
     mes: int | None = None,
+    federacao_id: int | None = None,
 ) -> EmpresaPerfilCompleto | None:
     """
     Busca o perfil completo de uma EJ individual.
@@ -191,12 +196,18 @@ def buscar_empresa(
         id_ej: Identificador da EJ (campo id_ej).
         ano: Ano de referência.
         mes: Mês de referência (None = último disponível).
+        federacao_id: Tenant de quem consulta (None = sem filtro no código).
 
     Returns:
         EmpresaPerfilCompleto ou None se EJ não encontrada.
+
+    EJ de outra federação responde igual a EJ inexistente (None → 404). É o
+    desejado: distinguir as duas contaria ao chamador que aquele id existe.
     """
     # Buscar EJ
-    result = sb.table("empresa_junior").select("*").eq("id_ej", id_ej).execute()
+    result = filtrar_por_tenant(
+        sb.table("empresa_junior").select("*").eq("id_ej", id_ej), federacao_id
+    ).execute()
     if not result.data:
         return None
     ej_raw = result.data[0]
@@ -368,6 +379,7 @@ def comparar_empresas(
     *,
     ano: int,
     mes: int | None = None,
+    federacao_id: int | None = None,
 ) -> list[EmpresaComIndicadores]:
     """
     Compara múltiplas EJs lado a lado.
@@ -377,12 +389,17 @@ def comparar_empresas(
         ids_ej: Lista de id_ej para comparar (max 10).
         ano: Ano de referência.
         mes: Mês de referência.
+        federacao_id: Tenant de quem consulta (None = sem filtro no código).
 
     Returns:
         Lista de EmpresaComIndicadores ordenada por faturamento desc.
+
+    Ids de outra federação somem da comparação em vez de virarem erro.
     """
     # Buscar EJs
-    result = sb.table("empresa_junior").select("*").in_("id_ej", ids_ej).execute()
+    result = filtrar_por_tenant(
+        sb.table("empresa_junior").select("*").in_("id_ej", ids_ej), federacao_id
+    ).execute()
     empresas_raw = result.data or []
 
     if not empresas_raw:

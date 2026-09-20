@@ -120,6 +120,7 @@ def calcular_evento(
     *,
     ano: int | None = None,
     mes: int | None = None,
+    federacao_id: int | None = None,
 ) -> EventoDetalheResponse | None:
     """Calcula o resultado atual das metas de um evento."""
     evento = EVENTOS_POR_ID.get(evento_id)
@@ -129,7 +130,7 @@ def calcular_evento(
     ano_ref = ano or evento.ano
     mes_ref = mes or evento.mes_referencia
 
-    empresas = _listar_empresas_evento(sb, ano_ref, mes_ref)
+    empresas = _listar_empresas_evento(sb, ano_ref, mes_ref, federacao_id)
     total_ejs = len(empresas)
     metas = [_calcular_meta(meta_def, empresas, total_ejs, mes_ref) for meta_def in METAS_EVENTO[evento_id]]
 
@@ -147,13 +148,16 @@ def calcular_evento(
     )
 
 
-def _listar_empresas_evento(sb: Client, ano: int, mes: int) -> list[EmpresaComIndicadores]:
+def _listar_empresas_evento(
+    sb: Client, ano: int, mes: int, federacao_id: int | None = None
+) -> list[EmpresaComIndicadores]:
     response = listar_empresas(
         sb,
         ano=ano,
         mes=mes,
         page=1,
         page_size=5000,
+        federacao_id=federacao_id,
     )
     return [empresa for empresa in response.data if _is_ej_ativa(empresa)]
 
