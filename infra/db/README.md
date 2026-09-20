@@ -4,7 +4,7 @@ Para que serve: rodar a modelagem preditiva do TCC sobre uma cópia dos dados,
 sem tocar na base de produção da FEJEPE.
 
 ```bash
-make lab                      # sobe o Postgres em localhost:5432
+make lab                      # sobe o Postgres em localhost:55432
 ```
 
 O schema em `init/01-schema.sql` é criado automaticamente na primeira subida
@@ -63,3 +63,19 @@ de carga (o `\copy`) só funciona se o CSV trouxer a coluna, ou se você carrega
 numa staging e preencher o tenant no INSERT. Isso é intencional: sem default,
 uma carga que esqueceu o tenant falha na hora, em vez de rotular as EJs de outra
 federação como FEJEPE.
+
+## Por que a porta é 55432
+
+Postgres instalado na máquina (Homebrew `postgresql@16`, Postgres.app) escuta em
+`127.0.0.1:5432`. O container publica no coringa `*:5432`, e o bind específico
+ganha: toda conexão a `localhost:5432` vai para o banco da máquina, não para o
+laboratório. O sintoma é `FATAL: role "portal" does not exist` — e o sintoma
+ruim é quando o banco da máquina *tem* um role com esse nome, e aí a consulta
+responde do lugar errado sem reclamar.
+
+Daí o default `POSTGRES_PORT=55432`. Para conferir com qual você está falando:
+
+```bash
+docker compose ps db                       # confere a porta publicada
+psql postgresql://portal:portal@localhost:55432/portal_lab -c "select current_database()"
+```

@@ -5,6 +5,14 @@ pydantic[email]==2.*
 pydantic-settings==2.*
 python-dotenv==1.*
 httpx==0.28.*
+numpy==2.*
+
+# ── Dependências de teste/desenvolvimento ────────────────────
+# Não fazem parte do caminho de produção.
 pytest==8.*
 pytest-asyncio==0.25.*
-numpy==2.*
+# psycopg é usado SÓ por tests/test_rls.py, que fala SQL direto com o Postgres
+# do laboratório (`make lab`) para verificar as políticas de Row Level Security.
+# A aplicação continua acessando o banco via PostgREST (cliente Supabase) — o
+# driver de produção não muda. Ver docs/adr-002-rls-local-sem-stack-completa.md.
+psycopg[binary]==3.*
