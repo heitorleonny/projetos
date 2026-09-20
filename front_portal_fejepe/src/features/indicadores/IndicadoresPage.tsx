@@ -8,6 +8,7 @@ import { useIndicadoresRede, useFaturamentoMensal, useRitmoMensal, useEmpresasRe
 import type { EjMovimento, SdeCenario } from './indicadoresService';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
 import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
+import { ultimosAnos } from '../../utils/anos';
 
 const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
 const CLUSTERS = [1, 2, 3, 4, 5];
@@ -119,8 +120,8 @@ function truncateCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidt
 }
 
 export default function IndicadoresPage() {
-    const { nome } = useFederacaoBranding();
-    const [ano, setAno] = useState(2026);
+    const { nome, anoDefault } = useFederacaoBranding();
+    const [ano, setAno] = useState(anoDefault);
     const [cluster, setCluster] = useState<number | undefined>();
     const [comunidade, setComunidade] = useState<string | undefined>();
     const [selectedCharts, setSelectedCharts] = useState<Set<string>>(new Set());
@@ -576,7 +577,7 @@ export default function IndicadoresPage() {
                     <div>
                         <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2 block">Ano</label>
                         <select value={ano} onChange={(e) => setAno(Number(e.target.value))} className={selectClass} style={selectStyle}>
-                            {[2023, 2024, 2025, 2026].map((a) => (
+                            {ultimosAnos(anoDefault, 4).map((a) => (
                                 <option key={a} value={a} className="bg-neutral-800">{a}</option>
                             ))}
                         </select>

@@ -8,13 +8,16 @@ import { useEmpresaPerfil } from './useEmpresaPerfil';
 import { formatCurrency, formatPercent, getClusterInfo, getRitmoLabel } from '../../utils/formatters';
 import type { FaturamentoMensal, MetaVsRealizado } from '../../types/empresa';
 import EjLogo from '../../components/EjLogo';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
+import { ultimosAnosDecrescente } from '../../utils/anos';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const MESES_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 export default function EmpresaPage() {
     const { idEj } = useParams<{ idEj: string }>();
-    const [ano, setAno] = useState(2026);
+    const { anoDefault } = useFederacaoBranding();
+    const [ano, setAno] = useState(anoDefault);
     const [mes, setMes] = useState<number | undefined>(undefined);
 
     const { data, isLoading, isError } = useEmpresaPerfil(Number(idEj) || 0, ano, mes);
@@ -169,7 +172,7 @@ export default function EmpresaPage() {
                                     backgroundSize: '16px',
                                 }}
                             >
-                                {[2026, 2025, 2024, 2023].map((y) => (
+                                {ultimosAnosDecrescente(anoDefault, 4).map((y) => (
                                     <option key={y} value={y} className="bg-neutral-800">{y}</option>
                                 ))}
                             </select>

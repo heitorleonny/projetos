@@ -7,14 +7,14 @@ import type { EmpresaQueryParams } from '../../types/empresa';
 import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 export default function DashboardPage() {
+    const { nome, anoDefault } = useFederacaoBranding();
     const [filters, setFilters] = useState<EmpresaQueryParams>({
-        ano: 2026,
+        ano: anoDefault,
         mes: new Date().getMonth() + 1,
         ordem_por: 'faturamento',
         direcao: 'desc',
     });
 
-    const { nome } = useFederacaoBranding();
     const { data, isLoading, isError, error } = useDashboard(filters);
     const [showExport, setShowExport] = useState(false);
     const restoreScrollRef = useRef<number | null>(null);

@@ -4,8 +4,10 @@ import EventoMetaCard from './EventoMetaCard';
 import CirandaMetaCard from './CirandaMetaCard';
 import { useEventoDetalhe, useEventos } from './useEventos';
 import type { EventoMetaTipo } from '../../types/evento';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 export default function EventosPage() {
+    const { anoDefault } = useFederacaoBranding();
     const { data: eventos, isLoading: eventosLoading, isError: eventosIsError, error: eventosError } = useEventos();
     const [selectedEventoId, setSelectedEventoId] = useState<string | null>(null);
     const [expandedMetas, setExpandedMetas] = useState<Set<EventoMetaTipo>>(new Set());
@@ -26,7 +28,7 @@ export default function EventosPage() {
         [eventos, selectedEventoId],
     );
 
-    const { data: eventoDetalhe, isLoading: detalheLoading, isError: detalheIsError, error: detalheError } = useEventoDetalhe(selectedEventoId);
+    const { data: eventoDetalhe, isLoading: detalheLoading, isError: detalheIsError, error: detalheError } = useEventoDetalhe(selectedEventoId, anoDefault);
 
     const toggleMeta = (tipo: EventoMetaTipo) => {
         setExpandedMetas((prev) => {

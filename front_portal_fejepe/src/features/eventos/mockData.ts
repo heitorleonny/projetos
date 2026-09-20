@@ -17,6 +17,9 @@ type EventoMetaDef = {
     submeta_percentual?: number;
 };
 
+// Os 2026 daqui NAO sao default de ano: sao o evento em si. O CirandaMEJ'26
+// aconteceu de fevereiro a maio de 2026, e a edicao seguinte sera' outro
+// registro, com outro id e outro ano. Mock de dado historico, nao configuracao.
 const EVENTOS_MOCK: EventoResumo[] = [
     {
         id_evento: 'ciranda-mej-26',

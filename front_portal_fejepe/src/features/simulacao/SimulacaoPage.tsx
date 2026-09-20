@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchIndicadoresRede } from '../indicadores/indicadoresService';
 import { getClusterInfo } from '../../utils/formatters';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 const CLUSTERS = [1, 2, 3, 4, 5] as const;
 const PESOS: Record<number, number> = { 1: 0.30, 2: 0.25, 3: 0.15, 4: 0.15, 5: 0.15 };
-const ANO_DEFAULT = 2026;
 
 interface ClusterRow {
     total: number;
@@ -67,11 +67,12 @@ function Spinner({
 }
 
 export default function SimulacaoPage() {
+    const { anoDefault } = useFederacaoBranding();
     const [rows, setRows] = useState<Record<number, ClusterRow>>(INITIAL_STATE);
 
     const { data: indicadores } = useQuery({
-        queryKey: ['indicadores-rede', { ano: ANO_DEFAULT }],
-        queryFn: () => fetchIndicadoresRede({ ano: ANO_DEFAULT }),
+        queryKey: ['indicadores-rede', { ano: anoDefault }],
+        queryFn: () => fetchIndicadoresRede({ ano: anoDefault }),
     });
 
     // Preenche totais com os dados reais quando a API responde

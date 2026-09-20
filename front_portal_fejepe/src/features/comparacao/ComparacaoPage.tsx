@@ -4,8 +4,12 @@ import type { EmpresaComIndicadores } from '../../types/empresa';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
 import EjLogo from '../../components/EjLogo';
 import ComparacaoExportModal, { type ComparacaoExportField } from './ComparacaoExportModal';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
+import { corDoAno, ultimosAnos } from '../../utils/anos';
 
-const ANOS_DISPONIVEIS = [2022, 2023, 2024, 2025, 2026];
+// Cinco anos: a janela que esta tela ja' oferecia. Calculada a partir do ano
+// de referencia da API, em vez de escrita a' mao.
+const ANOS_NA_COMPARACAO = 5;
 const MESES = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -79,7 +83,15 @@ interface EjRow {
 }
 
 export default function ComparacaoPage() {
-    const [anosSelecionados, setAnosSelecionados] = useState<number[]>([2025, 2026]);
+    const { anoDefault } = useFederacaoBranding();
+    const anosDisponiveis = useMemo(
+        () => ultimosAnos(anoDefault, ANOS_NA_COMPARACAO),
+        [anoDefault],
+    );
+    // Abre comparando o ano de referencia com o anterior.
+    const [anosSelecionados, setAnosSelecionados] = useState<number[]>(
+        () => [anoDefault - 1, anoDefault],
+    );
     const [mesSelecionado, setMesSelecionado] = useState<number | undefined>(undefined);
     const [indicador, setIndicador] = useState<Indicador>('faturamento');
     const [busca, setBusca] = useState('');
@@ -204,13 +216,6 @@ export default function ComparacaoPage() {
         return max || 1;
     }, [rows, anosSelecionados, getValor]);
 
-    const anoColors: Record<number, string> = {
-        2022: '#06B6D4',
-        2023: '#8B5CF6',
-        2024: '#F59E0B',
-        2025: '#0D6EFD',
-        2026: '#16A34A',
-    };
 
     const exportarCsv = (selectedFieldKeys: string[]) => {
         if (selectedFieldKeys.length === 0) return;
@@ -306,7 +311,7 @@ export default function ComparacaoPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     {anosSelecionados.map((ano) => {
                         const s = summaryPerAno[ano];
-                        const color = anoColors[ano] ?? '#0D6EFD';
+                        const color = corDoAno(ano);
                         return (
                             <div
                                 key={ano}
@@ -351,9 +356,9 @@ export default function ComparacaoPage() {
                                 Selecionar Anos
                             </label>
                             <div className="flex flex-wrap gap-2">
-                                {ANOS_DISPONIVEIS.map((ano) => {
+                                {anosDisponiveis.map((ano) => {
                                     const active = anosSelecionados.includes(ano);
-                                    const color = anoColors[ano] ?? '#0D6EFD';
+                                    const color = corDoAno(ano);
                                     return (
                                         <button
                                             key={ano}
@@ -516,7 +521,7 @@ export default function ComparacaoPage() {
                             <div key={ano} className="flex items-center gap-1.5">
                                 <span
                                     className="w-3 h-3 rounded-sm"
-                                    style={{ backgroundColor: anoColors[ano] ?? '#0D6EFD' }}
+                                    style={{ backgroundColor: corDoAno(ano) }}
                                 />
                                 <span className="text-xs font-semibold text-neutral-400">{ano}</span>
                             </div>
@@ -582,7 +587,7 @@ export default function ComparacaoPage() {
                                     <div className="space-y-2">
                                         {anosSelecionados.map((ano, idx) => {
                                             const val = valores[idx];
-                                            const color = anoColors[ano] ?? '#0D6EFD';
+                                            const color = corDoAno(ano);
                                             const barWidth = val != null && indicador !== 'cluster'
                                                 ? Math.max((Math.abs(val) / maxValor) * 100, 2)
                                                 : 0;

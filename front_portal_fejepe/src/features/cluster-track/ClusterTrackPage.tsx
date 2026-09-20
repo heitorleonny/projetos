@@ -5,13 +5,18 @@ import { fetchEmpresas } from '../dashboard/dashboardService';
 import { formatCurrency, formatPercent, formatSde, getClusterInfo } from '../../utils/formatters';
 import EjLogo from '../../components/EjLogo';
 import type { EmpresaComIndicadores } from '../../types/empresa';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
+import { ultimosAnosDecrescente } from '../../utils/anos';
 
 const CLUSTERS = [1, 2, 3, 4, 5];
 
 export default function ClusterTrackPage() {
     const [cluster, setCluster] = useState<number | undefined>(undefined);
     const [search, setSearch] = useState('');
-    const [ano, setAno] = useState(2026);
+    const { anoDefault } = useFederacaoBranding();
+    const [ano, setAno] = useState(anoDefault);
+    // Duas janelas: esta tela compara o ano corrente com o anterior.
+    const anosDisponiveis = ultimosAnosDecrescente(anoDefault, 2);
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['cluster-track', cluster, search, ano],
@@ -101,8 +106,9 @@ export default function ClusterTrackPage() {
                                    focus:outline-none focus:border-primary-500/50 transition-all cursor-pointer appearance-none"
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '16px' }}
                     >
-                        <option value={2026} className="bg-neutral-800">2026</option>
-                        <option value={2025} className="bg-neutral-800">2025</option>
+                        {anosDisponiveis.map((a) => (
+                            <option key={a} value={a} className="bg-neutral-800">{a}</option>
+                        ))}
                     </select>
                 </div>
 
