@@ -6,7 +6,6 @@ import EjLogo from '../../components/EjLogo';
 import ComparacaoExportModal, { type ComparacaoExportField } from './ComparacaoExportModal';
 
 const ANOS_DISPONIVEIS = [2022, 2023, 2024, 2025, 2026];
-const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
 const MESES = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -26,7 +25,6 @@ const INDICADORES: { key: Indicador; label: string; icon: string }[] = [
 type BaseExportFieldKey =
     | 'id_ej'
     | 'nome'
-    | 'comunidade'
     | 'cidade'
     | 'universidade'
     | 'status';
@@ -46,7 +44,6 @@ type AnoExportFieldKey =
 const EXPORT_FIELDS: ComparacaoExportField[] = [
     { key: 'id_ej', label: 'ID EJ', scope: 'base', defaultSelected: true },
     { key: 'nome', label: 'Nome', scope: 'base', defaultSelected: true },
-    { key: 'comunidade', label: 'Comunidade', scope: 'base', defaultSelected: true },
     { key: 'cidade', label: 'Cidade', scope: 'base' },
     { key: 'universidade', label: 'Universidade', scope: 'base' },
     { key: 'status', label: 'Status', scope: 'base' },
@@ -74,7 +71,6 @@ const selectStyle = {
 interface EjRow {
     id_ej: number;
     nome: string;
-    comunidade: string | null;
     foto_url: string | null;
     cidade: string | null;
     universidade: string | null;
@@ -85,7 +81,6 @@ interface EjRow {
 export default function ComparacaoPage() {
     const [anosSelecionados, setAnosSelecionados] = useState<number[]>([2025, 2026]);
     const [mesSelecionado, setMesSelecionado] = useState<number | undefined>(undefined);
-    const [comunidadeSelecionada, setComunidadeSelecionada] = useState<string | undefined>(undefined);
     const [indicador, setIndicador] = useState<Indicador>('faturamento');
     const [busca, setBusca] = useState('');
     const [showExportModal, setShowExportModal] = useState(false);
@@ -96,7 +91,6 @@ export default function ComparacaoPage() {
     const { data, isLoading, isError, error } = useComparacao(
         anosSelecionados,
         mesSelecionado,
-        comunidadeSelecionada,
     );
 
     const toggleAno = (ano: number) => {
@@ -123,7 +117,6 @@ export default function ComparacaoPage() {
                         status: ej.status,
                         id_ej: ej.id_ej,
                         nome: ej.nome,
-                        comunidade: ej.comunidade,
                         foto_url: ej.foto_url,
                         porAno: {},
                     });
@@ -135,7 +128,6 @@ export default function ComparacaoPage() {
                     row.universidade = ej.universidade;
                     row.status = ej.status;
                     row.nome = ej.nome;
-                    row.comunidade = ej.comunidade;
                     row.foto_url = ej.foto_url;
                 }
             }
@@ -145,11 +137,7 @@ export default function ComparacaoPage() {
 
         if (busca.trim()) {
             const term = busca.trim().toLowerCase();
-            result = result.filter(
-                (r) =>
-                    r.nome.toLowerCase().includes(term) ||
-                    (r.comunidade ?? '').toLowerCase().includes(term),
-            );
+            result = result.filter((r) => r.nome.toLowerCase().includes(term));
         }
 
         return result.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -241,7 +229,6 @@ export default function ComparacaoPage() {
         const baseFieldGetters: Record<BaseExportFieldKey, (row: EjRow) => string | number> = {
             id_ej: (row) => row.id_ej,
             nome: (row) => row.nome,
-            comunidade: (row) => row.comunidade ?? '',
             cidade: (row) => row.cidade ?? '',
             universidade: (row) => row.universidade ?? '',
             status: (row) => row.status ?? '',
@@ -396,6 +383,17 @@ export default function ComparacaoPage() {
                             </div>
                         </div>
 
+                        {/*
+                          * Aqui ficava o filtro por comunidade. "Comunidade" e' vocabulario
+                          * so' da FEJEPE e ja' saiu do modelo de dados multi-tenant — o
+                          * agrupamento equivalente entre federacoes e' o nucleo.
+                          *
+                          * TODO: usar nucleo quando a API expuser. Hoje ela nao expoe
+                          * (nem empresa_service.py nem o modelo EmpresaJunior devolvem o
+                          * campo), e um filtro sem dado por tras e' pior do que filtro
+                          * nenhum: a tela oferece um recorte que nunca retorna nada.
+                          */}
+
                         {/* Month dropdown */}
                         <div className="sm:w-44">
                             <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
@@ -415,28 +413,6 @@ export default function ComparacaoPage() {
                                 {MESES.map((label, i) => (
                                     <option key={i + 1} value={i + 1} className="bg-neutral-800">
                                         {label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Community dropdown */}
-                        <div className="sm:w-56">
-                            <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
-                                Comunidade
-                            </label>
-                            <select
-                                value={comunidadeSelecionada ?? ''}
-                                onChange={(e) => setComunidadeSelecionada(e.target.value || undefined)}
-                                className={selectClass}
-                                style={selectStyle}
-                            >
-                                <option value="" className="bg-neutral-800">
-                                    Todas
-                                </option>
-                                {COMUNIDADES.map((c) => (
-                                    <option key={c} value={c} className="bg-neutral-800">
-                                        {c}
                                     </option>
                                 ))}
                             </select>
@@ -486,7 +462,7 @@ export default function ComparacaoPage() {
                         </svg>
                         <input
                             type="text"
-                            placeholder="Buscar EJ por nome ou comunidade..."
+                            placeholder="Buscar EJ por nome..."
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-neutral-500
@@ -583,9 +559,8 @@ export default function ComparacaoPage() {
                                             <h3 className="font-semibold text-sm text-white truncate group-hover:text-primary-300 transition-colors">
                                                 {row.nome}
                                             </h3>
-                                            <p className="text-[11px] text-neutral-500 truncate">
-                                                {row.comunidade ?? '—'}
-                                            </p>
+                                            {/* TODO: nucleo como subtitulo, quando a API expuser.
+                                                Era a comunidade da EJ. */}
                                         </div>
                                         {/* Variation badge */}
                                         {variacao != null && (
