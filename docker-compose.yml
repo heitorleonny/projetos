@@ -16,6 +16,11 @@ services:
       context: ./portal_fejepe
     environment:
       SUPABASE_URL: ${SUPABASE_URL:-}
+      # Só a chave ANÔNIMA chega ao container da API: é ela que respeita RLS.
+      # A service key (que ignora RLS) fica de fora de propósito — script
+      # administrativo roda fora daqui.
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      # Nome legado, repassado para que um `.env` antigo continue funcionando.
       SUPABASE_KEY: ${SUPABASE_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
       DOCS_ENABLED: ${DOCS_ENABLED:-false}
@@ -62,6 +67,7 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
       SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
       SUPABASE_KEY: ${SUPABASE_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       ANO_DEFAULT: ${ANO_DEFAULT:-2026}
@@ -100,7 +106,7 @@ services:
     command: ["python", "-m", "pytest", "-q"]
     environment:
       SUPABASE_URL: http://localhost
-      SUPABASE_KEY: test-key-nao-usada
+      SUPABASE_ANON_KEY: test-key-nao-usada
 
   # ── Laboratório de dados do TCC ────────────────────────────
   # Postgres local para a modelagem preditiva. NÃO é o banco da API:

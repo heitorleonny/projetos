@@ -24,7 +24,7 @@ import os
 
 # Garantir variáveis de ambiente antes de importar a app
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_KEY", "test-key")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
 
 import random
 from unittest.mock import MagicMock
@@ -34,7 +34,7 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.dependencies import get_supabase
-from app.main import app
+from app.main import app, criar_app
 
 # ── Tokens usados nos testes ─────────────────────────────────
 
@@ -101,11 +101,28 @@ class MockSupabaseQuery:
 
 
 class UsuarioFake:
-    """Usuário autenticado devolvido pelo Supabase Auth mockado."""
+    """
+    Usuário autenticado devolvido pelo Supabase Auth mockado.
 
-    def __init__(self, id_usuario: str = "usuario-de-teste"):
+    `app_metadata` carrega o que o Custom Access Token Hook copia da tabela
+    `usuario` para o JWT: o tenant e o papel. Os testes desta suíte usam a
+    federação 12 (FEJEPE) com papel `admin` — variações de papel e de tenant
+    ficam em tests/test_papeis.py.
+    """
+
+    def __init__(
+        self,
+        id_usuario: str = "usuario-de-teste",
+        federacao_id: int | None = 12,
+        papel: str | None = "admin",
+    ):
         self.id = id_usuario
         self.email = "teste@fejepe.org.br"
+        self.app_metadata = {}
+        if federacao_id is not None:
+            self.app_metadata["federacao_id"] = federacao_id
+        if papel is not None:
+            self.app_metadata["papel"] = papel
 
 
 class RespostaAuthFake:
@@ -612,3 +629,46 @@ class TestPreservacaoCORS:
         assert response.status_code == 200
         acao = response.headers.get("access-control-allow-origin")
         assert acao in (origem, "*")
+
+
+# ══════════════════════════════════════════════════════════════
+# DOCUMENTAÇÃO INTERATIVA — /docs, /redoc e /openapi.json
+# O schema da API é o mapa de tudo o que o gate de auth protege:
+# em produção ele não precisa ser público.
+# ══════════════════════════════════════════════════════════════
+
+ROTAS_DE_DOCUMENTACAO = ["/docs", "/redoc", "/openapi.json"]
+
+
+class TestDocumentacaoInterativa:
+    """A documentação segue `settings.DOCS_ENABLED` nos dois sentidos."""
+
+    def test_docs_desligada_nao_existe(self, monkeypatch):
+        """Com a flag desligada, as rotas de documentação somem (404)."""
+        monkeypatch.setattr(settings, "DOCS_ENABLED", False)
+        with TestClient(criar_app()) as c:
+            for rota in ROTAS_DE_DOCUMENTACAO:
+                assert c.get(rota).status_code == 404, f"{rota} ainda está exposta"
+
+    def test_health_continua_publico_com_docs_desligada(self, monkeypatch):
+        """Desligar a documentação não afeta o health check."""
+        monkeypatch.setattr(settings, "DOCS_ENABLED", False)
+        with TestClient(criar_app()) as c:
+            assert c.get("/health").status_code == 200
+
+    def test_endpoints_protegidos_seguem_protegidos_com_docs_desligada(self, monkeypatch):
+        """Desligar a documentação não afrouxa nem endurece o gate de auth."""
+        monkeypatch.setattr(settings, "DOCS_ENABLED", False)
+        with TestClient(criar_app()) as c:
+            assert c.get("/api/v1/empresas").status_code == 401
+
+    def test_docs_ligada_responde(self, monkeypatch):
+        """Com a flag ligada (default de desenvolvimento), a documentação abre."""
+        monkeypatch.setattr(settings, "DOCS_ENABLED", True)
+        with TestClient(criar_app()) as c:
+            for rota in ROTAS_DE_DOCUMENTACAO:
+                assert c.get(rota).status_code == 200, f"{rota} não respondeu"
+
+    def test_default_mantem_a_documentacao_ligada(self):
+        """O default não atrapalha o desenvolvimento local."""
+        assert type(settings).model_fields["DOCS_ENABLED"].default is True

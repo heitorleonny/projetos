@@ -5,8 +5,12 @@ Fixtures compartilhadas para os testes do Portal FEJEPE.
 import os
 
 # Garantir variáveis de ambiente para testes (antes de qualquer import da app)
+#
+# São duas chaves desde a separação anon/service: a anônima é a do caminho de
+# request (respeita RLS) e é a única que os testes precisam. Nenhum valor aqui
+# é real — nada nesta suíte fala com o Supabase de verdade.
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_KEY", "test-key")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
 
 import pytest
 
