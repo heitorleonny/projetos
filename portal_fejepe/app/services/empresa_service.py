@@ -18,6 +18,7 @@ from app.models.empresa import (
     OrdemEmpresa,
     PaginacaoMeta,
 )
+from app.services.cluster_service import buscar_historico_do_ano, buscar_ids_por_cluster
 from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
     calcular_crescimento,
@@ -34,7 +35,7 @@ from app.services.calculo_service import (
     classificar_ritmo,
     projetar_faturamento_anual,
 )
-from app.utils.cluster import get_cluster_column_name, get_cluster_value_for_year
+from app.utils.cluster import get_cluster_value_for_year
 from app.utils.constants import MESES_ANO
 
 
@@ -91,7 +92,16 @@ def listar_empresas(
     query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
 
     if cluster is not None:
-        query = query.eq(get_cluster_column_name(ano), cluster)
+        # O cluster do ano vive em `cluster_historico`. Buscar os id_ej primeiro
+        # e filtrar com `.in_` é o mesmo idioma que metas/monitoramento já usam.
+        ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
+        if not ids_no_cluster:
+            # Nenhuma EJ nesse cluster neste ano: não há por que rodar o resto.
+            return EmpresaListaResponse(
+                data=[],
+                meta=PaginacaoMeta(page=page, page_size=page_size, total=0, total_pages=0),
+            )
+        query = query.in_("id_ej", ids_no_cluster)
     if comunidade:
         query = query.eq("comunidade", comunidade)
     if status:
@@ -126,6 +136,9 @@ def listar_empresas(
         sb.table("metas").select("*").eq("ano", ano).in_("id_ej", empresa_ids).execute()
     ).data or []
 
+    # 4b. Cluster do ano, uma consulta para a página inteira (nunca por EJ)
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=empresa_ids)
+
     # Indexar por id_ej
     mon_por_empresa: dict[int, list[dict]] = {}
     for m in monitoramentos:
@@ -144,6 +157,7 @@ def listar_empresas(
             metas_por_empresa.get(ej["id_ej"]),
             ano,
             mes,
+            historico_cluster,
         )
         empresas_com_indicadores.append(ind)
 
@@ -211,7 +225,10 @@ def buscar_empresa(
     if not result.data:
         return None
     ej_raw = result.data[0]
-    empresa = EmpresaJunior(**{**ej_raw, "cluster": get_cluster_value_for_year(ej_raw, ano)})
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=[ej_raw["id_ej"]])
+    empresa = EmpresaJunior(
+        **{**ej_raw, "cluster": get_cluster_value_for_year(historico_cluster, ej_raw["id_ej"])}
+    )
 
     # Monitoramento do ano (todos os meses)
     mon_ano = (
@@ -240,7 +257,9 @@ def buscar_empresa(
         mon_filtrado = mon_ano
 
     # Indicadores
-    indicadores = _calcular_indicadores_ej(ej_raw, mon_filtrado, meta_raw, ano, mes)
+    indicadores = _calcular_indicadores_ej(
+        ej_raw, mon_filtrado, meta_raw, ano, mes, historico_cluster
+    )
 
     # Tendência de cluster
     _preencher_tendencia_cluster(sb, [indicadores], ano)
@@ -418,6 +437,8 @@ def comparar_empresas(
         sb.table("metas").select("*").eq("ano", ano).in_("id_ej", empresa_ids).execute()
     ).data or []
 
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=empresa_ids)
+
     mon_por_empresa: dict[int, list[dict]] = {}
     for m in monitoramentos:
         mon_por_empresa.setdefault(m["id_ej"], []).append(m)
@@ -434,6 +455,7 @@ def comparar_empresas(
             metas_por_empresa.get(ej["id_ej"]),
             ano,
             mes,
+            historico_cluster,
         )
         resultado.append(ind)
 
@@ -454,6 +476,7 @@ def _calcular_indicadores_ej(
     meta_raw: dict | None,
     ano: int,
     mes: int | None,
+    historico_cluster: dict[int, int] | None = None,
 ) -> EmpresaComIndicadores:
     """
     Calcula todos os indicadores derivados de uma EJ.
@@ -536,7 +559,7 @@ def _calcular_indicadores_ej(
 
     # Tracking de Cluster — replica exatamente o cenário 3 da rede_service:
     # sem mons → mantendo; fat=0 → cluster 1; sem meta_csat → mantendo; com tudo → fórmula
-    cluster_atual_val = get_cluster_value_for_year(ej_raw, ano) or 1
+    cluster_atual_val = get_cluster_value_for_year(historico_cluster or {}, ej_raw["id_ej"]) or 1
     tracking_cluster_val = None
     tracking_cluster_calc: int
     if not monitoramentos_sorted:
@@ -605,7 +628,7 @@ def _calcular_indicadores_ej(
         id=ej_raw["id"],
         id_ej=ej_raw["id_ej"],
         nome=ej_raw["nome"],
-        cluster=get_cluster_value_for_year(ej_raw, ano),
+        cluster=get_cluster_value_for_year(historico_cluster or {}, ej_raw["id_ej"]),
         comunidade=ej_raw.get("comunidade"),
         status=ej_raw.get("status"),
         foto_url=ej_raw.get("foto_url"),

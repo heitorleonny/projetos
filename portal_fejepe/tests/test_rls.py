@@ -72,7 +72,15 @@ MON_EJ_PE = BASE + 112
 MON_EJ_PAR = BASE + 104
 MON_NUCLEO_PAR = BASE + 204
 
-TABELAS_DE_TENANT = ["empresa_junior", "metas", "monitoramento", "nucleo", "federacao", "usuario"]
+TABELAS_DE_TENANT = [
+    "empresa_junior",
+    "metas",
+    "monitoramento",
+    "nucleo",
+    "federacao",
+    "usuario",
+    "cluster_historico",
+]
 
 
 # ── Infraestrutura dos testes ────────────────────────────────
@@ -142,6 +150,7 @@ def lab():
 def _limpar(conexao) -> None:
     """Remove tudo que estes testes criam. Na ordem das FKs."""
     with conexao.cursor() as cur:
+        cur.execute("DELETE FROM cluster_historico WHERE id_ej >= %s", (BASE,))
         cur.execute("DELETE FROM monitoramento WHERE id >= %s", (BASE,))
         cur.execute("DELETE FROM metas WHERE id >= %s", (BASE,))
         cur.execute("DELETE FROM empresa_junior WHERE id >= %s", (BASE,))
@@ -186,6 +195,13 @@ def _semear(conexao) -> None:
                 (MON_EJ_PE, EJ_PE, None, 2026, 1, 10_000),
                 (MON_EJ_PAR, EJ_PAR, None, 2026, 1, 25_000),
                 (MON_NUCLEO_PAR, None, NUCLEO_PAR, 2026, 1, 80_000),
+            ],
+        )
+        cur.executemany(
+            "INSERT INTO cluster_historico (id_ej, ano, cluster) VALUES (%s, %s, %s)",
+            [
+                (EJ_PE, 2026, 3),
+                (EJ_PAR, 2026, 5),
             ],
         )
         cur.executemany(
@@ -520,10 +536,14 @@ class TestPreservacaoLaboratorio:
         lab.rollback()
         assert sem_rls == [], f"tabelas sem RLS: {sem_rls}"
 
-    def test_colunas_de_cluster_preservadas(self, lab):
+    def test_colunas_de_cluster_viraram_legado(self, lab):
         """
-        `cluster_2023..cluster_2026` não foram tocadas — o destino delas é
-        decisão em aberto, e nenhuma migração desta entrega mexeu nelas.
+        `cluster_2023..cluster_2026` foram normalizadas em `cluster_historico`
+        (migração 08). As colunas antigas continuam existindo com sufixo
+        `_legado` — renomeadas, não apagadas, como `federacao_legado`.
+
+        Este teste era o inverso disto enquanto o destino das colunas estava em
+        aberto. A decisão foi tomada; o teste acompanha o schema.
         """
         with lab.cursor() as cur:
             cur.execute(
@@ -532,8 +552,20 @@ class TestPreservacaoLaboratorio:
                 "ORDER BY column_name"
             )
             colunas = [linha[0] for linha in cur.fetchall()]
+            cur.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_name = 'cluster_historico'"
+            )
+            existe_historico = cur.fetchone()[0]
         lab.rollback()
-        assert colunas == ["cluster", "cluster_2023", "cluster_2024", "cluster_2025", "cluster_2026"]
+        assert colunas == [
+            "cluster_2023_legado",
+            "cluster_2024_legado",
+            "cluster_2025_legado",
+            "cluster_2026_legado",
+            "cluster_legado",
+        ]
+        assert existe_historico == 1, "cluster_historico não foi criada"
 
     def test_federacao_legado_preservada(self, lab):
         """A coluna de texto antiga foi renomeada, não apagada."""

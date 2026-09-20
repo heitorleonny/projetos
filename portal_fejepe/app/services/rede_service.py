@@ -9,6 +9,7 @@ from supabase import Client
 
 from app.models.empresa import EmpresaComIndicadores, Ritmo
 from app.models.indicadores import EjMovimento, IndicadoresRede, RankingItem, RitmoMensalResponse, RitmoMesItem, SdeCenario, SdeResponse
+from app.services.cluster_service import buscar_historico_do_ano, buscar_ids_por_cluster
 from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
     calcular_crescimento,
@@ -20,7 +21,7 @@ from app.services.calculo_service import (
     classificar_ritmo,
     calcular_percentual_meta,
 )
-from app.utils.cluster import get_cluster_column_name, get_cluster_value_for_year
+from app.utils.cluster import get_cluster_value_for_year
 from app.utils.constants import MESES_ANO
 
 
@@ -51,7 +52,13 @@ def calcular_indicadores_rede(
     # 1. Buscar todas as EJs (com filtros)
     ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
-        ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
+        # O cluster do ano vive em `cluster_historico`: busca os id_ej primeiro
+        # e filtra com `.in_`, mesmo idioma de metas/monitoramento.
+        ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
+        if not ids_no_cluster:
+            # Nenhuma EJ nesse cluster neste ano.
+            return IndicadoresRede(ano=ano, mes=mes)
+        ej_query = ej_query.in_("id_ej", ids_no_cluster)
     if comunidade:
         ej_query = ej_query.eq("comunidade", comunidade)
 
@@ -60,6 +67,8 @@ def calcular_indicadores_rede(
         return IndicadoresRede(ano=ano, mes=mes)
 
     empresa_ids = [e["id_ej"] for e in empresas]
+
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=empresa_ids)
 
     # 2. Monitoramento do ano
     mon_query = sb.table("monitoramento").select("*").eq("ano", ano).in_("id_ej", empresa_ids)
@@ -96,7 +105,7 @@ def calcular_indicadores_rede(
         mons = mon_por_empresa.get(ej["id_ej"], [])
         if not mons:
             # EJ sem dados no período
-            cl = get_cluster_value_for_year(ej, ano) or 1
+            cl = get_cluster_value_for_year(historico_cluster, ej["id_ej"]) or 1
             distribuicao_clusters[cl] = distribuicao_clusters.get(cl, 0) + 1
             continue
 
@@ -132,7 +141,7 @@ def calcular_indicadores_rede(
             ejs_ritmo_significativo += 1
 
         # Cluster
-        cl = get_cluster_value_for_year(ej, ano) or 1
+        cl = get_cluster_value_for_year(historico_cluster, ej["id_ej"]) or 1
         distribuicao_clusters[cl] = distribuicao_clusters.get(cl, 0) + 1
 
         # Comunidade
@@ -201,7 +210,13 @@ def gerar_ranking(
     # Buscar EJs
     ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
-        ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
+        # O cluster do ano vive em `cluster_historico`: busca os id_ej primeiro
+        # e filtra com `.in_`, mesmo idioma de metas/monitoramento.
+        ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
+        if not ids_no_cluster:
+            # Nenhuma EJ nesse cluster neste ano.
+            return []
+        ej_query = ej_query.in_("id_ej", ids_no_cluster)
     if comunidade:
         ej_query = ej_query.eq("comunidade", comunidade)
     empresas = (ej_query.execute()).data or []
@@ -210,6 +225,8 @@ def gerar_ranking(
         return []
 
     empresa_ids = [e["id_ej"] for e in empresas]
+
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=empresa_ids)
 
     # Monitoramento
     mon_query = sb.table("monitoramento").select("*").eq("ano", ano).in_("id_ej", empresa_ids)
@@ -246,7 +263,7 @@ def gerar_ranking(
         itens.append({
             "id_ej": ej["id_ej"],
             "nome": ej["nome"],
-            "cluster": get_cluster_value_for_year(ej, ano),
+            "cluster": get_cluster_value_for_year(historico_cluster, ej["id_ej"]),
             "comunidade": ej.get("comunidade"),
             "valor": valor,
             "foto_url": ej.get("foto_url"),
@@ -291,7 +308,13 @@ def calcular_sde_cenarios(
     # 1. Buscar EJs
     ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
-        ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
+        # O cluster do ano vive em `cluster_historico`: busca os id_ej primeiro
+        # e filtra com `.in_`, mesmo idioma de metas/monitoramento.
+        ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
+        if not ids_no_cluster:
+            # Nenhuma EJ nesse cluster neste ano.
+            return SdeResponse(ano=ano, mes=mes)
+        ej_query = ej_query.in_("id_ej", ids_no_cluster)
     if comunidade:
         ej_query = ej_query.eq("comunidade", comunidade)
     empresas = (ej_query.limit(1000).execute()).data or []
@@ -300,6 +323,8 @@ def calcular_sde_cenarios(
         return SdeResponse(ano=ano, mes=mes)
 
     empresa_ids = [e["id_ej"] for e in empresas]
+
+    historico_cluster = buscar_historico_do_ano(sb, ano=ano, ids_ej=empresa_ids)
 
     # 2. Monitoramento
     mon_query = sb.table("monitoramento").select("*").eq("ano", ano).in_("id_ej", empresa_ids)
@@ -333,7 +358,7 @@ def calcular_sde_cenarios(
 
     for ej in empresas:
         eid = ej["id_ej"]
-        cluster_atual = get_cluster_value_for_year(ej, ano) or 1
+        cluster_atual = get_cluster_value_for_year(historico_cluster, ej["id_ej"]) or 1
         mons = sorted(mon_por_empresa.get(eid, []), key=lambda m: m["mes"])
         meta_raw = metas_por_empresa.get(eid)
 
@@ -482,7 +507,13 @@ def calcular_ritmo_mensal(
     # 1. Buscar EJs
     ej_query = filtrar_por_tenant(sb.table("empresa_junior").select("*"), federacao_id)
     if cluster is not None:
-        ej_query = ej_query.eq(get_cluster_column_name(ano), cluster)
+        # O cluster do ano vive em `cluster_historico`: busca os id_ej primeiro
+        # e filtra com `.in_`, mesmo idioma de metas/monitoramento.
+        ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
+        if not ids_no_cluster:
+            # Nenhuma EJ nesse cluster neste ano.
+            return RitmoMensalResponse(ano=ano)
+        ej_query = ej_query.in_("id_ej", ids_no_cluster)
     if comunidade:
         ej_query = ej_query.eq("comunidade", comunidade)
     empresas = (ej_query.execute()).data or []

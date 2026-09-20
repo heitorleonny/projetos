@@ -71,12 +71,13 @@ class MockSupabaseQuery:
         return MockSupabaseResponse(self._data)
 
 
-def _make_mock_supabase(empresas=None, monitoramentos=None, metas=None):
+def _make_mock_supabase(empresas=None, monitoramentos=None, metas=None, clusters=None):
     mock_sb = MagicMock()
     table_data = {
         "empresa_junior": empresas or [],
         "monitoramento": monitoramentos or [],
         "metas": metas or [],
+        "cluster_historico": CLUSTER_HISTORICO if clusters is None else clusters,
     }
 
     def table(name):
@@ -91,7 +92,7 @@ EMPRESAS = [
         "id": 1,
         "id_ej": 101,
         "nome": "EJ Alpha",
-        "cluster": 1,
+        "cluster_legado": 1,
         "comunidade": "Comunidade A",
         "status": "ativa",
         "foto_url": None,
@@ -100,7 +101,7 @@ EMPRESAS = [
         "id": 2,
         "id_ej": 102,
         "nome": "EJ Beta",
-        "cluster": 3,
+        "cluster_legado": 3,
         "comunidade": "Comunidade B",
         "status": "ativa",
         "foto_url": None,
@@ -109,11 +110,21 @@ EMPRESAS = [
         "id": 3,
         "id_ej": 103,
         "nome": "EJ Gamma",
-        "cluster": 2,
+        "cluster_legado": 2,
         "comunidade": "Comunidade C",
         "status": "ativa",
         "foto_url": None,
     },
+]
+
+# Cluster por EJ por ano, como vive em `cluster_historico` desde a migração 08.
+# Antes era a coluna `cluster_20XX` na própria linha da EJ — os valores são os
+# mesmos, o lugar é outro. A coluna antiga sobrevive como `cluster_legado` nos
+# fixtures acima, que espelham a linha crua da tabela, mas nenhum service a lê.
+CLUSTER_HISTORICO = [
+    {"id_ej": 101, "ano": 2026, "cluster": 1},
+    {"id_ej": 102, "ano": 2026, "cluster": 3},
+    {"id_ej": 103, "ano": 2026, "cluster": 2},
 ]
 
 MONITORAMENTOS = [

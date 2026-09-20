@@ -1,30 +1,31 @@
-"""Utilitários para resolver o campo de cluster por ano."""
+"""Utilitário para ler o cluster de uma EJ num ano."""
 
 from __future__ import annotations
 
 
-_CLUSTER_COLUMN_BY_YEAR: dict[int, str] = {
-    2023: "cluster_2023",
-    2024: "cluster_2024",
-    2025: "cluster_2025",
-    2026: "cluster_2026",
-}
+def get_cluster_value_for_year(historico: dict[int, int], id_ej: int) -> int | None:
+    """
+    Lê o cluster de uma EJ a partir do histórico já carregado.
 
+    `historico` é um mapa `{id_ej: cluster}` DE UM ANO SÓ, montado por quem
+    chama com uma consulta em lote a `cluster_historico`
+    (`app/services/cluster_service.py`). O ano não é parâmetro aqui de
+    propósito: se fosse, esta função precisaria do ano E do mapa, e a tentação
+    seria consultar o banco por EJ — que é o N+1 que o desenho evita.
 
-def get_cluster_column_name(ano: int) -> str:
-    """Retorna o nome da coluna de cluster para o ano informado."""
-    return _CLUSTER_COLUMN_BY_YEAR.get(ano, "cluster")
+    Antes da migração 08 esta função lia `ej_raw["cluster_2026"]` com fallback
+    para `ej_raw["cluster"]`. As colunas viraram `cluster_historico`
+    (uma linha por EJ por ano); a regra de fallback foi aplicada uma vez, no
+    backfill, e não se repete em tempo de leitura.
 
-
-def get_cluster_value_for_year(ej_raw: dict, ano: int) -> int | None:
-    """Lê o cluster anual da EJ com fallback para a coluna legada."""
-    value = ej_raw.get(get_cluster_column_name(ano))
-    if value is None:
-        value = ej_raw.get("cluster")
-    if value is None:
+    Devolve `None` quando a EJ não tem cluster registrado naquele ano — o que
+    passou a ser distinguível de "cluster de outro ano", e é informação.
+    """
+    valor = historico.get(id_ej)
+    if valor is None:
         return None
 
     try:
-        return int(value)
+        return int(valor)
     except (TypeError, ValueError):
         return None

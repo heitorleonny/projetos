@@ -132,7 +132,7 @@ class RespostaAuthFake:
         self.user = user
 
 
-def _make_mock_supabase(empresas=None, monitoramentos=None, metas=None):
+def _make_mock_supabase(empresas=None, monitoramentos=None, metas=None, clusters=None):
     """
     Cria mock do cliente Supabase com dados configuráveis e Auth mockado.
 
@@ -146,6 +146,7 @@ def _make_mock_supabase(empresas=None, monitoramentos=None, metas=None):
         "empresa_junior": empresas or [],
         "monitoramento": monitoramentos or [],
         "metas": metas or [],
+        "cluster_historico": CLUSTER_HISTORICO if clusters is None else clusters,
     }
 
     def table(name):
@@ -187,7 +188,7 @@ EMPRESAS = [
         "cnpj": "00.000.000/0001-01",
         "ano_federacao": 2020,
         "federacao": "FEJEPE",
-        "cluster": 1,
+        "cluster_legado": 1,
         "comunidade": "Comunidade A",
         "estado": "PE",
         "cidade": "Recife",
@@ -205,7 +206,7 @@ EMPRESAS = [
         "cnpj": "00.000.000/0001-02",
         "ano_federacao": 2019,
         "federacao": "FEJEPE",
-        "cluster": 3,
+        "cluster_legado": 3,
         "comunidade": "Comunidade B",
         "estado": "PE",
         "cidade": "Caruaru",
@@ -216,6 +217,15 @@ EMPRESAS = [
         "updated_at": "2025-12-01T00:00:00",
         "foto_url": None,
     },
+]
+
+# Cluster por EJ por ano, como vive em `cluster_historico` desde a migração 08.
+# Antes era a coluna `cluster_20XX` na própria linha da EJ — os valores são os
+# mesmos, o lugar é outro. A coluna antiga sobrevive como `cluster_legado` nos
+# fixtures acima, que espelham a linha crua da tabela, mas nenhum service a lê.
+CLUSTER_HISTORICO = [
+    {"id_ej": 101, "ano": 2026, "cluster": 1},
+    {"id_ej": 102, "ano": 2026, "cluster": 3},
 ]
 
 MONITORAMENTOS = [

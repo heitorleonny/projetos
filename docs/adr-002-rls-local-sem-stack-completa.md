@@ -60,9 +60,14 @@ Registrado aqui para que a ausência não seja lida como esquecimento:
   tabela `indicador`, não há pivô para linha-por-indicador. A generalização feita
   foi só da dimensão de tenant. Pivotar quebraria os 22 pontos de acesso via
   PostgREST e os testes que fixam valores exatos.
-- **O destino de `cluster_2023..cluster_2026`.** Decisão em aberto. As colunas não
-  foram normalizadas, renomeadas nem apagadas — e nem sequer indexadas, porque um
-  índice já fixaria o formato delas.
+- **O destino de `cluster_2023..cluster_2026`.** Estava em aberto quando este ADR
+  foi escrito; foi decidido depois, na migração 08: as colunas viraram a tabela
+  `cluster_historico (id_ej, ano, cluster)` e as antigas sobreviveram com sufixo
+  `_legado`. O problema delas era de PERÍODO (uma coluna por ano), não de tenant —
+  por isso a saída foi normalizar, e não repetir o que 05 fez com `metas` e
+  `monitoramento`. Isso não reabre a generalização das colunas de métrica, que
+  continua descartada: `cluster_historico` é uma tabela para UM fato, não um
+  catálogo `indicador`.
 - **Políticas de INSERT/UPDATE/DELETE.** Só SELECT. Escrita entra junto com a
   regra de permissão por papel na aplicação, não antes.
 
@@ -71,7 +76,7 @@ Registrado aqui para que a ausência não seja lida como esquecimento:
 Nada nesta entrega tocou a nuvem. Quando o projeto for de fato conectado, nesta
 ordem:
 
-1. **Aplicar as migrações** `01` a `07` de `infra/db/init/` pelo SQL Editor ou
+1. **Aplicar as migrações** `01` a `08` de `infra/db/init/` pelo SQL Editor ou
    pela CLI. **Pular `00-shim-auth-local.sql`** — lá o schema `auth`, as funções
    e os roles são da plataforma. Conferir antes, com
    `infra/db/queries/02-inventario-schema.sql`, que o schema real bate com o que
@@ -80,20 +85,30 @@ ordem:
 2. **Revisar o backfill de `federacao_id`.** `04-federacao-id-empresa-junior.sql`
    assume que toda EJ é da FEJEPE (id 12). A premissa vale hoje e é datada —
    conferir contra `federacao_legado` antes de rodar, e nunca rodar duas vezes.
-3. **Preencher `usuario.auth_user_id`** para cada usuário existente do Auth. Sem
+3. **Reconferir o backfill de `cluster_historico` (migração 08) antes de rodá-lo.**
+   O backfill lê `cluster_2023..cluster_2026` e, como último recurso, a coluna
+   `cluster` sem sufixo. **Essa coluna pode não existir de verdade no Supabase:**
+   `01-schema.sql` foi derivado da documentação do projeto, não de um dump
+   (docs/levantamento-semana1-multitenant.md, seção 1, registra a divergência
+   entre schema real e documentado). Rodar `infra/db/queries/02-inventario-schema.sql`
+   primeiro e conferir quais dessas cinco colunas existem de fato; se a `cluster`
+   bare não existir, o segundo INSERT do arquivo 08 sai da migração — e nada se
+   perde, porque ele só cobre EJs sem nenhuma coluna anual preenchida. Isso não
+   bloqueia nada no laboratório local, onde as cinco colunas existem.
+4. **Preencher `usuario.auth_user_id`** para cada usuário existente do Auth. Sem
    isso o hook não acha ninguém.
-4. **Ativar o Custom Access Token Hook**: Dashboard → Authentication → Hooks →
+5. **Ativar o Custom Access Token Hook**: Dashboard → Authentication → Hooks →
    Customize Access Token → selecionar `public.custom_access_token_hook` →
    Enable. A função existe desde `06-usuario.sql`, mas **não roda sozinha** — até
    alguém ligar o gatilho, nenhum JWT emitido carrega `federacao_id` nem `papel`.
-5. **Trocar as chaves no ambiente**: `SUPABASE_ANON_KEY` no backend (é a que
+6. **Trocar as chaves no ambiente**: `SUPABASE_ANON_KEY` no backend (é a que
    respeita RLS); `SUPABASE_SERVICE_KEY` só onde script administrativo roda, e
    nunca no container da API.
-6. **Virar `TENANT_CLAIM_OBRIGATORIO=true`** — no mesmo dia em que o hook for
+7. **Virar `TENANT_CLAIM_OBRIGATORIO=true`** — no mesmo dia em que o hook for
    ativado, não antes. Antes, ela trancaria todo mundo para fora; depois, ela
    transforma "token sem tenant" de tolerado em 403.
 
-Até o passo 4, o comportamento observável da API é o de hoje: todo autenticado
+Até o passo 5, o comportamento observável da API é o de hoje: todo autenticado
 lê, com papel `membro` assumido e sem filtro de tenant no código. O isolamento
 já está no banco esperando o claim.
 

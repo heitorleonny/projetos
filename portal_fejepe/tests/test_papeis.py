@@ -44,6 +44,7 @@ from app.dependencies import (
 )
 from app.main import app
 from tests.test_seguranca import (
+    CLUSTER_HISTORICO,
     EMPRESAS,
     METAS,
     MONITORAMENTOS,
@@ -116,6 +117,7 @@ def _mock_supabase(usuario: UsuarioFake) -> tuple[MagicMock, list[tuple]]:
         "empresa_junior": EMPRESAS,
         "monitoramento": MONITORAMENTOS,
         "metas": METAS,
+        "cluster_historico": CLUSTER_HISTORICO,
     }
 
     mock_sb = MagicMock()

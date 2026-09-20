@@ -44,17 +44,22 @@ docker compose --profile lab logs db | grep -iE "ERROR|FATAL"
 ```
 
 Ordem de execução: alfabética. Daí a numeração — um arquivo que depende do
-anterior precisa de um número maior.
+anterior precisa de um número maior. É por isso que o shim de `auth` é `00-`:
+as políticas de RLS de `07-` referenciam funções que ele cria.
 
 ## O que já está no schema
 
 | Arquivo | O que faz |
 |---|---|
+| `00-shim-auth-local.sql` | `auth.jwt()`/`auth.uid()` e os roles do Supabase, **só para o lab** |
 | `01-schema.sql` | as três tabelas originais (`empresa_junior`, `metas`, `monitoramento`) |
 | `02-federacao.sql` | tabela `federacao` + seed das 27 federações |
 | `03-nucleo-e-plano.sql` | tabelas `nucleo` e `plano` (catálogo, sem cobrança) |
 | `04-federacao-id-empresa-junior.sql` | `federacao_id` NOT NULL; `federacao` → `federacao_legado` |
 | `05-metas-monitoramento-generalizacao.sql` | tenant de `metas`/`monitoramento` nos três níveis |
+| `06-usuario.sql` | tabela `usuario` + hook de access token do Supabase |
+| `07-rls-policies.sql` | RLS ligada e políticas de SELECT por tenant |
+| `08-cluster-historico.sql` | cluster por EJ por ano; colunas `cluster_20XX` viram `_legado` |
 
 ## Carregar dados depois destas migrações
 
