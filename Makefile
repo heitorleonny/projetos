@@ -31,7 +31,7 @@ ps: ## Mostra o estado dos containers
 
 lab: ## Sobe só o Postgres do laboratório de dados do TCC
 	docker compose --profile lab up -d db
-	@echo "Postgres do laboratório em localhost:$${POSTGRES_PORT:-5432}"
+	@echo "Postgres do laboratório em localhost:$${POSTGRES_PORT:-55432}"
 
 lab-down: ## Derruba o Postgres do laboratório (mantém o volume)
 	docker compose --profile lab stop db

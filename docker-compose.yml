@@ -18,6 +18,7 @@ services:
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_KEY: ${SUPABASE_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      DOCS_ENABLED: ${DOCS_ENABLED:-false}
       ANO_DEFAULT: ${ANO_DEFAULT:-2026}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -112,7 +113,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
       POSTGRES_DB: ${POSTGRES_DB:-portal_lab}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # 55432 e não 5432 de propósito: instalação local de Postgres (Homebrew,
+      # Postgres.app) costuma ocupar 127.0.0.1:5432, e o bind específico dela
+      # vence o bind coringa do Docker — conexões a localhost:5432 iriam para o
+      # banco errado, com erro confuso ("role portal does not exist") ou, pior,
+      # em silêncio. Ver infra/db/README.md.
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
