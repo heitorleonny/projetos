@@ -210,13 +210,31 @@ def test_lista_eventos_disponiveis():
     response = client.get("/api/v1/eventos")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 2
-    assert any(evento["id_evento"] == "encontro-das-instancias" for evento in data)
+    assert any(evento["id_evento"] == "ciranda-mej-26" for evento in data)
 
 
 def test_evento_calcula_metas_e_gaps():
+    """
+    Metas do CirandaMEJ'26 sobre os mocks deste módulo (3 EJs ativas).
+
+    Os valores esperados são derivados à mão a partir de `METAS_EVENTO`
+    (`evento_service.py`) e dos dados fixos acima, não copiados da saída:
+
+        meta_contagem = ceil(meta_percentual / 100 * total_ejs), total_ejs = 3
+
+        faturamento_zero (72%)  meta=ceil(2,16)=3; acumulado > 0 nas 3 → 3
+        colab_zero       (34%)  meta=ceil(1,02)=2; colab > 0 nas 3      → 3
+        verde_mes        (30%)  meta=ceil(0,90)=1; limiar = 5/12 = 41,67%
+                                da meta anual — 101: 40,0%, 102: 41,67%,
+                                103: 8,0% → só a 102 alcança            → 1
+        cluster_tracking (67%)  meta=ceil(2,01)=3; tracking >= cluster —
+                                101: 3>=1, 102: 4>=3, 103: 1>=2 falha   → 2
+
+    O gap é `max(meta_contagem - resultado_contagem, 0)`, logo só
+    `cluster_tracking` fica com gap (3 - 2 = 1).
+    """
     client = _client_with_mock(EMPRESAS, MONITORAMENTOS, METAS)
-    response = client.get("/api/v1/eventos/encontro-das-instancias")
+    response = client.get("/api/v1/eventos/ciranda-mej-26")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200
@@ -224,23 +242,35 @@ def test_evento_calcula_metas_e_gaps():
 
     assert data["total_ejs"] == 3
 
-    fora_do_zero = next(meta for meta in data["metas"] if meta["tipo"] == "fora_do_zero")
-    verde_abril = next(meta for meta in data["metas"] if meta["tipo"] == "verde_abril")
-    colab_tracking = next(meta for meta in data["metas"] if meta["tipo"] == "colab_tracking")
+    metas = {meta["tipo"]: meta for meta in data["metas"]}
+    assert set(metas) == {
+        "faturamento_zero",
+        "colab_zero",
+        "verde_mes",
+        "cluster_tracking",
+    }
 
-    assert fora_do_zero["meta_contagem"] == 3
-    assert fora_do_zero["resultado_contagem"] == 3
-    assert fora_do_zero["gap_contagem"] == 0
+    faturamento_zero = metas["faturamento_zero"]
+    assert faturamento_zero["meta_contagem"] == 3
+    assert faturamento_zero["resultado_contagem"] == 3
+    assert faturamento_zero["gap_contagem"] == 0
 
-    assert verde_abril["meta_contagem"] == 2
-    assert verde_abril["resultado_contagem"] == 2
-    assert verde_abril["submeta_contagem"] == 1
-    assert verde_abril["subresultado_contagem"] == 1
-    assert verde_abril["gap_contagem"] == 0
+    colab_zero = metas["colab_zero"]
+    assert colab_zero["meta_contagem"] == 2
+    assert colab_zero["resultado_contagem"] == 3
+    assert colab_zero["gap_contagem"] == 0
 
-    assert colab_tracking["meta_contagem"] == 1
-    assert colab_tracking["resultado_contagem"] == 2
-    assert colab_tracking["gap_contagem"] == 0
+    verde_mes = metas["verde_mes"]
+    assert verde_mes["meta_contagem"] == 1
+    assert verde_mes["resultado_contagem"] == 1
+    assert [ej["id_ej"] for ej in verde_mes["participantes"]] == [102]
+    assert verde_mes["gap_contagem"] == 0
+
+    cluster_tracking = metas["cluster_tracking"]
+    assert cluster_tracking["meta_contagem"] == 3
+    assert cluster_tracking["resultado_contagem"] == 2
+    assert [ej["id_ej"] for ej in cluster_tracking["participantes"]] == [101, 102]
+    assert cluster_tracking["gap_contagem"] == 1
 
 
 def test_evento_nao_encontrado():

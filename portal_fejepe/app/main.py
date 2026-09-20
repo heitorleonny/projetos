@@ -10,6 +10,9 @@ Endpoints disponíveis:
     /api/v1/eventos      — Monitoramento de metas de eventos
     /docs                — Swagger UI (documentação interativa)
     /redoc               — ReDoc (documentação alternativa)
+
+As rotas de documentação só existem quando `settings.DOCS_ENABLED` é
+verdadeiro — em produção o schema da API não precisa ser público.
 """
 
 from contextlib import asynccontextmanager
@@ -29,41 +32,55 @@ async def lifespan(app: FastAPI):
     # Shutdown — cleanup se necessário
 
 
-app = FastAPI(
-    title="Portal FEJEPE API",
-    description=(
-        "API do Portal FEJEPE — centraliza dados e cálculos estratégicos "
-        "das Empresas Juniores da rede. Permite consultar EJs, comparar "
-        "indicadores, visualizar KPIs da rede e gerar rankings."
-    ),
-    version="0.1.0",
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
+def criar_app() -> FastAPI:
+    """
+    Monta a aplicação FastAPI.
 
-# ── CORS ──────────────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    É uma factory, e não um módulo de efeito colateral, para que as
+    configurações sejam lidas no momento da chamada — assim os testes
+    conseguem construir variantes da app (por exemplo com a documentação
+    desligada) sem recarregar o módulo.
+    """
+    app = FastAPI(
+        title="Portal FEJEPE API",
+        description=(
+            "API do Portal FEJEPE — centraliza dados e cálculos estratégicos "
+            "das Empresas Juniores da rede. Permite consultar EJs, comparar "
+            "indicadores, visualizar KPIs da rede e gerar rankings."
+        ),
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url="/docs" if settings.DOCS_ENABLED else None,
+        redoc_url="/redoc" if settings.DOCS_ENABLED else None,
+        openapi_url="/openapi.json" if settings.DOCS_ENABLED else None,
+    )
 
-# ── Routers ───────────────────────────────────────────────────
-app.include_router(empresas.router)
-app.include_router(eventos.router)
-app.include_router(rede.router)
+    # ── CORS ──────────────────────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Routers ───────────────────────────────────────────────────
+    app.include_router(empresas.router)
+    app.include_router(eventos.router)
+    app.include_router(rede.router)
+
+    # ── Health check ──────────────────────────────────────────────
+    @app.get(
+        "/health",
+        tags=["Sistema"],
+        summary="Health check",
+        description="Verifica se a API está rodando.",
+    )
+    def health():
+        """Retorna status da API."""
+        return {"status": "ok", "version": "0.1.0"}
+
+    return app
 
 
-# ── Health check ──────────────────────────────────────────────
-@app.get(
-    "/health",
-    tags=["Sistema"],
-    summary="Health check",
-    description="Verifica se a API está rodando.",
-)
-def health():
-    """Retorna status da API."""
-    return {"status": "ok", "version": "0.1.0"}
+app = criar_app()

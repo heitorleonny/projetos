@@ -87,7 +87,20 @@ Ao alterar qualquer fórmula: atualize `calculos.md`, `constants.py` e os testes
 - [x] **JWT do Supabase validado** em `get_current_user` (`app/dependencies.py`),
   aplicado como dependency nos três routers. Testes em `tests/test_seguranca.py`.
 - [x] **CORS restrito** via `settings.cors_origin_list` em `app/main.py`.
+- [x] **Documentação interativa fechada em produção.** `/docs`, `/redoc` e
+  `/openapi.json` seguem a flag `DOCS_ENABLED` (`app/config.py`), ligada por padrão
+  em desenvolvimento e `false` no serviço `backend` do compose. Pôr o Swagger UI
+  atrás do gate de auth não resolveria: o browser não envia o Bearer ao navegar.
+- [x] **Chave publicável em uso.** A `SUPABASE_KEY` configurada tem prefixo
+  `sb_publishable_` (equivalente à `anon key`), e não a `service key` — condição
+  necessária para que a RLS seja respeitada.
+- [ ] **Confirmar a RLS no Supabase.** Usar a `anon key` só tem efeito se as tabelas
+  tiverem Row Level Security ativa; isso não é verificável pelo código, apenas no
+  painel do Supabase. Sem RLS, o gate autentica o usuário mas não limita quais
+  linhas ele lê.
+- [ ] **Validar o JWT localmente** (assinatura via JWKS/segredo) em vez de chamar
+  `sb.auth.get_user()`. Hoje cada requisição a `/api/v1` faz um round-trip HTTP ao
+  Supabase Auth — custa latência e consome rate limit. A troca ganha desempenho mas
+  deixa de detectar na hora um token revogado; trabalho futuro.
 - [ ] Coluna/claim de **federação (tenant)** filtrando todo `SELECT` — fora do escopo
   atual (ver `CLAUDE.md`), mantido como trabalho futuro.
-- [ ] Garantir que o cliente use a `anon key` (não a `service key`), para que a RLS
-  do Supabase seja respeitada.
