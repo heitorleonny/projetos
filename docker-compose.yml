@@ -38,6 +38,22 @@ services:
   # ── Frontend (build estático servido por nginx) ────────────
   # O nginx faz proxy de /api/v1 para o backend, então a imagem não
   # precisa saber a URL da API em build time e funciona em qualquer host.
+  #
+  # DOIS CANAIS DE CONFIGURAÇÃO, DE PROPÓSITO — e a escolha é esta:
+  #
+  #   `args`        entram no bundle em build time e são o DEFAULT DA IMAGEM.
+  #                 É o que a imagem faz quando ninguém configura nada.
+  #   `environment` são lidas no START do container pelo docker-entrypoint.sh,
+  #                 viram window.__ENV__ e TÊM PRECEDÊNCIA sobre os args.
+  #
+  # Por que não deixar só runtime: uma imagem que não sabe se virar sozinha
+  # quebra em qualquer lugar onde alguém esqueça uma variável — e o modo de
+  # falhar é tela branca, sem mensagem. Por que não deixar só build time: é o
+  # que esta fase veio desfazer, porque obriga a rebuildar por ambiente e por
+  # federação.
+  #
+  # Valor vazio em runtime conta como ausente (src/config/env.ts) e cai no
+  # default do bundle — então declarar tudo aqui não apaga nada.
   frontend:
     build:
       context: ./front_portal_fejepe
@@ -47,6 +63,17 @@ services:
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
         VITE_USE_MOCK: ${VITE_USE_MOCK:-false}
         VITE_FEEDBACK_FORM_URL: ${VITE_FEEDBACK_FORM_URL:-}
+    environment:
+      # Sem o prefixo VITE_: aqui é runtime, não build.
+      API_BASE_URL: ${API_BASE_URL:-/api/v1}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      USE_MOCK: ${USE_MOCK:-false}
+      FEEDBACK_FORM_URL: ${FEEDBACK_FORM_URL:-}
+      # Qual federação esta instância serve. PROVISÓRIO: resolução por variável
+      # de ambiente, não por domínio — serve um tenant declarado no deploy, não
+      # N tenants simultâneos. Ver o cabeçalho de src/config/env.ts.
+      TENANT_SLUG: ${TENANT_SLUG:-fejepe}
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:

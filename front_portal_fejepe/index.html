@@ -3,9 +3,20 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/logo_fejepe.svg" />
+  <!--
+    Título e favicon NEUTROS de propósito.
+
+    Os dois pertencem à federação que está sendo servida, e isso só se sabe em
+    runtime (src/branding/BrandingProvider.tsx troca os dois assim que o
+    branding chega). Deixá-los escritos aqui significaria uma imagem por
+    federação — que é justamente o que esta fase desfez.
+
+    `data:,` é um ícone vazio: evita o pedido automático a /favicon.ico no
+    intervalo entre o primeiro paint e a resposta do branding.
+  -->
+  <link rel="icon" href="data:," />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portal FEJEPE</title>
+  <title>Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -15,6 +26,13 @@
 
 <body>
   <div id="root"></div>
+  <!--
+    Configuração de runtime, ANTES do bundle: é aqui que `window.__ENV__`
+    passa a existir. Em produção o arquivo é reescrito no start do container
+    (docker-entrypoint.sh); em desenvolvimento é o placeholder de public/.
+    Ver src/config/env.ts.
+  -->
+  <script src="/env-config.js"></script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
