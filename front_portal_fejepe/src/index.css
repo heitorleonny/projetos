@@ -1,6 +1,24 @@
 @import "tailwindcss";
 
 @theme {
+  /*
+   * ── Primary ──
+   *
+   * Esta rampa é o DEFAULT da imagem, não uma constante. Em runtime,
+   * src/branding/tema.ts redefine --color-primary-* em :root com a cor da
+   * federação servida (`federacao.cor_primaria`), e todo utilitário do
+   * Tailwind que aponta para a variável acompanha sem rebuild.
+   *
+   * Os valores abaixo continuam sendo os da FEJEPE, e continuam valendo
+   * exatamente como antes quando a cor do tenant é esta mesma — tema.ts não
+   * sobrescreve rampa feita à mão por rampa derivada.
+   *
+   * Regra para quem editar este arquivo: nada de #0D6EFD (ou dos outros tons)
+   * escrito de novo abaixo do bloco @theme. Um literal ali é uma cor que
+   * NUNCA vai mudar de federação, e o resultado é uma interface metade verde
+   * metade azul. Use var(--color-primary-N), e color-mix() quando precisar de
+   * transparência.
+   */
   /* ── Primary (Blue Institutional) ── */
   --color-primary-50: #E6F0FA;
   --color-primary-100: #CCE1F5;
@@ -55,8 +73,12 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
-  --shadow-glow: 0 0 20px rgba(13, 110, 253, 0.15);
-  --shadow-glow-lg: 0 0 40px rgba(13, 110, 253, 0.2);
+  --shadow-glow: 0 0 20px color-mix(in srgb, var(--color-primary-500) 15%, transparent);
+  --shadow-glow-lg: 0 0 40px color-mix(in srgb, var(--color-primary-500) 20%, transparent);
+  /* Versões fortes, usadas pelo botão do assistente. Existem como token para
+     que o componente não precise de um rgba() literal na classe. */
+  --shadow-glow-strong: 0 0 20px color-mix(in srgb, var(--color-primary-500) 30%, transparent);
+  --shadow-glow-strong-lg: 0 0 30px color-mix(in srgb, var(--color-primary-500) 50%, transparent);
 }
 
 /* ── Base Styles ── */
@@ -94,13 +116,18 @@ h6 {
 }
 
 .glass-card:hover {
-  border-color: rgba(13, 110, 253, 0.3);
-  box-shadow: 0 0 30px rgba(13, 110, 253, 0.1), 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent);
+  box-shadow:
+    0 0 30px color-mix(in srgb, var(--color-primary-500) 10%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Glass Navbar ── */
 .glass-nav {
-  background: linear-gradient(135deg, rgba(8, 66, 152, 0.85) 0%, rgba(5, 44, 101, 0.9) 100%);
+  /* Os dois tons são o 700 e o 800 da rampa — eram #084298 e #052C65. */
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--color-primary-700) 85%, transparent) 0%,
+      color-mix(in srgb, var(--color-primary-800) 90%, transparent) 100%);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -109,12 +136,12 @@ h6 {
 .btn-glow {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #0A58CA 0%, #0D6EFD 100%);
+  background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-500) 100%);
   transition: all 0.3s ease;
 }
 
 .btn-glow:hover {
-  box-shadow: 0 0 20px rgba(13, 110, 253, 0.4);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary-500) 40%, transparent);
   transform: translateY(-1px);
 }
 
@@ -134,15 +161,15 @@ h6 {
 /* ── Pulse ring animation ── */
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary-500) 40%, transparent);
   }
 
   70% {
-    box-shadow: 0 0 0 12px rgba(13, 110, 253, 0);
+    box-shadow: 0 0 0 12px transparent;
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -152,7 +179,9 @@ h6 {
 
 /* ── Gradient text ── */
 .text-gradient {
-  background: linear-gradient(135deg, #3B82F6 0%, #06B6D4 50%, #0D6EFD 100%);
+  /* O #06B6D4 (ciano) e o --color-glow são decoração do tema escuro e não
+     pertencem à marca da federação; só o terceiro ponto é a cor primária. */
+  background: linear-gradient(135deg, var(--color-glow) 0%, #06B6D4 50%, var(--color-primary-500) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

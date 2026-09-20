@@ -7,6 +7,7 @@ import {
 import { useIndicadoresRede, useFaturamentoMensal, useRitmoMensal, useEmpresasRede, useSdeCenarios } from './useIndicadores';
 import type { EjMovimento, SdeCenario } from './indicadoresService';
 import { formatCurrency, getClusterInfo } from '../../utils/formatters';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 const COMUNIDADES = ['CAPIBA', 'PRAIEIRA', 'TROPICANA', 'INCUBADORA DE APAIXONADOS', 'MANDACARU'];
 const CLUSTERS = [1, 2, 3, 4, 5];
@@ -118,6 +119,7 @@ function truncateCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidt
 }
 
 export default function IndicadoresPage() {
+    const { nome } = useFederacaoBranding();
     const [ano, setAno] = useState(2026);
     const [cluster, setCluster] = useState<number | undefined>();
     const [comunidade, setComunidade] = useState<string | undefined>();
@@ -542,7 +544,7 @@ export default function IndicadoresPage() {
                     </h1>
                 </div>
                 <p className="text-neutral-400 ml-5 text-sm italic">
-                    Visão analítica consolidada do desempenho da rede FEJEPE.
+                    Visão analítica consolidada do desempenho da rede {nome}.
                 </p>
             </div>
 

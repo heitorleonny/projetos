@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useFederacaoBranding } from '../branding/useFederacaoBranding';
 
 const STORAGE_KEY = 'portal-fejepe-welcome-v1.0';
 const SHOW_AFTER_LOGIN_KEY = 'portal-fejepe-show-welcome-after-login';
@@ -14,6 +15,7 @@ function shouldOpenWelcomeModal(): boolean {
 
 export default function WelcomeModal() {
     const [open, setOpen] = useState(shouldOpenWelcomeModal);
+    const { nomeDoPortal } = useFederacaoBranding();
 
     function handleClose() {
         localStorage.setItem(STORAGE_KEY, '1');
@@ -29,7 +31,7 @@ export default function WelcomeModal() {
                 <div className="text-center mb-4">
                     <span className="text-4xl">🚀</span>
                     <h2 className="text-xl font-bold text-white mt-2">
-                        Bem-vindo ao Portal FEJEPE
+                        Bem-vindo ao {nomeDoPortal}
                     </h2>
                     <span className="inline-block mt-1 text-xs font-medium text-primary-400 bg-primary-400/10 px-2 py-0.5 rounded-full">
                         Versão 1.0

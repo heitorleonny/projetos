@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 type LocationState = {
     from?: string;
@@ -13,6 +14,7 @@ export default function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, signInWithPassword, loading } = useAuth();
+    const { nomeDoPortal } = useFederacaoBranding();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -51,7 +53,7 @@ export default function LoginPage() {
         <div className="min-h-screen bg-[#060C1A] bg-grid-pattern flex items-center justify-center px-4">
             <div className="w-full max-w-md glass-card rounded-2xl p-8">
                 <div className="mb-6">
-                    <h1 className="font-heading text-2xl text-white font-bold">Entrar no Portal FEJEPE</h1>
+                    <h1 className="font-heading text-2xl text-white font-bold">Entrar no {nomeDoPortal}</h1>
                     <p className="text-sm text-neutral-400 mt-1">Acesso restrito para usuarios pre-cadastrados.</p>
                 </div>
 

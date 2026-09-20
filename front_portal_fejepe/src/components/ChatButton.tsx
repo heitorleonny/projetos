@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useFederacaoBranding } from '../branding/useFederacaoBranding';
 
 export default function ChatButton() {
     const [open, setOpen] = useState(false);
+    const { nomeDoPortal } = useFederacaoBranding();
 
     return (
         <div className="fixed bottom-6 right-6 z-50">
@@ -21,7 +23,7 @@ export default function ChatButton() {
                         <span className="text-sm font-semibold text-white">Lamps</span>
                     </div>
                     <p className="text-xs text-neutral-400 leading-relaxed">
-                        Em breve teremos o <span className="text-primary-400 font-medium">Lamps</span>, nosso assistente virtual com IA, para te auxiliar no uso do Portal FEJEPE! 🚀
+                        Em breve teremos o <span className="text-primary-400 font-medium">Lamps</span>, nosso assistente virtual com IA, para te auxiliar no uso do {nomeDoPortal}! 🚀
                     </p>
                 </div>
             )}
@@ -34,8 +36,8 @@ export default function ChatButton() {
                      transition-all duration-300 hover:scale-110
                      flex items-center justify-center cursor-pointer
                      animate-pulse-ring
-                     shadow-[0_0_20px_rgba(13,110,253,0.3)]
-                     hover:shadow-[0_0_30px_rgba(13,110,253,0.5)]"
+                     shadow-glow-strong
+                     hover:shadow-glow-strong-lg"
                 aria-label="Abrir assistente de IA"
                 title="Assistente IA — Lamps"
             >

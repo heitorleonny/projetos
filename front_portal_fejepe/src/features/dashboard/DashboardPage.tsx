@@ -4,6 +4,7 @@ import EjCard from './EjCard';
 import DashboardFilters from './DashboardFilters';
 import ExportModal from './ExportModal';
 import type { EmpresaQueryParams } from '../../types/empresa';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 
 export default function DashboardPage() {
     const [filters, setFilters] = useState<EmpresaQueryParams>({
@@ -13,6 +14,7 @@ export default function DashboardPage() {
         direcao: 'desc',
     });
 
+    const { nome } = useFederacaoBranding();
     const { data, isLoading, isError, error } = useDashboard(filters);
     const [showExport, setShowExport] = useState(false);
     const restoreScrollRef = useRef<number | null>(null);
@@ -31,7 +33,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3 mb-1">
                     <div className="w-1 h-8 rounded-full bg-gradient-to-b from-primary-400 to-primary-600" />
                     <h1 className="font-heading text-3xl font-bold text-gradient">
-                        Dashboard FEJEPE
+                        Dashboard {nome}
                     </h1>
                 </div>
                 <p className="text-neutral-400 ml-5 text-sm italic">

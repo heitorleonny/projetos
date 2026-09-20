@@ -60,6 +60,7 @@ as políticas de RLS de `07-` referenciam funções que ele cria.
 | `06-usuario.sql` | tabela `usuario` + hook de access token do Supabase |
 | `07-rls-policies.sql` | RLS ligada e políticas de SELECT por tenant |
 | `08-cluster-historico.sql` | cluster por EJ por ano; colunas `cluster_20XX` viram `_legado` |
+| `09-federacao-branding.sql` | logo e cor por federação; leitura pública das colunas de branding para `anon` |
 
 ## Carregar dados depois destas migrações
 

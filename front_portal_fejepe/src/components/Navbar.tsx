@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { ENV } from '../config/env';
+import { useFederacaoBranding } from '../branding/useFederacaoBranding';
 
 const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
@@ -16,6 +17,7 @@ export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [feedbackOpen, setFeedbackOpen] = useState(false);
     const { user, signOut } = useAuth();
+    const { branding, nome, nomeDoPortal } = useFederacaoBranding();
     const feedbackLink = ENV.FEEDBACK_FORM_URL || '#';
 
     const handleLogout = async () => {
@@ -29,15 +31,23 @@ export default function Navbar() {
                     {/* Logo */}
                     <NavLink to="/dashboard" className="flex items-center gap-3 no-underline group">
                         <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shrink-0 opacity-90 group-hover:opacity-100 transition-opacity shadow-glow">
-                            <img
-                                src="/logo_fejepe.svg"
-                                alt="Logo FEJEPE"
-                                className="h-6 w-6 object-contain"
-                            />
+                            {branding.logo_url ? (
+                                <img
+                                    src={branding.logo_url}
+                                    alt={`Logo ${nome}`}
+                                    className="h-6 w-6 object-contain"
+                                />
+                            ) : (
+                                // Federação sem logo cadastrado cai na inicial do nome,
+                                // pelo mesmo critério que EjLogo usa para EJ sem foto.
+                                <span className="text-white font-heading font-bold text-sm">
+                                    {nome.charAt(0).toUpperCase()}
+                                </span>
+                            )}
                         </div>
                         <div className="hidden sm:flex flex-col leading-none">
                             <span className="text-white font-heading font-bold text-base tracking-wide">
-                                Portal FEJEPE
+                                {nomeDoPortal}
                             </span>
                             <span className="text-primary-300/60 text-[10px] font-medium uppercase tracking-widest">
                                 Painel Estratégico
