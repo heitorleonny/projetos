@@ -8,6 +8,7 @@ Endpoints disponíveis:
     /api/v1/empresas     — Consulta, filtro e comparação de EJs
     /api/v1/rede         — Indicadores consolidados e ranking
     /api/v1/eventos      — Monitoramento de metas de eventos
+    /api/v1/federacao    — Branding da federação (PÚBLICO, sem autenticação)
     /docs                — Swagger UI (documentação interativa)
     /redoc               — ReDoc (documentação alternativa)
 
@@ -21,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import empresas, eventos, rede
+from app.routers import empresas, eventos, federacao, rede
 
 
 @asynccontextmanager
@@ -68,6 +69,9 @@ def criar_app() -> FastAPI:
     app.include_router(empresas.router)
     app.include_router(eventos.router)
     app.include_router(rede.router)
+    # Único router sem `Depends(get_current_user)`: é consumido antes do login.
+    # O motivo está no cabeçalho de app/routers/federacao.py.
+    app.include_router(federacao.router)
 
     # ── Health check ──────────────────────────────────────────────
     @app.get(
