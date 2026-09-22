@@ -211,6 +211,45 @@ GRANT INSERT (id_ej, ano, cluster) ON cluster_historico TO ingestao;
 GRANT UPDATE (cluster)             ON cluster_historico TO ingestao;
 
 
+-- ── 4. EJ que a planilha põe numa federação e o banco tem em outra ─────────
+--
+-- Sob RLS a carga não enxerga EJ de outra federação — é o isolamento. Então,
+-- quando a planilha coloca em FEJEPE uma EJ que o banco tem em FEJEPAR, o que a
+-- carga vê é "EJ nova", e o INSERT esbarra na unicidade de `id_ej`. E o erro de
+-- unicidade não diz QUAL EJ: com RLS ligada, o Postgres omite o valor da chave
+-- no DETAIL, justamente para não vazar dado entre tenants.
+--
+-- Esta função responde só isso, para a carga poder parar nomeando a EJ: dentre
+-- os `id_ej` que ELA MESMA mandou, quais já existem sob outra federação que não
+-- a do claim. Devolve só o id — nem a federação, nem dado nenhum da EJ. Quem tem
+-- a exportação nacional já sabe mais do que isso.
+--
+-- SECURITY DEFINER para enxergar além da RLS; por isso mesmo, EXECUTE só para
+-- `ingestao`. O REVOKE explícito de anon/authenticated segue 06: no Supabase,
+-- função nova em `public` nasce executável por eles via default privileges, e
+-- o PostgREST a exporia como RPC.
+
+CREATE OR REPLACE FUNCTION public.ingestao_ejs_de_outra_federacao(p_ids bigint[])
+RETURNS TABLE (id_ej bigint)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT ej.id_ej
+      FROM empresa_junior ej
+     WHERE ej.id_ej = ANY (p_ids)
+       AND nullif(auth.jwt() ->> 'federacao_id', '') IS NOT NULL
+       AND ej.federacao_id <> nullif(auth.jwt() ->> 'federacao_id', '')::bigint
+$$;
+
+COMMENT ON FUNCTION public.ingestao_ejs_de_outra_federacao(bigint[]) IS
+    'Dos id_ej informados, os que existem sob federação diferente da do claim. Só para o papel ingestao.';
+
+REVOKE EXECUTE ON FUNCTION public.ingestao_ejs_de_outra_federacao(bigint[]) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.ingestao_ejs_de_outra_federacao(bigint[]) TO ingestao;
+
+
 -- Conferência rápida após rodar:
 --   SELECT tablename, policyname, roles, cmd FROM pg_policies
 --    WHERE 'ingestao' = ANY(roles) ORDER BY tablename;

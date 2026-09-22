@@ -89,10 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except ErroCarga as exc:
         sufixo = (
-            f"\nRegistrada como carga #{exc.carga_id} (status 'erro'), com a staging das linhas para diagnóstico."
+            f"\nRegistrada como carga #{exc.carga_id} (status '{exc.status}'), com a staging das linhas para diagnóstico."
             if exc.carga_id else ""
         )
-        print(f"CARGA RECUSADA PELO BANCO — {exc}{sufixo}", file=sys.stderr)
+        titulo = "CARGA REJEITADA" if exc.status == "rejeitada" else "CARGA RECUSADA PELO BANCO"
+        print(f"{titulo} — {exc}{sufixo}", file=sys.stderr)
         return 1
 
     print(como_texto(relatorio))

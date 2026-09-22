@@ -29,18 +29,22 @@ nunca linha a linha. Dentro dela, um UPDATE só das linhas que MUDARAM
     existia". É isso que torna a idempotência e a correção retroativa visíveis
     no relatório.
   * EJ que já existe sob OUTRA federação fica invisível sob o claim da carga
-    (RLS), o NOT EXISTS a trata como nova, e o INSERT esbarra na unicidade de
-    `id_ej`. A carga para, nomeando a EJ: mudar EJ de federação é decisão
-    humana, não efeito colateral de carga.
+    (RLS), e o NOT EXISTS a trataria como nova. Antes de escrever, a carga
+    pergunta ao banco quais EJs do arquivo estão nesse caso
+    (`ingestao_ejs_de_outra_federacao`, ver 11) e para nomeando todas: mudar EJ
+    de federação é decisão humana, não efeito colateral de carga. Se algo
+    escapar da checagem, o INSERT ainda esbarra na unicidade de `id_ej`.
 
 RLS: A CARGA NÃO PASSA POR CIMA DELA
 
 A conexão é de um papel sujeito a RLS (`app_ingestao` no laboratório);
 `verificar_papel` recusa superusuário, BYPASSRLS e dono das tabelas — que é o
-equivalente local da service key. Antes de gravar a fatia de uma federação, a
-carga define o claim da sessão com o `federacao_id` dela, como o PostgREST faz
-por requisição. Se o filtro em Python errar e uma linha de outra federação
-chegar aqui, o banco recusa.
+equivalente local da service key. Antes de gravar, a carga define o claim da
+sessão, como o PostgREST faz por requisição. No recorte por federação o claim é
+o da carga e não muda (`_claim_da_fatia`): se o filtro em Python errar e uma
+linha de outra federação chegar aqui, o banco recusa. Só a carga nacional —
+o operador da plataforma — troca de claim, gravando cada federação no tenant
+dela.
 
 Este módulo não abre nem fecha transação: quem chama (`importacao.py`) decide o
 que é "tudo ou nada", e a simulação é a mesma carga terminando em ROLLBACK.
@@ -64,11 +68,36 @@ class ErroPapel(RuntimeError):
 
 
 class ErroCarga(RuntimeError):
-    """O banco recusou a carga. Nada do dado de gestão foi gravado."""
+    """A carga não entrou. Nada do dado de gestão foi gravado."""
 
-    def __init__(self, mensagem: str, carga_id: int | None = None):
+    status = "erro"
+
+    def __init__(self, mensagem: str, carga_id: int | None = None, *, status: str | None = None):
         self.carga_id = carga_id
+        if status is not None:
+            self.status = status
         super().__init__(mensagem)
+
+
+class ErroEjDeOutraFederacao(ErroCarga):
+    """
+    A planilha põe numa federação EJs que o banco tem em outra.
+
+    'rejeitada', não 'erro': é regra, não falha. Mudar EJ de federação é
+    decisão humana — a carga não move EJ entre tenants.
+    """
+
+    status = "rejeitada"
+
+    def __init__(self, conflitos: dict[str, list[int]]):
+        lista = "; ".join(f"{fed}: {', '.join(map(str, sorted(ids)))}" for fed, ids in sorted(conflitos.items()))
+        total = sum(len(ids) for ids in conflitos.values())
+        super().__init__(
+            f"{total} EJ(s) da planilha já existem no banco sob OUTRA federação — a planilha as coloca em "
+            f"{lista}. Mudança de federação pede decisão humana; a carga não move EJ entre tenants. "
+            "Nada foi gravado."
+        )
+        self.conflitos = conflitos
 
 
 # ── Papel e catálogo ─────────────────────────────────────────
@@ -158,6 +187,22 @@ def _claim_da_carga(cur: psycopg.Cursor, registro: RegistroCarga) -> None:
         definir_claim(cur, nacional=True)
     else:
         definir_claim(cur, federacao_id=registro.federacao_id)
+
+
+def _claim_da_fatia(cur: psycopg.Cursor, registro: RegistroCarga, fatia: Fatia) -> None:
+    """
+    Claim sob o qual a fatia é gravada. É AQUI que a RLS vira segunda camada.
+
+    Carga nacional: o claim da própria fatia — o operador da plataforma grava
+    cada federação no tenant dela, uma de cada vez.
+
+    Recorte (escopo 'federacao'): o claim da CARGA, sempre, qualquer que seja a
+    fatia. Trocar para o claim da fatia seria confiar no dado para decidir o
+    tenant: se o filtro de `importacao.py` falhasse e deixasse passar a fatia de
+    outra federação, ela seria gravada "no tenant certo" e a RLS não teria o que
+    recusar. Com o claim fixo, o banco recusa.
+    """
+    definir_claim(cur, federacao_id=registro.federacao_id if registro.federacao_id is not None else fatia.federacao_id)
 
 
 _SQL_INSERIR_CARGA = """
@@ -365,6 +410,28 @@ def _gravar_staging(cur, carga_id: int, ano: int, fatia: Fatia) -> int:
     return len(fatia.staging)
 
 
+def _recusar_ej_de_outra_federacao(cur, transformacao: Transformacao, registro: RegistroCarga) -> None:
+    """
+    Para antes de escrever qualquer coisa se alguma EJ do arquivo está, no banco,
+    sob outra federação. Sem isto o INSERT esbarraria na unicidade de `id_ej`
+    sem dizer qual EJ (com RLS, o Postgres omite a chave no erro) — ver 11.
+    """
+    conflitos: dict[str, list[int]] = {}
+    for federacao_id, fatia in sorted(transformacao.fatias.items()):
+        if not fatia.empresas:
+            continue
+        _claim_da_fatia(cur, registro, fatia)
+        cur.execute(
+            "SELECT id_ej FROM ingestao_ejs_de_outra_federacao(%s::bigint[])",
+            ([e["id_ej"] for e in fatia.empresas],),
+        )
+        ids = [linha[0] for linha in cur.fetchall()]
+        if ids:
+            conflitos[fatia.empresas[0].get("federacao_nome") or str(federacao_id)] = ids
+    if conflitos:
+        raise ErroEjDeOutraFederacao(conflitos)
+
+
 @dataclass
 class ResultadoCarga:
     carga_id: int
@@ -378,12 +445,13 @@ def aplicar(conexao: psycopg.Connection, transformacao: Transformacao, registro:
     """
     Grava tudo o que a transformação produziu. DEVE rodar dentro de uma transação.
 
-    Ordem: a linha de `ingestao_carga` (sob o claim da carga), e depois, para
-    cada federação, sob o claim DELA: núcleos, cadastro, metas, cluster, fato
-    mensal e staging.
+    Ordem: a checagem de EJ em outra federação, a linha de `ingestao_carga`
+    (sob o claim da carga) e depois, federação a federação: núcleos, cadastro,
+    metas, cluster, fato mensal e staging — sob o claim de `_claim_da_fatia`.
     """
     tabelas = {t.nome: Contagem() for t in (EMPRESA_JUNIOR, METAS, CLUSTER_HISTORICO, MONITORAMENTO)}
     with conexao.cursor() as cur:
+        _recusar_ej_de_outra_federacao(cur, transformacao, registro)
         _claim_da_carga(cur, registro)
         reenvio_de = _carga_anterior_igual(cur, registro)
         carga_id = _inserir_carga(cur, registro, status="sucesso", mensagem=None, reenvio_de=reenvio_de)
@@ -391,12 +459,13 @@ def aplicar(conexao: psycopg.Connection, transformacao: Transformacao, registro:
 
         for federacao_id in sorted(transformacao.fatias):
             fatia = transformacao.fatias[federacao_id]
-            definir_claim(cur, federacao_id=federacao_id)
+            _claim_da_fatia(cur, registro, fatia)
 
             nucleos, criados = _resolver_nucleos(cur, fatia)
             resultado.nucleos_criados.extend((federacao_id, nome, id_) for nome, id_ in criados)
             empresas = [
-                {**{k: v for k, v in e.items() if k != "nucleo"}, "nucleo_id": nucleos.get(e["nucleo"])}
+                {**{k: v for k, v in e.items() if k not in ("nucleo", "federacao_nome")},
+                 "nucleo_id": nucleos.get(e["nucleo"])}
                 for e in fatia.empresas
             ]
 
@@ -450,7 +519,7 @@ def registrar_falha(
                 carga_id = _inserir_carga(cur, registro, status=status, mensagem=mensagem, reenvio_de=None)
                 if com_staging:
                     for fatia in fatias:
-                        definir_claim(cur, federacao_id=fatia.federacao_id)
+                        _claim_da_fatia(cur, registro, fatia)
                         _gravar_staging(cur, carga_id, registro.ano, fatia)
                 return carga_id
         except psycopg.Error:
@@ -467,6 +536,9 @@ def traduzir_erro(exc: psycopg.Error) -> str:
     detalhe = (diag.message_detail if diag else None) or ""
     tabela = (diag.table_name if diag else None) or ""
 
+    # Normalmente a pré-checagem (`_recusar_ej_de_outra_federacao`) pega isto
+    # antes, nomeando a EJ. Aqui é a rede de segurança — e, com RLS ligada, o
+    # Postgres omite a chave no DETAIL, então pode não dar para dizer qual.
     if isinstance(exc, psycopg.errors.UniqueViolation) and tabela == "empresa_junior":
         achado = _CHAVE_DUPLICADA.search(detalhe)
         ej = f"a EJ {achado.group(1)}" if achado else "uma EJ da planilha"

@@ -82,7 +82,7 @@ class Fatia:
 
     federacao_id: int
     nucleos: set[str] = field(default_factory=set)
-    empresas: list[dict] = field(default_factory=list)       # `nucleo` (nome) no lugar de `nucleo_id`
+    empresas: list[dict] = field(default_factory=list)       # + `nucleo` e `federacao_nome`, que a carga consome
     metas: list[dict] = field(default_factory=list)
     clusters: list[dict] = field(default_factory=list)
     monitoramentos: list[dict] = field(default_factory=list)
@@ -261,6 +261,8 @@ def transformar(
             "federacao_id": int(r["_federacao_id"]),
             # Resolvido para `nucleo_id` na carga: depende do que já está no banco.
             "nucleo": r["NUCLEOS"],
+            # Só para mensagens; não é coluna de `empresa_junior`.
+            "federacao_nome": r["FEDERACAO"],
         })
 
         # META_DE_LENGTH_OF_STAY não tem coluna em `metas`: fica só na staging.

@@ -117,8 +117,10 @@ def importar(
         ErroEscopo      — slug de federação que não existe. Nada é registrado.
         ErroContrato    — planilha fora do contrato, ou federação desconhecida
                           em FEDERACAO. A carga é registrada como 'rejeitada'.
-        carga.ErroCarga — o banco recusou a carga. Registrada como 'erro', com
-                          a staging para diagnóstico.
+        carga.ErroCarga — a carga não entrou: o banco recusou ('erro') ou
+                          a planilha põe EJ em federação diferente da do banco
+                          ('rejeitada'). Registrada com a staging, para
+                          diagnóstico.
         carga.ErroPapel — a conexão é de um papel que ignora RLS.
 
     `conexao` precisa estar em autocommit: esta função controla a própria
@@ -204,15 +206,18 @@ def importar(
             carga.finalizar(conexao, registro, resultado.carga_id, relatorio.para_json())
             if simular:
                 raise psycopg.Rollback()
-    except psycopg.Error as exc:
-        mensagem = carga.traduzir_erro(exc)
+    except (psycopg.Error, carga.ErroCarga) as exc:
+        if isinstance(exc, carga.ErroCarga):
+            mensagem, status = str(exc), exc.status
+        else:
+            mensagem, status = carga.traduzir_erro(exc), "erro"
         carga_id = None
         if not simular:
             carga_id = carga.registrar_falha(
-                conexao, registro, status="erro", mensagem=mensagem,
+                conexao, registro, status=status, mensagem=mensagem,
                 fatias=list(transformacao.fatias.values()),
             )
-        raise carga.ErroCarga(mensagem, carga_id) from exc
+        raise carga.ErroCarga(mensagem, carga_id, status=status) from exc
 
     if simular:
         relatorio.carga_id = None
