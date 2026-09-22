@@ -7,12 +7,17 @@ python-dotenv==1.*
 httpx==0.28.*
 numpy==2.*
 
+# ── Ingestão das planilhas do Portal BJ (app/ingestao/) ──────
+# pandas + openpyxl leem o .xlsx. psycopg é o driver da CARGA: ela escreve
+# direto no Postgres, sob o papel `ingestao` (sujeito a RLS), porque upsert em
+# lote de 13 mil linhas via PostgREST, uma requisição por linha, não se sustenta.
+# A leitura da API continua via PostgREST (cliente Supabase) — nada muda nela.
+# psycopg também é o que tests/test_rls.py usa para verificar as políticas.
+pandas==2.*
+openpyxl==3.*
+psycopg[binary]==3.*
+
 # ── Dependências de teste/desenvolvimento ────────────────────
 # Não fazem parte do caminho de produção.
 pytest==8.*
 pytest-asyncio==0.25.*
-# psycopg é usado SÓ por tests/test_rls.py, que fala SQL direto com o Postgres
-# do laboratório (`make lab`) para verificar as políticas de Row Level Security.
-# A aplicação continua acessando o banco via PostgREST (cliente Supabase) — o
-# driver de produção não muda. Ver docs/adr-002-rls-local-sem-stack-completa.md.
-psycopg[binary]==3.*
