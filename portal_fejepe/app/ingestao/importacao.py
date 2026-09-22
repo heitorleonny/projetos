@@ -156,8 +156,9 @@ def importar(
 
     def rejeitar(exc: ErroContrato):
         # Arquivo inexistente não é "carga rejeitada": não houve arquivo.
+        exc.carga_id = None
         if not simular and registro.arquivo_hash:
-            carga.registrar_falha(conexao, registro, status="rejeitada", mensagem=str(exc))
+            exc.carga_id = carga.registrar_falha(conexao, registro, status="rejeitada", mensagem=str(exc))
         raise exc
 
     try:

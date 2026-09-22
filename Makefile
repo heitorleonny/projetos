@@ -2,7 +2,11 @@
 # Requer Docker Desktop rodando. `make help` lista tudo.
 
 .DEFAULT_GOAL := help
-.PHONY: help up down dev test build logs ps clean lab lab-down front-build front-lint
+
+# Python do host para os scripts que rodam fora do Docker (a carga lê o .xlsx
+# do disco e fala com o Postgres do lab em localhost:55432).
+PYTHON ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3)
+.PHONY: help up down dev test build logs ps clean lab lab-down importar front-build front-lint
 
 help: ## Lista os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-14s\033[0m %s\n",$$1,$$2}'
@@ -35,6 +39,12 @@ lab: ## Sobe só o Postgres do laboratório de dados do TCC
 
 lab-down: ## Derruba o Postgres do laboratório (mantém o volume)
 	docker compose --profile lab stop db
+
+importar: ## Importa planilha do Portal BJ no lab: ARQUIVO=… ANO=2026 ESCOPO=--todas-federacoes|"--federacao fejepe" [DRY=1]
+	@test -n "$(ARQUIVO)" || { echo "Informe ARQUIVO=caminho/da/exportacao.xlsx"; exit 2; }
+	@test -n "$(ANO)" || { echo "Informe ANO=2026 (a planilha não traz o ano)"; exit 2; }
+	@test -n "$(ESCOPO)" || { echo 'Informe ESCOPO=--todas-federacoes ou ESCOPO="--federacao <slug>" — não há default.'; exit 2; }
+	cd portal_fejepe && $(PYTHON) -m scripts.importar_planilha --arquivo "$(ARQUIVO)" --ano $(ANO) $(ESCOPO) $(if $(DRY),--dry-run,)
 
 clean: ## Derruba tudo e apaga volumes (PERDE os dados do laboratório)
 	docker compose --profile dev --profile lab --profile test down -v
