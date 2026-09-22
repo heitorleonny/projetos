@@ -13,16 +13,32 @@ para recriar, rode `make clean` antes).
 
 ## Carregar dados
 
-Ainda não há carga automatizada. O caminho previsto:
+A planilha de monitoramento do Portal BJ (nível EJ) entra pela ingestão
+versionada em `portal_fejepe/app/ingestao/`, que substitui o fluxo de n8n:
 
-1. Exportar as três tabelas do Supabase em CSV (Table Editor → Export, ou
-   `pg_dump` via a connection string do projeto).
-2. Copiar os CSVs para `infra/db/seed/`.
-3. `\copy empresa_junior FROM 'seed/empresa_junior.csv' CSV HEADER` (idem para
-   as outras duas, nesta ordem por causa das foreign keys).
+```bash
+make lab
+# primeiro simule: roda a carga inteira e desfaz no fim
+make importar ARQUIVO=~/Documents/TCC/dados/monitoring_acumulated_2026_1220260921-1-9ldcm9.xlsx \
+              ANO=2026 ESCOPO=--todas-federacoes DRY=1
+# depois grave
+make importar ARQUIVO=~/Documents/TCC/dados/monitoring_acumulated_2026_1220260921-1-9ldcm9.xlsx \
+              ANO=2026 ESCOPO=--todas-federacoes
+```
 
-> Nunca versione os CSVs: são dados reais de EJs. `infra/db/seed/` está no
-> `.gitignore`.
+`ESCOPO="--federacao fejepe"` grava só a fatia de uma federação e conta o resto
+como ignorado. Não há default de escopo, de propósito.
+
+A carga conecta como `app_ingestao` (papel sujeito a RLS, sem DELETE — ver
+`init/10` e `init/11`) e se recusa a rodar como `portal`, que é dono das tabelas
+e passa por cima da RLS. É upsert idempotente: rodar o mesmo arquivo de novo não
+muda nada, e uma exportação nova sobrescreve os meses corrigidos. Cada carga fica
+em `ingestao_carga` (com o relatório em `resumo`) e as linhas brutas em
+`ingestao_staging_ej`.
+
+> Nunca versione as exportações: são dados reais de EJs. `infra/db/seed/` está
+> no `.gitignore`, e as planilhas ficam em `~/Documents/TCC/dados/`, fora do
+> repositório.
 
 ## Os scripts de `init/` só rodam com o volume vazio
 
@@ -61,14 +77,17 @@ as políticas de RLS de `07-` referenciam funções que ele cria.
 | `07-rls-policies.sql` | RLS ligada e políticas de SELECT por tenant |
 | `08-cluster-historico.sql` | cluster por EJ por ano; colunas `cluster_20XX` viram `_legado` |
 | `09-federacao-branding.sql` | logo e cor por federação; leitura pública das colunas de branding para `anon` |
+| `10-ingestao-staging.sql` | papel `ingestao`; `ingestao_carga` (proveniência) e `ingestao_staging_ej` (linha bruta), com RLS |
+| `11-ingestao-escrita.sql` | PKs geradas; núcleo único por (federação, nome); escrita do papel `ingestao` sob RLS, por coluna |
+| `12-nucleo-portal-bj.sql` | seed dos 26 núcleos com o ID do Portal BJ |
 
 ## Carregar dados depois destas migrações
 
-`empresa_junior.federacao_id` é **NOT NULL e sem default**. O passo 3 do roteiro
-de carga (o `\copy`) só funciona se o CSV trouxer a coluna, ou se você carregar
-numa staging e preencher o tenant no INSERT. Isso é intencional: sem default,
+`empresa_junior.federacao_id` é **NOT NULL e sem default**. Um `\copy` direto de
+CSV só funciona se o arquivo trouxer a coluna. Isso é intencional: sem default,
 uma carga que esqueceu o tenant falha na hora, em vez de rotular as EJs de outra
-federação como FEJEPE.
+federação como FEJEPE. A ingestão (`make importar`) resolve o tenant de cada
+linha pela coluna FEDERACAO e aborta se aparecer federação desconhecida.
 
 ## Por que a porta é 55432
 
