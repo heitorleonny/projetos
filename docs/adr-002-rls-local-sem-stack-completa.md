@@ -125,3 +125,89 @@ já está no banco esperando o claim.
 - O filtro por `federacao_id` no código é redundante com a RLS **de propósito**.
   Quem achar isso desnecessário num refactor futuro: ver `app/services/tenant.py`,
   que explica por que as duas camadas existem.
+
+---
+
+## Adendo (22/09/2026) — agora são DOIS ambientes locais
+
+Quem chegar neste repositório, ler o ADR-001, ver que ele rejeitou a stack
+completa do Supabase, e então encontrar um `supabase/config.toml` versionado,
+vai achar que alguém mudou de ideia sem escrever. Não mudou. O que aconteceu
+foi outra coisa: apareceu um caso de uso que nenhum dos dois ADRs cobria.
+
+### O que este adendo não é
+
+**Não é a revogação do ADR-001 nem deste ADR.** As duas decisões seguem de pé
+para o que elas decidiram: o Supabase continua sendo o banco da aplicação, e o
+teste de RLS continua rodando no Postgres do perfil `lab`, com o shim, porque
+ali um container resolve o que sete resolveriam.
+
+### O caso que faltava
+
+Os dois ADRs decidiram sobre **modelagem de dados e teste de política**. Para
+isso o shim basta, e o argumento continua correto: em produção quem informa o
+usuário às políticas não é o GoTrue, é o PostgREST, que injeta os claims do JWT
+como configuração de sessão. Reproduzir isso é copiar duas funções de leitura.
+
+O que apareceu depois foi **validação visual com autenticação real**: abrir a
+tela, logar como gente de duas federações diferentes, e ver o isolamento
+acontecer. E esse é exatamente o ponto onde o shim não serve — ele replica
+`auth.jwt()`, **não o GoTrue que emite o token**. Sem GoTrue não há login, sem
+login não há JWT, e sem JWT o Custom Access Token Hook nunca roda. O hook é o
+que leva `federacao_id` e `papel` para dentro do token; até ele rodar, todo o
+isolamento multi-tenant está no banco esperando um claim que ninguém emite.
+
+Dito de outro jeito: o trabalho das fases 1 a 3 foi validado por teste e por
+SQL, e ninguém nunca tinha aberto a tela com mais de uma federação dentro.
+
+### Os dois ambientes, e quando usar cada um
+
+| | `make lab` | `make demo` |
+|---|---|---|
+| O que sobe | 1 container: Postgres | 11 containers: a stack Supabase |
+| Porta do banco | 55432 | 54422 |
+| Schema `auth` | shim de `00-shim-auth-local.sql` | real, da plataforma |
+| Quem diz quem é o usuário | `SET request.jwt.claims` no psycopg | GoTrue, com login de verdade |
+| Custom Access Token Hook | não existe | ligado em `supabase/config.toml` |
+| PostgREST / Studio | não | sim |
+| Para que serve | `pytest -q`, `tests/test_rls.py`, modelagem do TCC | abrir a tela e olhar |
+| Custo de subir | segundos | minutos, e ~10 GB de imagem |
+
+**Use o `lab`** para qualquer coisa que uma consulta SQL responda: escrever
+política, testar isolamento, rodar a suíte, explorar dado para a modelagem. É
+o ambiente do dia a dia, e continua sendo.
+
+**Use o `demo`** quando a pergunta só se responde olhando: a tela mostra o
+número certo para esta federação? o branding cai no fallback sem quebrar? o
+login devolve um token com tenant? É o ambiente de sessão de validação com
+usuário, não o de desenvolvimento.
+
+### Decisões de montagem que valem registrar
+
+- **`infra/db/init/` continua fonte única.** As migrações **não** foram
+  copiadas para `supabase/migrations/`. Duas cópias divergiriam na primeira
+  migração nova, e aí ninguém sabe qual vale. O `make demo` aplica `01..12`
+  por `psql`, com `ON_ERROR_STOP=1`.
+- **O `00-shim-auth-local.sql` é pulado no `demo`**, pelo motivo que este ADR
+  já dava para o Supabase hospedado: lá o schema `auth`, as funções e os roles
+  são de verdade, e o shim por cima é conflito.
+- **As portas são do bloco 544xx**, não o 543xx padrão da CLI. Não foi
+  preferência: havia outra stack Supabase na máquina de desenvolvimento
+  ocupando 54321-54327. O `project_id` também é próprio
+  (`portal-fejepe-demo`), para os containers não colidirem no nome.
+- **O login da ingestão é criado pelo `Makefile`, não pelo SQL.** A migração 10
+  cria `ingestao` (NOLOGIN) sempre, mas só cria o login `app_ingestao` quando
+  **não** detecta `supabase_auth_admin` — isto é, só no laboratório. No `demo`
+  esse role existe, então o login é ação de operador, com a senha vindo de
+  variável de ambiente e nunca de SQL versionado. É o mesmo desenho que a
+  própria migração 10 descreve para o Supabase hospedado.
+
+### O que o `demo` torna obsoleto na seção "o que precisa acontecer MANUALMENTE"
+
+Os passos 4 e 5 daquela lista (preencher `usuario.auth_user_id` e ativar o
+hook) continuam valendo **para o Supabase hospedado**, onde o hook é ação de
+Dashboard. No ambiente local eles deixaram de ser manuais: o hook é
+configuração versionada, e `scripts/seed_demo.py` cria os usuários no Auth e
+grava `auth_user_id` na ordem certa — primeiro a linha em `usuario`, depois o
+login, porque o hook procura em `usuario` e devolve o token intacto se não
+achar ninguém.
