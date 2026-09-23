@@ -39,6 +39,7 @@ import argparse
 import base64
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -73,7 +74,12 @@ class ErroDemo(RuntimeError):
 # ── Descoberta da stack ─────────────────────────────────────────────────────
 
 
-def _status_da_cli(projeto: str) -> dict:
+def _raiz_do_repo() -> pathlib.Path:
+    """Onde mora o supabase/config.toml: dois níveis acima deste arquivo."""
+    return pathlib.Path(__file__).resolve().parents[2]
+
+
+def _status_da_cli(_projeto: str) -> dict:
     """Pergunta as URLs e chaves para a própria CLI, em vez de fixá-las aqui.
 
     As chaves locais mudam entre versões da CLI, e chutar o formato delas é o
@@ -81,7 +87,10 @@ def _status_da_cli(projeto: str) -> dict:
     """
     try:
         saida = subprocess.run(
-            ["supabase", "status", "-o", "json", "--project-id", projeto],
+            # --workdir porque este script roda de portal_fejepe/, e o
+            # config.toml (que identifica o projeto) esta na raiz do repo.
+            # `status` nao aceita --project-id; quem aceita e `stop`.
+            ["supabase", "status", "-o", "json", "--workdir", str(_raiz_do_repo())],
             capture_output=True,
             text=True,
             timeout=60,
