@@ -73,6 +73,7 @@ front-lint: ## Lint do frontend
 
 DEMO_PROJETO  := portal-fejepe-demo
 DEMO_DB_PORT  ?= 54422
+DEMO_CONTAINER_DB := supabase_db_$(DEMO_PROJETO)
 DEMO_DSN      ?= postgresql://postgres:postgres@127.0.0.1:$(DEMO_DB_PORT)/postgres
 # Senha do papel de carga. Valor padrão de DESENVOLVIMENTO, sobrescrevível por
 # ambiente — nunca escrita em SQL versionado.
@@ -97,14 +98,25 @@ demo-schema: ## Aplica infra/db/init/01..12 na stack de demonstração (pula o 0
 	@# criado pelo operador, que é exatamente o que este bloco faz.
 	@set -e; \
 	if [ -z "$$(psql "$(DEMO_DSN)" -tAc "SELECT 1 FROM pg_roles WHERE rolname='app_ingestao'")" ]; then \
-		psql "$(DEMO_DSN)" -v ON_ERROR_STOP=1 -q -v senha="$(INGESTAO_SENHA)" \
-			-c "CREATE ROLE app_ingestao LOGIN PASSWORD :'senha' IN ROLE ingestao"; \
+		echo "CREATE ROLE app_ingestao LOGIN PASSWORD :'senha' IN ROLE ingestao" \
+			| psql "$(DEMO_DSN)" -v ON_ERROR_STOP=1 -q -v senha="$(INGESTAO_SENHA)"; \
 		echo "→ papel app_ingestao criado"; \
 	else \
-		psql "$(DEMO_DSN)" -v ON_ERROR_STOP=1 -q -v senha="$(INGESTAO_SENHA)" \
-			-c "ALTER ROLE app_ingestao LOGIN PASSWORD :'senha'"; \
+		echo "ALTER ROLE app_ingestao LOGIN PASSWORD :'senha'" \
+			| psql "$(DEMO_DSN)" -v ON_ERROR_STOP=1 -q -v senha="$(INGESTAO_SENHA)"; \
 		echo "→ papel app_ingestao já existia; senha atualizada"; \
 	fi
+	@# GRANT USAGE ON SCHEMA auth: a migração 10 tenta, e aqui ela FALHA EM
+	@# SILÊNCIO ("WARNING: no privileges were granted for auth"). O schema `auth`
+	@# pertence a `supabase_admin`, e o `postgres` da CLI não é membro dele nem
+	@# superusuário — então não tem o que conceder. Sem esta linha, `ingestao`
+	@# leva "permission denied for schema auth" ao avaliar QUALQUER política de
+	@# RLS, porque todas chamam auth.jwt(), e a carga inteira morre.
+	@# No laboratório isso nunca apareceu: lá o shim cria o schema `auth` como
+	@# dono do banco, e o GRANT da 10 funciona. Ver o resumo da sessão de 22/09.
+	docker exec $(DEMO_CONTAINER_DB) psql -U supabase_admin -d postgres -q \
+		-v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA auth TO ingestao;"
+	@echo "→ USAGE em schema auth concedido a ingestao (via supabase_admin)"
 	@echo "Schema aplicado. Studio: http://localhost:54423"
 
 demo-dados: ## Carrega a planilha nacional na demo: ARQUIVO=… ANO=2026 [DRY=1]
