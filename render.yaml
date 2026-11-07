@@ -1,0 +1,36 @@
+# API apenas. O frontend usa frontend/vercel.json; Supabase é externo.
+services:
+  - type: web
+    name: portal-federacoes-api
+    runtime: docker
+    plan: 1c-2g
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CONVITE_REDIRECT_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: INGESTAO_DSN
+        sync: false
+      - key: DOCS_ENABLED
+        value: "false"
+      # Ative o hook no Supabase antes de habilitar os usuários.
+      - key: TENANT_CLAIM_OBRIGATORIO
+        value: "true"
+      - key: IA_PROVEDOR
+        value: openrouter
+      - key: IA_BASE_URL
+        sync: false
+      - key: IA_MODELO
+        sync: false
+      - key: IA_API_KEY
+        sync: false

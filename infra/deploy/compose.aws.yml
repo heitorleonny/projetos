@@ -1,0 +1,63 @@
+# VPS genérica (Hostinger/AWS/outro): nome histórico preservado. Supabase externo.
+name: portal-federacoes-beta
+services:
+  backend:
+    build:
+      context: ../../backend
+      target: runtime
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?Defina SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Defina SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      INGESTAO_DSN: ${INGESTAO_DSN:-}
+      CONVITE_REDIRECT_URL: https://${PORTAL_DOMAIN:?Defina PORTAL_DOMAIN}/definir-senha
+      CORS_ORIGINS: https://${PORTAL_DOMAIN}
+      DOCS_ENABLED: "false"
+      TENANT_CLAIM_OBRIGATORIO: "true"
+      # API sem porta no host: só proxies da rede privada Docker chegam aqui.
+      FORWARDED_ALLOW_IPS: "*"
+      IA_PROVEDOR: ${IA_PROVEDOR:-openrouter}
+      IA_BASE_URL: ${IA_BASE_URL:-}
+      IA_MODELO: ${IA_MODELO:-}
+      IA_API_KEY: ${IA_API_KEY:-}
+      IA_TIMEOUT_SEGUNDOS: ${IA_TIMEOUT_SEGUNDOS:-20}
+      IA_MAX_TOKENS_SAIDA: ${IA_MAX_TOKENS_SAIDA:-1024}
+      IA_RACIOCINIO: ${IA_RACIOCINIO:-padrao}
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  frontend:
+    build:
+      context: ../../frontend
+    environment:
+      API_BASE_URL: /api/v1
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      USE_MOCK: "false"
+      TENANT_SLUG: ${TENANT_SLUG:-fejepe}
+      FEEDBACK_FORM_URL: ${FEEDBACK_FORM_URL:-}
+    depends_on:
+      backend: {condition: service_healthy}
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging: *logging
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Defina ACME_EMAIL}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend: {condition: service_healthy}
+    restart: unless-stopped
+    logging: *logging
+volumes:
+  caddy_data:
+  caddy_config:

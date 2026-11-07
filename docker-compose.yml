@@ -1,165 +1,134 @@
-# Portal FEJEPE — stack local completa.
-#
-#   docker compose up --build              → produção local (frontend :8080 + backend :8000)
-#   docker compose --profile dev up        → desenvolvimento com hot reload
-#   docker compose --profile test run test → suíte de testes do backend
-#   docker compose --profile lab up db     → Postgres local para a modelagem do TCC
-#
-# Copie `.env.example` para `.env` na raiz antes do primeiro uso.
-
-name: portal-fejepe
+# docker compose --env-file .env.docker up --build -d
+# Gere as senhas com: python3 scripts/configurar_docker.py
+name: portal-federacoes
 
 services:
-  # ── Backend (FastAPI) ──────────────────────────────────────
-  backend:
-    build:
-      context: ./portal_fejepe
+  postgres:
+    image: postgres:16-alpine
     environment:
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      # Só a chave ANÔNIMA chega ao container da API: é ela que respeita RLS.
-      # A service key (que ignora RLS) fica de fora de propósito — script
-      # administrativo roda fora daqui.
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
-      # Nome legado, repassado para que um `.env` antigo continue funcionando.
-      SUPABASE_KEY: ${SUPABASE_KEY:-}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
-      DOCS_ENABLED: ${DOCS_ENABLED:-false}
-      ANO_DEFAULT: ${ANO_DEFAULT:-2026}
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      POSTGRES_USER: ${POSTGRES_USER:-portal_owner}
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - portal_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3).status==200 else 1)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
     restart: unless-stopped
 
-  # ── Frontend (build estático servido por nginx) ────────────
-  # O nginx faz proxy de /api/v1 para o backend, então a imagem não
-  # precisa saber a URL da API em build time e funciona em qualquer host.
-  #
-  # DOIS CANAIS DE CONFIGURAÇÃO, DE PROPÓSITO — e a escolha é esta:
-  #
-  #   `args`        entram no bundle em build time e são o DEFAULT DA IMAGEM.
-  #                 É o que a imagem faz quando ninguém configura nada.
-  #   `environment` são lidas no START do container pelo docker-entrypoint.sh,
-  #                 viram window.__ENV__ e TÊM PRECEDÊNCIA sobre os args.
-  #
-  # Por que não deixar só runtime: uma imagem que não sabe se virar sozinha
-  # quebra em qualquer lugar onde alguém esqueça uma variável — e o modo de
-  # falhar é tela branca, sem mensagem. Por que não deixar só build time: é o
-  # que esta fase veio desfazer, porque obriga a rebuildar por ambiente e por
-  # federação.
-  #
-  # Valor vazio em runtime conta como ausente (src/config/env.ts) e cai no
-  # default do bundle — então declarar tudo aqui não apaga nada.
-  frontend:
-    build:
-      context: ./front_portal_fejepe
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-        VITE_USE_MOCK: ${VITE_USE_MOCK:-false}
-        VITE_FEEDBACK_FORM_URL: ${VITE_FEEDBACK_FORM_URL:-}
+  migrate:
+    build: ./backend
+    command: ["python", "/operacao/migrar_postgres.py"]
     environment:
-      # Sem o prefixo VITE_: aqui é runtime, não build.
-      API_BASE_URL: ${API_BASE_URL:-/api/v1}
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
-      USE_MOCK: ${USE_MOCK:-false}
-      FEEDBACK_FORM_URL: ${FEEDBACK_FORM_URL:-}
-      # Qual federação esta instância serve. PROVISÓRIO: resolução por variável
-      # de ambiente, não por domínio — serve um tenant declarado no deploy, não
-      # N tenants simultâneos. Ver o cabeçalho de src/config/env.ts.
+      POSTGRES_USER: ${POSTGRES_USER:-portal_owner}
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-}
+      INGESTAO_DB_PASSWORD: ${INGESTAO_DB_PASSWORD:-}
+    volumes:
+      - ./infra:/infra:ro
+      - ./scripts/migrar_postgres.py:/operacao/migrar_postgres.py:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_DSN: postgresql://portal_app:${APP_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-portal}
+      AUTH_DATABASE_DSN: postgresql://portal_auth:${AUTH_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-portal}
+      INGESTAO_DSN: postgresql://app_ingestao:${INGESTAO_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-portal}
+      CONVITE_REDIRECT_URL: ${CONVITE_REDIRECT_URL:-http://localhost:8080/definir-senha}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      DOCS_ENABLED: ${DOCS_ENABLED:-false}
+      TENANT_CLAIM_OBRIGATORIO: "true"
+      IA_BASE_URL: ${IA_BASE_URL:-}
+      IA_PROVEDOR: ${IA_PROVEDOR:-openrouter}
+      IA_MODELO: ${IA_MODELO:-}
+      IA_API_KEY: ${IA_API_KEY:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_BASE_URL: /api/v1
+      USE_MOCK: "false"
       TENANT_SLUG: ${TENANT_SLUG:-fejepe}
+      FEEDBACK_FORM_URL: ${FEEDBACK_FORM_URL:-}
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
-  # ── Desenvolvimento: backend com reload ────────────────────
-  backend-dev:
-    profiles: ["dev"]
-    build:
-      context: ./portal_fejepe
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    environment:
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
-      SUPABASE_KEY: ${SUPABASE_KEY:-}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-      ANO_DEFAULT: ${ANO_DEFAULT:-2026}
-    volumes:
-      - ./portal_fejepe/app:/app/app:ro
-      - ./portal_fejepe/tests:/app/tests:ro
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
-
-  # ── Desenvolvimento: frontend com Vite ─────────────────────
-  # node_modules fica em volume anônimo para não misturar binários
-  # nativos do macOS com os do container Linux.
-  frontend-dev:
-    profiles: ["dev"]
-    image: node:22-alpine
-    working_dir: /app
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL_DEV:-http://localhost:8000/api/v1}
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-      VITE_USE_MOCK: ${VITE_USE_MOCK:-true}
-      VITE_FEEDBACK_FORM_URL: ${VITE_FEEDBACK_FORM_URL:-}
-    volumes:
-      - ./front_portal_fejepe:/app
-      - /app/node_modules
-    ports:
-      - "5173:5173"
-
-  # ── Testes do backend ──────────────────────────────────────
-  # Não toca em rede: os testes usam dependency_overrides.
   test:
     profiles: ["test"]
     build:
-      context: ./portal_fejepe
-    command: ["python", "-m", "pytest", "-q"]
+      context: ./backend
+      target: test
+    command: ["python", "-m", "pytest", "-q", "-rs", "--require-lab"]
+    volumes:
+      - ./infra/db/init:/infra/db/init:ro
     environment:
       SUPABASE_URL: http://localhost
       SUPABASE_ANON_KEY: test-key-nao-usada
+      LAB_DSN_DONO: postgresql://portal:portal@db-test:5432/portal_test
+      LAB_DSN_APP: postgresql://app_authenticated:app_authenticated@db-test:5432/portal_test
+      LAB_DSN_INGESTAO: postgresql://app_ingestao:app_ingestao@db-test:5432/portal_test
+    depends_on:
+      db-test:
+        condition: service_healthy
 
-  # ── Laboratório de dados do TCC ────────────────────────────
-  # Postgres local para a modelagem preditiva. NÃO é o banco da API:
-  # a API continua no Supabase. Ver docs/adr-001-supabase-vs-postgres.md
+  db-test:
+    profiles: ["test"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: portal
+      POSTGRES_DB: portal_test
+    # Sem porta no host e sem volume persistente: todas as migrações são
+    # reaplicadas em cada `make test`, sem apagar o laboratório ou a demo.
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U portal -d portal_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Laboratório isolado para desenvolvimento; não é o volume da aplicação.
   db:
     profiles: ["lab"]
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-portal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
-      POSTGRES_DB: ${POSTGRES_DB:-portal_lab}
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: portal
+      POSTGRES_DB: portal_lab
     ports:
-      # 55432 e não 5432 de propósito: instalação local de Postgres (Homebrew,
-      # Postgres.app) costuma ocupar 127.0.0.1:5432, e o bind específico dela
-      # vence o bind coringa do Docker — conexões a localhost:5432 iriam para o
-      # banco errado, com erro confuso ("role portal does not exist") ou, pior,
-      # em silêncio. Ver infra/db/README.md.
-      - "${POSTGRES_PORT:-55432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal} -d ${POSTGRES_DB:-portal_lab}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "pg_isready", "-U", "portal", "-d", "portal_lab"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
 
 volumes:
+  portal_postgres:
   pgdata:

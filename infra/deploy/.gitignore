@@ -1,0 +1,4 @@
+# Configurações locais reais nunca entram no repositório.
+.env
+.env.*
+__pycache__/
