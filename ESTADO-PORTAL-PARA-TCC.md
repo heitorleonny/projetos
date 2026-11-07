@@ -102,7 +102,7 @@ Nas escritas administrativas, papel, vínculo e situação ativa devem ser confe
 | Eventos | Metas e acompanhamento dos eventos disponíveis para o tenant; Ciranda específica da FEJEPE | `src/features/eventos/`; `evento_service.py` |
 | Administração | Usuários, convites, importação com simulação e histórico; federações para operador; aparência da própria federação | `src/features/admin/`; ADR-003 e ADR-006 |
 | Primeiro acesso | Guia em três etapas, adiamento e conclusão por conta/navegador; reabertura pelo menu; fluxo de senha do convite | `src/features/onboarding/`; relatório de onboarding |
-| Nexo | Perguntas em linguagem natural, continuidade limitada, esclarecimentos, fontes e contexto visível | `app/ia/`; `src/features/assistente/`; ADR-004/005 |
+| Nexo | Perguntas em linguagem natural, continuidade limitada, esclarecimentos, fontes e contexto visível; desde 07/11 também glossário, perfil de EJ, ranking ascendente, metas e visualização da consulta | `app/ia/`; `src/features/assistente/`; ADR-004/005; `docs/nexo-ampliacao-2026-11.md` |
 
 Os caminhos de frontend da tabela são relativos a `frontend/`; os arquivos de backend estão em `backend/app/`.
 
@@ -208,6 +208,45 @@ Fonte: `docs/verificacao-portal-2026-10-05.md` e `docs/ia-avaliacao-nexo-2026-10
 O runner terminou com **código 1**, pois também exige igualdade integral de plano e catálogo. Não apresentar a execução como aprovação integral nem converter o 21/21 do fluxo em 100% de interpretação. O corpus foi usado no desenvolvimento, não é holdout; recusas/esclarecimentos sem linhas não medem acerto numérico. O runner não testa autenticação HTTP. Limite operacional e preservação de acentos foram verificados posteriormente por testes/rota real, sem nova rodada integral do corpus.
 
 Em 04/10 havia corpus de 19 perguntas e uma reavaliação bloqueada por quota do fornecedor. O relatório de 05/10 é a evolução posterior; não confundir a falha de fornecedor antiga com o resultado sem erros de transporte mais recente.
+
+### Ampliação de 07/11/2026 — implementado e verificado localmente por testes; avaliação com modelo real pendente
+
+Branch `feat/nexo-ampliacao`. Relatório completo: [docs/nexo-ampliacao-2026-11.md](docs/nexo-ampliacao-2026-11.md).
+
+- **Glossário (`explicar`).** São 12 conceitos em `Literal` fechado, com textos curados
+  em `app/ia/glossario.py`. Limiares e pesos vêm de `constants.py`, e o módulo não lê
+  o banco nem varia por federação. Perguntas de definição inteiras são respondidas
+  pela guarda local, sem modelo e sem limitador.
+- **Ranking dos menores valores (`ordem="asc"`).** EJ sem coleta da métrica fica fora
+  e a resposta informa quantas. O ranking descendente não mudou.
+- **Perfil de uma EJ (`perfil_ej`).** O nome é resolvido só dentro da federação
+  autenticada. EJ de outra federação recebe a mesma resposta que EJ inexistente.
+  Nomes ambíguos levam a um esclarecimento com até 5 opções do próprio tenant. A
+  resposta é uma projeção explícita de `buscar_empresa`, mais a série mensal (campo
+  opcional `RespostaRede.serie`). A guarda aceita o nome literal só nesta ferramenta
+  e continua recusando cidade, universidade e "EJ de …".
+- **Atingimento da meta de faturamento (`metas`).** Mostra as EJs em quatro faixas
+  (≥100%, de 50% a menos de 100%, <50% e sem meta), com filtro por faixa. O
+  percentual vem de `calcular_percentual_meta`; os limiares novos ficam em
+  `constants.py`.
+- **Visualização da consulta.** Ranking, ritmo, SDE, perfil e distribuição de metas
+  ganham gráfico Recharts, com alternância Gráfico/Tabela, tabela preservada e
+  descrição acessível. Não é dashboard gerado por IA: não há chamada nova ao modelo,
+  nem persistência, nem publicação. A largura de celular foi conferida em captura
+  com dados sintéticos.
+- **Nome do SDE.** A interface e o OpenAPI passam a dizer "Saldo de Evolução da Rede".
+- **Evidência local (`make check`, PostgreSQL 16 descartável).**
+  - Linha de base: backend com 584 passaram, 0 falhas, 0 pulados; frontend com 21
+    passaram, 0 falhas, 0 pulados.
+  - Final: backend com **726 passaram, 0 falhas, 0 pulados**; frontend com **33
+    passaram, 0 falhas, 0 pulados**; lint, build e calculadora aprovados.
+  - O isolamento das ferramentas novas foi testado com RLS real, com e sem o filtro
+    Python.
+- **Corpus.** Passou para 33 perguntas de desenvolvimento: as 21 anteriores sem
+  alteração e 12 novas. Ainda não é holdout. A avaliação real não foi executada e o
+  prompt mudou, então **os números de 05/10 acima não valem para a versão atual**.
+  Não apresentar resultado de interpretação das ferramentas novas até rodar o
+  comando documentado no relatório.
 
 ## 8. Frente em desenvolvimento: dashboards de eventos e créditos
 
