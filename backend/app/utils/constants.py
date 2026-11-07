@@ -31,3 +31,11 @@ MESES_ANO: int = 12
 # ── Fator de escala da pontuação de cluster ───────────────────
 # Referência: calculos.md → 5️⃣ Fórmula Oficial de Pontos de Cluster
 FATOR_ESCALA_PONTOS: int = 100
+
+# ── Faixas de atingimento da meta anual de faturamento ───────
+# Agrupamento usado pelo Nexo (consulta `metas` e glossário), definido por
+# Heitor em 07/11/2026. O % da meta continua vindo de
+# calculo_service.calcular_percentual_meta (regras-de-negocio.md §4.3).
+# Faixas: ≥ LIMIAR_META_ATINGIDA; [LIMIAR_META_PARCIAL, LIMIAR_META_ATINGIDA); < LIMIAR_META_PARCIAL.
+LIMIAR_META_ATINGIDA: float = 100.0
+LIMIAR_META_PARCIAL: float = 50.0

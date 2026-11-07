@@ -61,7 +61,7 @@ export default function AssistentePanel({ aberto, fechar }: { aberto: boolean; f
                         <div className="pb-1 pt-1">
                             <NexoMascot size={48} className="mb-3 text-primary-300" />
                             <h3 className="text-xl font-semibold text-white">Consultar dados da rede</h3>
-                            <p className="mt-3 text-sm leading-relaxed text-neutral-400">Consulte EJs, faturamento, indicadores e rankings de {nome}. Escolha um exemplo ou escreva uma pergunta com mês, ano e cluster.</p>
+                            <p className="mt-3 text-sm leading-relaxed text-neutral-400">Consulte EJs, faturamento, indicadores e rankings de {nome}, ou pergunte o que significa um indicador. Escolha um exemplo ou escreva uma pergunta com mês, ano e cluster.</p>
                         </div>
                         <div className="space-y-2">
                             {exemplos.map(exemplo => <button type="button" key={exemplo.titulo} onClick={() => perguntar(exemplo.pergunta)} className="group flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-700 bg-neutral-800/40 p-4 text-left transition hover:border-primary-400/50 hover:bg-primary-500/10">

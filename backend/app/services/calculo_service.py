@@ -309,7 +309,7 @@ def calcular_sde(
     descidas_por_cluster: list[int],
 ) -> float:
     """
-    Calcula o SDE (Saldo de Desenvolvimento Estratégico) da rede.
+    Calcula o SDE (Saldo de Evolução da Rede).
 
     Referência: calculos.md → 1️⃣ Cálculo do SDE
 

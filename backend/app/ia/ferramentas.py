@@ -8,6 +8,7 @@ from app.services.rede_service import (calcular_indicadores_rede, gerar_ranking,
 from app.services.cluster_service import buscar_ids_por_cluster
 from app.services.tenant import filtrar_por_tenant
 from app.ia.conversa import esclarecer
+from app.ia.glossario import explicar, recusar_conceito
 
 
 def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao: int) -> RespostaRede:
@@ -15,10 +16,19 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
         raise ValueError("Consulta exige federação autenticada.")
     if plano.ferramenta == "esclarecer":
         return esclarecer(plano.esclarecimento, plano)
+    if plano.ferramenta == "explicar":
+        # Glossário curado e nacional: nenhuma leitura do banco. Filtros de dado
+        # num pedido de definição seriam descartados em silêncio; por isso recusa.
+        if plano.conceito is None or any(getattr(plano, campo) is not None
+                                         for campo in ("busca", "cluster", "criterio", "limite")):
+            return recusar_conceito()
+        return explicar(plano.conceito)
+    if plano.conceito is not None:
+        return recusar_conceito()
     if plano.ferramenta == "recusar" or (plano.busca and plano.ferramenta != "fora_do_zero"):
         return RespostaRede(status="fora_do_catalogo", resposta=(
             "Posso consultar EJs fora do zero, indicadores, rankings, ritmo mensal e SDE da sua federação, "
-            "com filtro de cluster. Busca por nome está disponível nas EJs fora do zero. "
+            "com filtro de cluster, e explicar os indicadores. Busca por nome está disponível nas EJs fora do zero. "
             "Para rankings, indique faturamento, CSAT, projetos ou faturamento colaborativo."
         ))
     ano = plano.ano if plano.ano is not None else ano_padrao

@@ -6,6 +6,127 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Me",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/senha": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Senha",
+        "operationId": "senha_api_v1_auth_senha_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Senha"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/empresas": {
       "get": {
         "tags": [
@@ -706,7 +827,7 @@
           "Rede"
         ],
         "summary": "SDE da rede (3 cenários)",
-        "description": "Calcula o Saldo de Desenvolvimento Estratégico em três cenários: Índice de Cluster, Índice c/ Meta CSAT e Tracking de Cluster.",
+        "description": "Calcula o SDE (Saldo de Evolução da Rede) em três cenários: Índice de Cluster, Índice c/ Meta CSAT e Tracking de Cluster.",
         "operationId": "get_sde_api_v1_rede_sde_get",
         "security": [
           {
@@ -1090,7 +1211,7 @@
         "tags": [
           "Administração"
         ],
-        "summary": "Cadastra e convida por e-mail",
+        "summary": "Cadastra e gera link de convite",
         "operationId": "convidar_usuario_api_v1_admin_usuarios_post",
         "security": [
           {
@@ -3418,6 +3539,28 @@
         ],
         "title": "LinhaResposta"
       },
+      "Login": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Login"
+      },
       "MetaVsRealizado": {
         "properties": {
           "meta_faturamento": {
@@ -3728,6 +3871,7 @@
               "ranking",
               "sde",
               "ritmo_mensal",
+              "explicar",
               "esclarecer",
               "recusar"
             ],
@@ -3843,6 +3987,31 @@
               }
             ],
             "title": "Federacao Mencionada"
+          },
+          "conceito": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fora_do_zero",
+                  "ritmo",
+                  "cluster",
+                  "sde",
+                  "taxa_colaboracao",
+                  "faturamento_colaborativo",
+                  "csat",
+                  "engajamento",
+                  "tracking_cluster",
+                  "projecao_anual",
+                  "ritmo_necessario",
+                  "meta_atingida"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conceito"
           }
         },
         "additionalProperties": false,
@@ -4250,6 +4419,33 @@
         "title": "SdeResponse",
         "description": "Três cenários de SDE da rede."
       },
+      "Senha": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Password"
+          },
+          "convite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Convite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "Senha"
+      },
       "Sessao": {
         "properties": {
           "usuario_id": {
@@ -4336,6 +4532,17 @@
       },
       "Usuario": {
         "properties": {
+          "convite_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Convite Url"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -4376,7 +4583,7 @@
           "vinculado": {
             "type": "boolean",
             "title": "Vinculado",
-            "description": "Já existe conta no Supabase Auth ligada a esta linha."
+            "description": "Já existe conta de acesso ligada a esta linha."
           },
           "ultimo_login": {
             "anyOf": [

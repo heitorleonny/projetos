@@ -5,9 +5,14 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+Conceito = Literal["fora_do_zero", "ritmo", "cluster", "sde", "taxa_colaboracao", "faturamento_colaborativo",
+                   "csat", "engajamento", "tracking_cluster", "projecao_anual", "ritmo_necessario", "meta_atingida"]
+
+
 class PlanoConsulta(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    ferramenta: Literal["fora_do_zero", "indicadores_rede", "ranking", "sde", "ritmo_mensal", "esclarecer", "recusar"]
+    ferramenta: Literal["fora_do_zero", "indicadores_rede", "ranking", "sde", "ritmo_mensal", "explicar",
+                        "esclarecer", "recusar"]
     ano: int | None = Field(ge=2000, le=2100)
     mes: int | None = Field(ge=1, le=12)
     criterio: Literal["faturamento", "csat", "projetos", "colab"] | None
@@ -16,6 +21,8 @@ class PlanoConsulta(BaseModel):
     busca: str | None = Field(default=None, min_length=2, max_length=80)
     esclarecimento: Literal["metrica_ranking", "periodo", "escopo"] | None = None
     federacao_mencionada: str | None = Field(default=None, min_length=2, max_length=200)
+    # Só com `explicar`: o texto vem do glossário curado, nunca do modelo.
+    conceito: Conceito | None = None
 
     @field_validator("busca")
     @classmethod

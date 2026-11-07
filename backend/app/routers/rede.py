@@ -88,7 +88,7 @@ def get_ritmo_mensal(
     response_model=SdeResponse,
     summary="SDE da rede (3 cenários)",
     description=(
-        "Calcula o Saldo de Desenvolvimento Estratégico em três cenários: "
+        "Calcula o SDE (Saldo de Evolução da Rede) em três cenários: "
         "Índice de Cluster, Índice c/ Meta CSAT e Tracking de Cluster."
     ),
 )

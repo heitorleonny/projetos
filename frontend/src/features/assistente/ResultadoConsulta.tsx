@@ -8,6 +8,7 @@ const fontes: Record<string, string> = {
     'empresa_service.listar_empresas': 'Dados do portal · EJs',
     'rede_service.calcular_sde_cenarios': 'Dados do portal · Cenários de SDE',
     'rede_service.calcular_ritmo_mensal': 'Dados do portal · Ritmo mensal',
+    glossario: 'Glossário do portal · regras nacionais do MEJ',
 };
 
 function formatar(valor: number | null, unidade: 'moeda' | 'numero') {

@@ -138,3 +138,40 @@ def busca_com_intencao_de_nome(pergunta: str, plano: PlanoConsulta, contexto: Pl
     mes = r'(?:janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|(?:0?[1-9]|1[0-2])/(?:20\d{2}|2100))'
     seguimento = r'(?:e|agora) (?:em ' + mes + r'(?: de (?:20\d{2}|2100))?(?: no cluster [1-5])?|no cluster [1-5])\??'
     return bool(re.fullmatch(seguimento, texto))
+
+
+# Termos aceitos pela guarda local do glossário (texto já normalizado).
+_TERMOS_CONCEITO = {
+    'fora do zero': 'fora_do_zero', 'estar fora do zero': 'fora_do_zero', 'ej fora do zero': 'fora_do_zero',
+    'ritmo': 'ritmo', 'ritmo mensal': 'ritmo', 'ritmo minimo': 'ritmo', 'ritmo significativo': 'ritmo',
+    'cluster': 'cluster', 'clusters': 'cluster', 'cluster oficial': 'cluster',
+    'pontuacao de cluster': 'cluster', 'pontos de cluster': 'cluster',
+    'sde': 'sde', 'saldo de evolucao': 'sde', 'saldo de evolucao da rede': 'sde',
+    'taxa de colaboracao': 'taxa_colaboracao', 'taxa colab': 'taxa_colaboracao', 'taxa de colab': 'taxa_colaboracao',
+    'faturamento colaborativo': 'faturamento_colaborativo', 'faturamento colab': 'faturamento_colaborativo',
+    'csat': 'csat', 'satisfacao do cliente': 'csat',
+    'engajamento': 'engajamento', 'engajamento mej': 'engajamento', 'engajamento com o mej': 'engajamento',
+    'engajamento no mej': 'engajamento',
+    'tracking': 'tracking_cluster', 'tracking de cluster': 'tracking_cluster', 'tracking do cluster': 'tracking_cluster',
+    'cluster track': 'tracking_cluster',
+    'projecao anual': 'projecao_anual', 'projecao de faturamento': 'projecao_anual',
+    'ritmo necessario': 'ritmo_necessario',
+    'meta atingida': 'meta_atingida', '% da meta': 'meta_atingida', 'percentual da meta': 'meta_atingida',
+    'porcentagem da meta': 'meta_atingida', 'atingimento da meta': 'meta_atingida',
+}
+_PERGUNTA_CONCEITO = re.compile(
+    r'(?:o que (?:e|sao|significa|quer dizer|seria)|como (?:e|sao) calculad[oa]s?|como se calcula|como calcula'
+    r'|como funciona|qual (?:e )?a (?:definicao|formula) d[aoe]|explique|explica|me explica|me explique|defina'
+    r'|significado d[aoe])\s+(?:(?:o|a|os|as|um|uma)\s+)?(?:(?:indicador|conceito|metrica)\s+(?:d[aoe]\s+)?)?'
+    r'(?P<termo>' + '|'.join(re.escape(t) for t in sorted(_TERMOS_CONCEITO, key=len, reverse=True)) + r')\s*[?.!]*'
+)
+
+
+def conceito_local(pergunta: str) -> str | None:
+    """Pergunta de definição inteira → conceito do glossário; o resto vai ao intérprete.
+
+    Só casa a pergunta completa: "o que é SDE?" responde aqui, "qual o SDE da rede?"
+    (pedido de dado) não casa e segue o fluxo normal.
+    """
+    correspondencia = _PERGUNTA_CONCEITO.fullmatch(re.sub(r'\s+', ' ', normalizar(pergunta)))
+    return _TERMOS_CONCEITO[correspondencia.group('termo')] if correspondencia else None

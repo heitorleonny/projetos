@@ -912,7 +912,7 @@ export default function IndicadoresPage() {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-sm font-heading font-semibold text-white uppercase tracking-wider">
-                                    SDE — Saldo de Desenvolvimento Estratégico
+                                    SDE — Saldo de Evolução da Rede
                                 </h3>
                                 <p className="text-xs text-neutral-400 mt-1">
                                     Compara o índice calculado de cada EJ com seu cluster oficial atual
