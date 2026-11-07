@@ -56,6 +56,7 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
             {resposta.contexto.cluster && <span className="rounded-full border border-neutral-700 px-2 py-1">Cluster oficial {resposta.contexto.cluster}</span>}
             {resposta.contexto.busca && <span className="rounded-full border border-neutral-700 px-2 py-1">Nome: {resposta.contexto.busca}</span>}
             {resposta.contexto.ferramenta === 'ranking' && resposta.contexto.criterio && <span className="rounded-full border border-neutral-700 px-2 py-1">Critério: {resposta.contexto.criterio}</span>}
+            {resposta.contexto.ferramenta === 'ranking' && resposta.contexto.ordem === 'asc' && <span className="rounded-full border border-neutral-700 px-2 py-1">Menores valores</span>}
         </div>}
         {grafico && <AlternarVisualizacao modo={modo} alterar={setModo} />}
         {exibirGrafico && <GraficoConsulta grafico={grafico} />}

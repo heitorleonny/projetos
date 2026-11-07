@@ -137,3 +137,26 @@ def test_cluster_e_busca_sob_rls_real(banco_rls, monkeypatch, remover_filtro, bu
     assert all(l.id_ej == EJ_PE for l in resposta.linhas)
     if esperado == "respondida":
         assert resposta.total == 1
+
+
+def _sem_filtro_python(monkeypatch):
+    # Esquece a defesa Python. A RLS deve segurar sozinha.
+    for modulo in ("app.ia.ferramentas", "app.services.empresa_service", "app.services.rede_service"):
+        monkeypatch.setattr(modulo + ".filtrar_por_tenant", lambda q, tenant: q)
+
+
+@pytest.mark.parametrize("remover_filtro", [False, True])
+@pytest.mark.parametrize("criterio", ["faturamento", "projetos"])
+def test_ranking_asc_so_conta_ejs_do_tenant(banco_rls, monkeypatch, remover_filtro, criterio):
+    if remover_filtro:
+        _sem_filtro_python(monkeypatch)
+    resposta = perguntar(banco_rls, provedor_falso(plano(ferramenta="ranking", criterio=criterio, ordem="asc")),
+                         "Quais EJs venderam menos?", federacao_id=12, usuario_id="sintetico", ano_padrao=2026)
+    assert resposta.status == "respondida"
+    assert "MG da bateria" not in resposta.model_dump_json()
+    if criterio == "faturamento":
+        assert [l.id_ej for l in resposta.linhas] == [EJ_PE] and "fora do ranking" not in resposta.resposta
+    else:
+        # As duas EJs têm projetos nulos; a contagem de excluídas só pode ver a do tenant.
+        assert not resposta.linhas
+        assert "1 EJ sem coleta de projetos" in resposta.resposta and "2 EJs" not in resposta.resposta

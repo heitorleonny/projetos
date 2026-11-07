@@ -3,7 +3,7 @@
 from app.models.ia import LinhaResposta, PlanoConsulta, RespostaRede
 from app.services.empresa_service import listar_empresas
 from app.services.leitura import ler_todas
-from app.services.rede_service import (calcular_indicadores_rede, gerar_ranking,
+from app.services.rede_service import (calcular_indicadores_rede, gerar_ranking_com_exclusoes,
                                        calcular_sde_cenarios, calcular_ritmo_mensal)
 from app.services.cluster_service import buscar_ids_por_cluster
 from app.services.tenant import filtrar_por_tenant
@@ -25,6 +25,12 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
         return explicar(plano.conceito)
     if plano.conceito is not None:
         return recusar_conceito()
+    if plano.ordem == "asc" and plano.ferramenta != "ranking":
+        # Menores valores fora do ranking seriam ignorados em silêncio.
+        return RespostaRede(status="fora_do_catalogo", resposta=(
+            "Ordenar pelos menores valores está disponível só no ranking por faturamento, CSAT, "
+            "projetos ou faturamento colaborativo."
+        ))
     if plano.ferramenta == "recusar" or (plano.busca and plano.ferramenta != "fora_do_zero"):
         return RespostaRede(status="fora_do_catalogo", resposta=(
             "Posso consultar EJs fora do zero, indicadores, rankings, ritmo mensal e SDE da sua federação, "
@@ -80,9 +86,19 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
         ), fonte="empresa_service.listar_empresas", ano=ano, mes=mes, total=len(linhas), linhas=linhas, unidade="moeda")
     if plano.ferramenta == "ranking":
         criterio = plano.criterio or "faturamento"
-        ranking = gerar_ranking(sb, ano=ano, mes=mes, federacao_id=federacao_id, criterio=criterio, limit=plano.limite or 10, cluster=plano.cluster)
+        ordem = plano.ordem or "desc"
+        ranking, sem_coleta = gerar_ranking_com_exclusoes(
+            sb, ano=ano, mes=mes, federacao_id=federacao_id, criterio=criterio, limit=plano.limite or 10,
+            cluster=plano.cluster, ordem=ordem)
         linhas = [LinhaResposta(id_ej=e.id_ej, nome=e.nome, valor=e.valor) for e in ranking]
-        return RespostaRede(status="respondida", resposta=f"Ranking por {criterio}{recorte} em {periodo}.",
+        if ordem == "asc":
+            texto = f"Menores valores de {criterio}{recorte} em {periodo}."
+            if sem_coleta:
+                texto += (f" {sem_coleta} EJ{'s' if sem_coleta > 1 else ''} sem coleta de {criterio} no período "
+                          f"ficou{'aram' if sem_coleta > 1 else ''} fora do ranking.")
+        else:
+            texto = f"Ranking por {criterio}{recorte} em {periodo}."
+        return RespostaRede(status="respondida", resposta=texto,
                             fonte="rede_service.gerar_ranking", ano=ano, mes=mes, linhas=linhas, total=len(linhas),
                             unidade="moeda" if criterio in ("faturamento", "colab") else "numero")
     if plano.ferramenta == "sde":

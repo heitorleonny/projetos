@@ -14,6 +14,7 @@ export interface ContextoConsulta {
     esclarecimento?: 'metrica_ranking' | 'periodo' | 'escopo' | null;
     federacao_mencionada?: string | null;
     conceito?: Conceito | null;
+    ordem?: 'desc' | 'asc' | null;
 }
 
 export interface RespostaRede {

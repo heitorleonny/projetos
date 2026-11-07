@@ -23,6 +23,8 @@ class PlanoConsulta(BaseModel):
     federacao_mencionada: str | None = Field(default=None, min_length=2, max_length=200)
     # Só com `explicar`: o texto vem do glossário curado, nunca do modelo.
     conceito: Conceito | None = None
+    # Só com `ranking`: None = desc (maiores valores); asc = menores valores.
+    ordem: Literal["desc", "asc"] | None = None
 
     @field_validator("busca")
     @classmethod

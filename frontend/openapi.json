@@ -4012,6 +4012,21 @@
               }
             ],
             "title": "Conceito"
+          },
+          "ordem": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "desc",
+                  "asc"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordem"
           }
         },
         "additionalProperties": false,

@@ -172,6 +172,7 @@ def gerar_ranking(
     cluster: int | None = None,
     limit: int = 20,
     federacao_id: int | None = None,
+    ordem: str = "desc",
 ) -> list[RankingItem]:
     """
     Gera ranking dinâmico de EJs por critério.
@@ -185,10 +186,60 @@ def gerar_ranking(
         criterio: Campo de ranking (faturamento, csat, projetos, colab).
         cluster: Filtro por cluster.
         limit: Máximo de itens no ranking.
+        ordem: "desc" (padrão, maiores valores) ou "asc" (menores valores; ver
+            `gerar_ranking_com_exclusoes`).
 
     Returns:
-        Lista de RankingItem ordenada por valor decrescente.
+        Lista de RankingItem ordenada pelo valor na ordem pedida.
     """
+    itens, _sem_coleta = gerar_ranking_com_exclusoes(
+        sb, ano=ano, mes=mes, criterio=criterio, cluster=cluster, limit=limit,
+        federacao_id=federacao_id, ordem=ordem,
+    )
+    return itens
+
+
+def _valor_do_criterio(criterio: str, mons_sorted: list[dict]) -> float | None:
+    """Valor da EJ no critério; None quando a métrica não foi coletada."""
+    ultimo = mons_sorted[-1]
+    if criterio == "faturamento":
+        bruto = ultimo.get("faturamento_acumulado")
+        return None if bruto is None else float(bruto)
+    if criterio == "colab":
+        bruto = ultimo.get("faturamento_colab_acumulado")
+        return None if bruto is None else float(bruto)
+    if criterio == "projetos":
+        vendidos = [m.get("projetos_vendidos_mes") for m in mons_sorted]
+        if all(v is None for v in vendidos):
+            return None
+        return float(sum(int(v or 0) for v in vendidos))
+    if criterio == "csat":
+        return calcular_media_csat([m.get("csat") for m in mons_sorted])
+    return 0.0
+
+
+def gerar_ranking_com_exclusoes(
+    sb: Client,
+    *,
+    ano: int,
+    mes: int | None = None,
+    criterio: str = "faturamento",
+    cluster: int | None = None,
+    limit: int = 20,
+    federacao_id: int | None = None,
+    ordem: str = "desc",
+) -> tuple[list[RankingItem], int]:
+    """
+    Ranking e quantidade de EJs deixadas de fora por falta de coleta.
+
+    Em "desc" o comportamento é o histórico do portal: métrica ausente conta
+    como zero e só a EJ sem nenhum monitoramento fica de fora (sem contar).
+    Em "asc" a ausência não pode virar "menor valor": EJ sem monitoramento ou
+    sem coleta da métrica fica fora e é contada. Faturamento zero informado
+    entra normalmente.
+    """
+    if ordem not in ("desc", "asc"):
+        raise ValueError("ordem deve ser 'desc' ou 'asc'.")
     # Buscar EJs
     ids_no_cluster: list[int] | None = None
     if cluster is not None:
@@ -197,11 +248,11 @@ def gerar_ranking(
         ids_no_cluster = buscar_ids_por_cluster(sb, ano=ano, cluster=cluster)
         if not ids_no_cluster:
             # Nenhuma EJ nesse cluster neste ano.
-            return []
+            return [], 0
     empresas = _ler_ejs(sb, federacao_id, ids_no_cluster)
 
     if not empresas:
-        return []
+        return [], 0
 
     empresa_ids = [e["id_ej"] for e in empresas]
 
@@ -216,25 +267,19 @@ def gerar_ranking(
 
     # Calcular valor por EJ
     itens: list[dict] = []
+    sem_coleta = 0
     for ej in empresas:
         mons = mon_por_empresa.get(ej["id_ej"], [])
         if not mons:
+            sem_coleta += ordem == "asc"
             continue
 
-        mons_sorted = sorted(mons, key=lambda m: m["mes"])
-        ultimo = mons_sorted[-1]
-
-        valor = 0.0
-        if criterio == "faturamento":
-            valor = float(ultimo.get("faturamento_acumulado", 0) or 0)
-        elif criterio == "colab":
-            valor = float(ultimo.get("faturamento_colab_acumulado", 0) or 0)
-        elif criterio == "projetos":
-            valor = float(sum(int(m.get("projetos_vendidos_mes") or 0) for m in mons_sorted))
-        elif criterio == "csat":
-            csats = [m.get("csat") for m in mons_sorted]
-            csat_m = calcular_media_csat(csats)
-            valor = csat_m if csat_m is not None else 0.0
+        valor = _valor_do_criterio(criterio, sorted(mons, key=lambda m: m["mes"]))
+        if valor is None:
+            if ordem == "asc":
+                sem_coleta += 1
+                continue
+            valor = 0.0
 
         itens.append({
             "id_ej": ej["id_ej"],
@@ -245,7 +290,7 @@ def gerar_ranking(
         })
 
     # Ordenar e atribuir posição
-    itens.sort(key=lambda x: x["valor"], reverse=True)
+    itens.sort(key=lambda x: x["valor"], reverse=ordem == "desc")
     ranking: list[RankingItem] = []
     for i, item in enumerate(itens[:limit]):
         ranking.append(
@@ -258,7 +303,7 @@ def gerar_ranking(
                 foto_url=item["foto_url"],
             )
         )
-    return ranking
+    return ranking, sem_coleta
 
 
 def calcular_sde_cenarios(
