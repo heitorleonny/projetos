@@ -15,7 +15,7 @@ from app.config import settings
 from app.dependencies import get_current_user, get_federacao_id, get_supabase
 from app.ia.fabrica import criar_provedor
 from app.ia.assistente import preparar_pergunta, perguntar
-from app.ia.conversa import normalizar_referencia_propria
+from app.ia.conversa import busca_com_intencao_de_nome, normalizar, normalizar_referencia_propria, referencia_externa
 from app.services.federacao_service import buscar_federacao_do_usuario
 from app.ia.ferramentas import executar_consulta
 from app.models.ia import PlanoConsulta
@@ -40,7 +40,8 @@ def main():
     provedor = criar_provedor()
     permitidos = {e["id_ej"] for e in ler_todas(sb, "empresa_junior", "id_ej", lambda q: filtrar_por_tenant(q, tenant))}
     federacao = buscar_federacao_do_usuario(sb, tenant)
-    casos = json.loads(Path(__file__).with_name("perguntas.json").read_text())
+    ej_exemplo = escolher_ej_exemplo(sb, tenant)
+    casos = [substituir_ej(caso, ej_exemplo) for caso in json.loads(Path(__file__).with_name("perguntas.json").read_text())]
     resultados = []
     for caso in casos:
         inicio = monotonic()
@@ -66,7 +67,10 @@ def main():
                 fluxo_valores_corretos=fluxo.linhas == gabarito.linhas,
                 fluxo_isolamento=all(l.id_ej in permitidos for l in fluxo.linhas if l.id_ej is not None),
                 ferramenta_correta=plano.ferramenta == esperado.ferramenta,
-                parametros_corretos=plano == esperado,
+                parametros_corretos=normalizar_plano(plano) == normalizar_plano(esperado),
+                conceito_correto=plano.conceito == esperado.conceito if esperado.ferramenta == "explicar" else None,
+                ordem_correta=(plano.ordem or "desc") == (esperado.ordem or "desc") if esperado.ferramenta == "ranking" else None,
+                faixa_correta=plano.faixa == esperado.faixa if esperado.ferramenta == "metas" else None,
                 resposta_correta=resposta.model_dump() == gabarito.model_dump(),
                 recusa_correta=resposta.status == "fora_do_catalogo" if esperado.ferramenta == "recusar" else None,
                 isolamento=all(l.id_ej in permitidos for l in resposta.linhas if l.id_ej is not None),
@@ -81,6 +85,9 @@ def main():
     resumo = {"casos": len(casos), "erros": sum("erro" in r for r in resultados)}
     for metrica in ("ferramenta_correta", "parametros_corretos", "resposta_correta", "isolamento", "fluxo_status_correto", "fluxo_valores_corretos", "fluxo_isolamento"):
         resumo[metrica] = sum(r.get(metrica) is True for r in resultados) / len(casos)
+    for metrica, ferramenta in (("conceito_correto", "explicar"), ("ordem_correta", "ranking"), ("faixa_correta", "metas")):
+        aplicaveis = [r for r, c in zip(resultados, casos) if c["esperado"]["ferramenta"] == ferramenta]
+        resumo[metrica] = sum(r.get(metrica) is True for r in aplicaveis) / len(aplicaveis) if aplicaveis else None
     recusas = [r for r, c in zip(resultados, casos) if c["esperado"]["ferramenta"] == "recusar"]
     resumo["recusa_correta"] = sum(r.get("recusa_correta") is True for r in recusas) / len(recusas)
     resumo["tokens_entrada"] = sum(r.get("tokens_entrada", 0) for r in resultados)
@@ -92,8 +99,40 @@ def main():
                                   "limites": "Interpretação do modelo e catálogo são métricas distintas do fluxo com guardas backend; fluxo reaproveita a mesma interpretação, sem segunda chamada. Não valida HTTP/autenticação da rota. Não mede carga. Isolamento por IDs complementa os testes de agregados com RLS real. Custo monetário não estimado; consultar tarifa do provedor.",
                                   "resultados": resultados}, ensure_ascii=False, indent=2) + "\n")
     print(f"Relatório salvo em {destino}; {resumo['erros']} erros em {len(casos)} casos.")
-    if resumo["erros"] or any(resumo[m] < 1 for m in ("ferramenta_correta", "parametros_corretos", "resposta_correta", "isolamento", "recusa_correta", "fluxo_status_correto", "fluxo_valores_corretos", "fluxo_isolamento")):
+    if resumo["erros"] or any(resumo[m] is not None and resumo[m] < 1 for m in (
+            "ferramenta_correta", "parametros_corretos", "resposta_correta", "isolamento", "recusa_correta",
+            "fluxo_status_correto", "fluxo_valores_corretos", "fluxo_isolamento",
+            "conceito_correto", "ordem_correta", "faixa_correta")):
         raise SystemExit(1)
+
+
+def normalizar_plano(plano: PlanoConsulta) -> PlanoConsulta:
+    """`ordem` nula e "desc" são o mesmo pedido (maiores valores)."""
+    return plano.model_copy(update={"ordem": None}) if plano.ordem == "desc" else plano
+
+
+def escolher_ej_exemplo(sb, tenant: int) -> str:
+    """EJ do próprio tenant para as perguntas de perfil, escolhida na hora.
+
+    O nome real não é versionado no corpus nem gravado no relatório: só entra na
+    pergunta enviada ao modelo, como faria um usuário. Exige nome que não esteja
+    contido em outro (resolução única) e que passe pelas guardas de pergunta.
+    """
+    empresas = sorted(ler_todas(sb, "empresa_junior", "id_ej,nome", lambda q: filtrar_por_tenant(q, tenant)),
+                      key=lambda e: e["id_ej"])
+    nomes = [normalizar(e["nome"] or "") for e in empresas]
+    plano = PlanoConsulta(ferramenta="perfil_ej", ano=None, mes=None, criterio=None, limite=None)
+    for empresa, nome in zip(empresas, nomes):
+        pergunta = f"Como está a {empresa['nome']}?"
+        if (len(nome) >= 2 and sum(nome in outro for outro in nomes) == 1 and not referencia_externa(pergunta)
+                and busca_com_intencao_de_nome(pergunta, plano.model_copy(update={"busca": empresa["nome"].strip()}), None)):
+            return empresa["nome"].strip()
+    raise SystemExit("Nenhuma EJ do tenant serve de exemplo para as perguntas de perfil.")
+
+
+def substituir_ej(caso: dict, ej_exemplo: str) -> dict:
+    texto = json.dumps(caso, ensure_ascii=False).replace("{EJ EXEMPLO}", ej_exemplo.replace('"', '\\"'))
+    return json.loads(texto)
 
 
 if __name__ == "__main__":

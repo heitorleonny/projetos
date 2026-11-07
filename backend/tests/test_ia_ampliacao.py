@@ -378,3 +378,47 @@ def test_faixa_fora_de_metas_recusa_sem_ler_banco(ferramenta):
                                  federacao_id=12, ano_padrao=2026)
     assert resposta.status == "fora_do_catalogo"
     banco.table.assert_not_called()
+
+
+# ── Corpus de desenvolvimento e runner (sem chamada ao modelo) ─────────────
+
+import json
+from collections import Counter
+from pathlib import Path
+
+from app.ia.avaliacao.runner import escolher_ej_exemplo, normalizar_plano, substituir_ej
+from app.models.ia import PlanoConsulta
+
+CORPUS = Path(__file__).resolve().parents[1] / "app/ia/avaliacao/perguntas.json"
+
+
+def test_corpus_tem_tres_perguntas_por_ferramenta_nova_e_preserva_as_21():
+    casos = json.loads(CORPUS.read_text())
+    assert len(casos) == 33 and len({c["id"] for c in casos}) == 33
+    novos = casos[21:]
+    contagem = Counter(c["esperado"]["ferramenta"] if c["esperado"].get("ordem") != "asc" else "ranking_asc" for c in novos)
+    assert contagem == {"explicar": 3, "ranking_asc": 3, "perfil_ej": 3, "metas": 3}
+    for caso in casos[:21]:  # gabarito anterior sem campos novos
+        assert not {"conceito", "ordem", "faixa"} & set(caso["esperado"])
+
+
+def test_substituicao_da_ej_de_exemplo_valida_o_contrato():
+    for caso in json.loads(CORPUS.read_text()):
+        caso = substituir_ej(caso, 'EJ "Sintética" PE')
+        assert "{EJ EXEMPLO}" not in json.dumps(caso, ensure_ascii=False)
+        PlanoConsulta.model_validate(caso["esperado"])
+        if caso.get("contexto"):
+            PlanoConsulta.model_validate(caso["contexto"])
+
+
+def test_ej_de_exemplo_e_unica_do_tenant_e_passa_pelas_guardas():
+    banco = banco_perfil(("EJ de Recife", "EJ Sintética", "EJ Sintética Beta", "Alfa Consultoria"))
+    banco.tabelas["empresa_junior"].append({"id": 1, "id_ej": 1, "nome": "Alfa", "federacao_id": 7})
+    # "EJ de Recife" parece localidade; "EJ Sintética" está contida em outra; MG não conta.
+    assert escolher_ej_exemplo(banco, 12) == "EJ Sintética Beta"
+
+
+def test_ordem_desc_e_nula_sao_o_mesmo_pedido_na_comparacao():
+    desc = plano(ferramenta="ranking", criterio="csat", limite=10, ordem="desc")
+    assert normalizar_plano(desc) == plano(ferramenta="ranking", criterio="csat", limite=10)
+    assert normalizar_plano(plano(ferramenta="ranking", ordem="asc")) != plano(ferramenta="ranking")

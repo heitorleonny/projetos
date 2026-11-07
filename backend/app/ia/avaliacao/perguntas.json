@@ -271,5 +271,157 @@
       "esclarecimento": "metrica_ranking",
       "cluster": 2
     }
+  },
+  {
+    "id": "explicar-sde",
+    "pergunta": "O que é SDE?",
+    "esperado": {
+      "ferramenta": "explicar",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "conceito": "sde"
+    }
+  },
+  {
+    "id": "explicar-tracking",
+    "pergunta": "Como é calculado o tracking de cluster?",
+    "esperado": {
+      "ferramenta": "explicar",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "conceito": "tracking_cluster"
+    }
+  },
+  {
+    "id": "explicar-livre",
+    "pergunta": "Me ajuda a entender o que conta para uma EJ ser considerada fora do zero",
+    "esperado": {
+      "ferramenta": "explicar",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "conceito": "fora_do_zero"
+    }
+  },
+  {
+    "id": "ranking-asc-faturamento",
+    "pergunta": "Quais EJs têm os menores faturamentos em setembro de 2026?",
+    "esperado": {
+      "ferramenta": "ranking",
+      "ano": 2026,
+      "mes": 9,
+      "criterio": "faturamento",
+      "limite": 10,
+      "ordem": "asc"
+    }
+  },
+  {
+    "id": "ranking-asc-csat",
+    "pergunta": "Quais são as 10 EJs com menor CSAT?",
+    "esperado": {
+      "ferramenta": "ranking",
+      "ano": null,
+      "mes": null,
+      "criterio": "csat",
+      "limite": 10,
+      "ordem": "asc"
+    }
+  },
+  {
+    "id": "ranking-asc-projetos",
+    "pergunta": "Quem vendeu menos projetos em setembro de 2026? Mostre 5 EJs",
+    "esperado": {
+      "ferramenta": "ranking",
+      "ano": 2026,
+      "mes": 9,
+      "criterio": "projetos",
+      "limite": 5,
+      "ordem": "asc"
+    }
+  },
+  {
+    "id": "perfil-ej",
+    "pergunta": "Como está a {EJ EXEMPLO} em setembro de 2026?",
+    "esperado": {
+      "ferramenta": "perfil_ej",
+      "ano": 2026,
+      "mes": 9,
+      "criterio": null,
+      "limite": null,
+      "busca": "{EJ EXEMPLO}"
+    }
+  },
+  {
+    "id": "perfil-inexistente",
+    "pergunta": "Como está a EJ chamada Zeta Inexistente Júnior?",
+    "esperado": {
+      "ferramenta": "perfil_ej",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "busca": "Zeta Inexistente Júnior"
+    }
+  },
+  {
+    "id": "perfil-continuacao",
+    "pergunta": "E em agosto?",
+    "contexto": {
+      "ferramenta": "perfil_ej",
+      "ano": 2026,
+      "mes": 9,
+      "criterio": null,
+      "limite": null,
+      "busca": "{EJ EXEMPLO}"
+    },
+    "esperado": {
+      "ferramenta": "perfil_ej",
+      "ano": 2026,
+      "mes": 8,
+      "criterio": null,
+      "limite": null,
+      "busca": "{EJ EXEMPLO}"
+    }
+  },
+  {
+    "id": "metas-distribuicao",
+    "pergunta": "Quantas EJs bateram a meta de faturamento em setembro de 2026?",
+    "esperado": {
+      "ferramenta": "metas",
+      "ano": 2026,
+      "mes": 9,
+      "criterio": null,
+      "limite": null
+    }
+  },
+  {
+    "id": "metas-abaixo",
+    "pergunta": "Quais EJs estão abaixo de 50% da meta de faturamento?",
+    "esperado": {
+      "ferramenta": "metas",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "faixa": "meta_abaixo"
+    }
+  },
+  {
+    "id": "metas-sem-meta-cluster",
+    "pergunta": "Quais EJs do cluster 2 não têm meta de faturamento cadastrada?",
+    "esperado": {
+      "ferramenta": "metas",
+      "ano": null,
+      "mes": null,
+      "criterio": null,
+      "limite": null,
+      "cluster": 2,
+      "faixa": "sem_meta"
+    }
   }
 ]
