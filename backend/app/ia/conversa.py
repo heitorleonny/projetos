@@ -90,6 +90,10 @@ def esclarecer(motivo: str | None, contexto: PlanoConsulta | None) -> RespostaRe
         opcoes = [OpcaoEsclarecimento(rotulo=rotulo, pergunta=f'Top 10 EJs por {criterio}{filtros}')
                   for rotulo, criterio in [('Maior faturamento', 'faturamento'), ('Maior CSAT', 'CSAT'),
                                           ('Mais projetos', 'projetos'), ('Maior colaboração', 'colab')]]
+    elif motivo == 'ej':
+        # Sem nome não há opções: listar EJs aqui seria uma consulta nova.
+        pergunta = 'Qual EJ você quer consultar? Escreva parte do nome, por exemplo: como está a EJ chamada …?'
+        opcoes = []
     else:
         pergunta = 'O que você quer consultar sobre sua rede?'
         opcoes = [OpcaoEsclarecimento(rotulo='Indicadores da rede', pergunta=f'Quais são os indicadores da rede{filtros}?'),
@@ -119,6 +123,22 @@ def ranking_ambiguo(pergunta: str) -> bool:
     return all(palavra in palavras for palavra in re.findall(r'\w+', restante))
 
 
+# "EJ de Recife", "EJs em Olinda", "empresa júnior da UFRPE": forma de localidade.
+_EJ_COM_LOCALIDADE = re.compile(
+    r'\b(?:ej|ejs|empresa junior|empresas juniores)\s+(?:de|do|da|dos|das|em|no|na|nos|nas)\s+\w')
+
+
+def nome_literal_de_ej(texto_normalizado: str, busca: str) -> bool:
+    """Só para `perfil_ej`: o trecho precisa aparecer como palavra(s) na pergunta.
+
+    Sem marcador explícito ("nome", "chamada"), qualquer "EJ de/em/da …" na pergunta
+    é tratado como localidade e recusado, mesmo que exista EJ com esse nome.
+    """
+    if _EJ_COM_LOCALIDADE.search(texto_normalizado):
+        return False
+    return bool(re.search(r'(?<!\w)' + re.escape(normalizar(busca)) + r'(?!\w)', texto_normalizado))
+
+
 def busca_com_intencao_de_nome(pergunta: str, plano: PlanoConsulta, contexto: PlanoConsulta | None) -> bool:
     """Busca só pode representar nome pedido literalmente ou seguimento limitado.
 
@@ -128,10 +148,12 @@ def busca_com_intencao_de_nome(pergunta: str, plano: PlanoConsulta, contexto: Pl
     if not plano.busca:
         return True
     texto = normalizar(pergunta)
-    if re.search(r'\b(?:cidade|municipio|universidade|localizadas|sediadas)\b', texto):
+    if re.search(r'\b(?:cidade|municipio|universidade|localizad[ao]s?|sediad[ao]s?)\b', texto):
         return False
     marcador = re.search(r'\b(?:nome|contendo|chamada[s]?|chamado[s]?|denominada[s]?|denominado[s]?)\b', texto)
     if marcador and normalizar(plano.busca) in texto[marcador.end():]:
+        return True
+    if plano.ferramenta == 'perfil_ej' and nome_literal_de_ej(texto, plano.busca):
         return True
     if not contexto or not contexto.busca or normalizar(contexto.busca) != normalizar(plano.busca):
         return False

@@ -12,11 +12,12 @@ const fontes: Record<string, string> = {
     'empresa_service.listar_empresas': 'Dados do portal · EJs',
     'rede_service.calcular_sde_cenarios': 'Dados do portal · Cenários de SDE',
     'rede_service.calcular_ritmo_mensal': 'Dados do portal · Ritmo mensal',
+    'empresa_service.buscar_empresa': 'Dados do portal · Perfil da EJ',
     glossario: 'Glossário do portal · regras nacionais do MEJ',
 };
 
-function formatar(valor: number | null, unidade: 'moeda' | 'numero') {
-    if (valor === null) return 'Sem coleta';
+function formatar(valor: number | null, unidade: 'moeda' | 'numero', ausente = 'Sem coleta') {
+    if (valor === null) return ausente;
     return valor.toLocaleString('pt-BR', unidade === 'moeda' ? { style: 'currency', currency: 'BRL' } : { maximumFractionDigits: 2 });
 }
 
@@ -32,8 +33,11 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
     const [modo, setModo] = useState<ModoVisualizacao>(modoInicial);
     const grafico = graficoDaResposta(resposta);
     const exibirGrafico = grafico !== null && modo === 'grafico';
-    // Com série mensal, a alternância vale para a série; as linhas ficam sempre visíveis.
-    const serie = resposta.serie?.length ? resposta.serie : null;
+    // Perfil: indicadores sempre visíveis; a alternância vale só para a série mensal.
+    const perfil = resposta.fonte === 'empresa_service.buscar_empresa';
+    const ejDoPerfil = perfil ? resposta.linhas.find(linha => linha.id_ej !== null) : undefined;
+    const indicadoresDoPerfil = perfil ? resposta.linhas.filter(linha => linha.id_ej === null) : [];
+    const serie = perfil && resposta.serie?.length ? resposta.serie : null;
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState(false);
     const empresas = resposta.linhas.some(linha => linha.id_ej !== null);
@@ -47,7 +51,7 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
 
     return <div className="space-y-4">
         <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-100">{resposta.resposta}</p>
-        {resposta.esclarecimento && <div className="flex flex-wrap gap-2" role="group" aria-label="Escolha como consultar">
+        {resposta.esclarecimento && resposta.esclarecimento.opcoes.length > 0 && <div className="flex flex-wrap gap-2" role="group" aria-label="Escolha como consultar">
             {resposta.esclarecimento.opcoes.map(opcao => <button key={opcao.pergunta} type="button" disabled={enviando} onClick={() => escolher(opcao.pergunta)} className="rounded-lg border border-primary-400/40 bg-primary-500/10 px-3 py-2 text-sm text-primary-200 hover:bg-primary-500/20 disabled:opacity-40">{opcao.rotulo}</button>)}
         </div>}
         {resposta.contexto && <div aria-label="Filtros desta consulta" className="flex flex-wrap gap-2 text-[11px] text-neutral-300">
@@ -58,6 +62,12 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
             {resposta.contexto.ferramenta === 'ranking' && resposta.contexto.criterio && <span className="rounded-full border border-neutral-700 px-2 py-1">Critério: {resposta.contexto.criterio}</span>}
             {resposta.contexto.ferramenta === 'ranking' && resposta.contexto.ordem === 'asc' && <span className="rounded-full border border-neutral-700 px-2 py-1">Menores valores</span>}
         </div>}
+        {perfil && <div className="space-y-3">
+            {ejDoPerfil && <Link className="inline-block text-sm font-medium text-primary-200 underline-offset-4 hover:underline" to={`/empresas/${ejDoPerfil.id_ej}`} onClick={fechar}>Abrir o perfil completo de {ejDoPerfil.nome}</Link>}
+            <dl className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+                {indicadoresDoPerfil.map(linha => <div key={linha.nome} className="rounded-xl border border-neutral-700/70 bg-neutral-800/50 p-3"><dt className="text-xs leading-relaxed text-neutral-400">{linha.nome}</dt><dd className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">{formatar(linha.valor, linha.unidade ?? resposta.unidade, 'Não disponível')}</dd></div>)}
+            </dl>
+        </div>}
         {grafico && <AlternarVisualizacao modo={modo} alterar={setModo} />}
         {exibirGrafico && <GraficoConsulta grafico={grafico} />}
         {serie && !exibirGrafico && <table className="w-full overflow-hidden rounded-xl border border-neutral-700/80 text-sm">
@@ -65,7 +75,7 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
             <thead className="bg-neutral-800/70 text-xs text-neutral-400"><tr><th scope="col" className="px-3 py-2 text-left font-medium">Mês</th><th scope="col" className="px-3 py-2 text-right font-medium">Faturamento do mês</th></tr></thead>
             <tbody>{serie.map(ponto => <tr key={ponto.mes} className="border-t border-neutral-700/50"><td className="px-3 py-2">{rotuloDoMes(ponto.mes)}</td><td className="px-3 py-2 text-right tabular-nums text-neutral-200">{formatar(ponto.valor, 'moeda')}</td></tr>)}</tbody>
         </table>}
-        {(serie || !exibirGrafico) && resposta.linhas.length > 0 && (empresas ? <div className="overflow-hidden rounded-xl border border-neutral-700/80">
+        {!perfil && !exibirGrafico && resposta.linhas.length > 0 && (empresas ? <div className="overflow-hidden rounded-xl border border-neutral-700/80">
             <div className="flex items-center justify-between gap-3 bg-neutral-800/70 px-3 py-2.5">
                 <span className="text-xs text-neutral-300">{resposta.linhas.length} EJs na resposta{resposta.total > resposta.linhas.length ? ` · ${resposta.total} no total` : ''}</span>
             </div>

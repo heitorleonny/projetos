@@ -112,3 +112,25 @@ test('componente: gráfico de SDE e ritmo traz descrição textual acessível', 
     const html = renderizar(sde);
     assert.match(html, /role="img" aria-label="SDE por cenário\. Índice de Cluster: -0,45/);
 });
+
+const perfil = resposta('empresa_service.buscar_empresa', [
+    linha('EJ Sintética PE', null, 101), { id_ej: null, nome: 'Faturamento acumulado', valor: 6000, unidade: 'moeda' },
+    { id_ej: null, nome: 'Projeção anual', valor: null, unidade: 'moeda' },
+], { serie: [{ mes: 1, valor: 1000 }, { mes: 2, valor: 2000 }], total: 1 });
+
+test('componente: perfil mostra link, indicadores e a série com alternância', () => {
+    const grafico = renderizar(perfil);
+    assert.match(grafico, /href="\/empresas\/101"[^>]*>Abrir o perfil completo de EJ Sintética PE</);
+    assert.match(grafico, /Faturamento acumulado/);
+    assert.match(grafico, /Não disponível/);
+    assert.match(grafico, /data-visualizacao="grafico"/);
+    assert.match(grafico, /Faturamento por mês\. jan: R\$\s1\.000,00/);
+    const tabela = renderizar(perfil, 'tabela');
+    assert.match(tabela, /<caption class="sr-only">Faturamento por mês<\/caption>/);
+    assert.match(tabela, /Faturamento acumulado/); // indicadores continuam visíveis
+    assert.doesNotMatch(tabela, /data-visualizacao="grafico"/);
+});
+test('componente: esclarecimento de EJ sem opções não desenha grupo vazio', () => {
+    const html = renderizar({ ...resposta(null, []), status: 'esclarecimento', esclarecimento: { pergunta: 'Qual EJ?', opcoes: [] } });
+    assert.doesNotMatch(html, /Escolha como consultar/);
+});

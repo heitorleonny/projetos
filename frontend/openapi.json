@@ -3872,6 +3872,7 @@
               "sde",
               "ritmo_mensal",
               "explicar",
+              "perfil_ej",
               "esclarecer",
               "recusar"
             ],
@@ -3966,7 +3967,8 @@
                 "enum": [
                   "metrica_ranking",
                   "periodo",
-                  "escopo"
+                  "escopo",
+                  "ej"
                 ]
               },
               {

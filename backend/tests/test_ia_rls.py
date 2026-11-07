@@ -43,6 +43,10 @@ class ConsultaPostgres:
         self.inicio, self.fim = inicio, fim
         return self
 
+    def limit(self, quantidade):
+        self.fim = self.inicio + quantidade - 1
+        return self
+
     def execute(self):
         # Exclui quaisquer dados que não sejam as fixtures sintéticas.
         campo = "id_ej" if self.tabela == "cluster_historico" else "id"
@@ -160,3 +164,55 @@ def test_ranking_asc_so_conta_ejs_do_tenant(banco_rls, monkeypatch, remover_filt
         # As duas EJs têm projetos nulos; a contagem de excluídas só pode ver a do tenant.
         assert not resposta.linhas
         assert "1 EJ sem coleta de projetos" in resposta.resposta and "2 EJs" not in resposta.resposta
+
+
+@pytest.fixture
+def homonimas(banco_rls, lab):
+    """Duas EJs do tenant e uma de MG com o mesmo trecho no nome."""
+    ids = (BASE + 21, BASE + 22)
+    with lab.cursor() as cur:
+        cur.executemany("INSERT INTO empresa_junior (id,id_ej,nome,federacao_id) VALUES (%s,%s,%s,12)",
+                        [(i, i, f"EJ sintética PE da bateria IA {n}") for n, i in enumerate(ids, 1)])
+    lab.commit()
+    try:
+        yield banco_rls
+    finally:
+        with lab.cursor() as cur:
+            cur.execute("DELETE FROM empresa_junior WHERE id = ANY(%s)", (list(ids),))
+        lab.commit()
+
+
+@pytest.mark.parametrize("remover_filtro", [False, True])
+def test_perfil_de_outra_federacao_igual_a_inexistente_sob_rls(banco_rls, monkeypatch, remover_filtro):
+    if remover_filtro:
+        _sem_filtro_python(monkeypatch)
+    respostas = [perguntar(banco_rls, provedor_falso(plano(ferramenta="perfil_ej", ano=None, mes=None, busca=busca)),
+                           f"Como está a {busca}?", federacao_id=12, usuario_id="sintetico", ano_padrao=2026)
+                 for busca in ("sintética MG da bateria IA", "sintética Zeta inexistente")]
+    assert respostas[0].status == respostas[1].status == "sem_dados"
+    assert respostas[0].model_dump(exclude={"contexto"}) == respostas[1].model_dump(exclude={"contexto"})
+    assert "MG da bateria" not in respostas[0].model_dump_json(exclude={"contexto"})
+
+
+@pytest.mark.parametrize("remover_filtro", [False, True])
+def test_opcoes_de_esclarecimento_so_do_tenant_sob_rls(homonimas, monkeypatch, remover_filtro):
+    if remover_filtro:
+        _sem_filtro_python(monkeypatch)
+    resposta = perguntar(homonimas, provedor_falso(plano(ferramenta="perfil_ej", ano=None, mes=None, busca="da bateria IA")),
+                         "Como está a da bateria IA?", federacao_id=12, usuario_id="sintetico", ano_padrao=2026)
+    assert resposta.status == "esclarecimento"
+    assert [o.rotulo for o in resposta.esclarecimento.opcoes] == [
+        "EJ sintética PE da bateria IA 1", "EJ sintética PE da bateria IA 2"]
+    assert "Encontrei 2 EJs" in resposta.resposta and "MG" not in resposta.model_dump_json()
+
+
+@pytest.mark.parametrize("remover_filtro", [False, True])
+def test_perfil_do_tenant_sob_rls(banco_rls, monkeypatch, remover_filtro):
+    if remover_filtro:
+        _sem_filtro_python(monkeypatch)
+    # "sintética" também está no nome da EJ de MG: sem RLS, viraria ambiguidade.
+    resposta = perguntar(banco_rls, provedor_falso(plano(ferramenta="perfil_ej", ano=None, mes=None, busca="sintética")),
+                         "Como está a EJ chamada sintética?", federacao_id=12, usuario_id="sintetico", ano_padrao=2026)
+    assert resposta.status == "respondida" and resposta.linhas[0].id_ej == EJ_PE
+    assert {l.nome: l.valor for l in resposta.linhas}["Faturamento acumulado"] == 100
+    assert "MG da bateria" not in resposta.model_dump_json()

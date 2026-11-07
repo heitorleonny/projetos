@@ -38,7 +38,8 @@ def perguntar(sb, provedor, pergunta: str, *, federacao_id: int, usuario_id: str
     if plano.ferramenta not in ("recusar", "esclarecer") and not busca_com_intencao_de_nome(pergunta_atual, plano, contexto):
         return RespostaRede(status="fora_do_catalogo", resposta=(
             "Busca de EJ exige um pedido explícito pelo nome. Filtros por cidade ou universidade "
-            "não são suportados. Tente: quais EJs com nome contendo um trecho estão fora do zero?"
+            "não são suportados. Tente: como está a EJ chamada …? ou quais EJs com nome contendo "
+            "um trecho estão fora do zero?"
         ), contexto=contexto)
     if plano.ferramenta == "esclarecer":
         return esclarecer(plano.esclarecimento, plano.model_copy(update={campo: getattr(contexto, campo) for campo in ("ano", "mes", "cluster", "busca") if contexto is not None and getattr(plano, campo) is None}))
@@ -48,7 +49,7 @@ def perguntar(sb, provedor, pergunta: str, *, federacao_id: int, usuario_id: str
     resposta.modelo = interpretacao.modelo
     # Recusa e glossário não carregam período: a continuação segue a consulta anterior.
     preserva_contexto = plano.ferramenta in ("recusar", "explicar")
-    if not preserva_contexto:
+    if not preserva_contexto and resposta.status != "esclarecimento":
         resposta.contexto = plano.model_copy(update={"ano": resposta.ano, "mes": resposta.mes})
     periodo = sufixo_filtros(resposta.contexto)
     if resposta.status != "sem_dados" and not plano.busca and resposta.fonte != "glossario":
