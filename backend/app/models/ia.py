@@ -63,6 +63,12 @@ class Esclarecimento(BaseModel):
     opcoes: list[OpcaoEsclarecimento]
 
 
+class PontoSerie(BaseModel):
+    """Um mês da série exibida na visualização da consulta; preenchido só pelo backend."""
+    mes: int = Field(ge=1, le=12)
+    valor: float
+
+
 class RespostaRede(BaseModel):
     status: Literal["respondida", "fora_do_catalogo", "sem_dados", "esclarecimento"]
     resposta: str
@@ -77,3 +83,4 @@ class RespostaRede(BaseModel):
     contexto: PlanoConsulta | None = None
     sugestoes: list[str] = Field(default_factory=list)
     esclarecimento: Esclarecimento | None = None
+    serie: list[PontoSerie] | None = None

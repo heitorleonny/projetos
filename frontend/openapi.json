@@ -4079,6 +4079,27 @@
         ],
         "title": "PlanoDados"
       },
+      "PontoSerie": {
+        "properties": {
+          "mes": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Mes"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "valor"
+        ],
+        "title": "PontoSerie",
+        "description": "Um mês da série exibida na visualização da consulta; preenchido só pelo backend."
+      },
       "RankingItem": {
         "properties": {
           "posicao": {
@@ -4237,6 +4258,20 @@
                 "type": "null"
               }
             ]
+          },
+          "serie": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PontoSerie"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serie"
           }
         },
         "type": "object",

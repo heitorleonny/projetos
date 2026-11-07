@@ -29,6 +29,8 @@ export interface RespostaRede {
     contexto?: ContextoConsulta | null;
     sugestoes?: string[];
     esclarecimento?: { pergunta: string; opcoes: { rotulo: string; pergunta: string }[] } | null;
+    /** Série mensal preenchida pelo backend (perfil de EJ). */
+    serie?: { mes: number; valor: number }[] | null;
 }
 
 export async function perguntarRede(pergunta: string, signal: AbortSignal, contexto?: ContextoConsulta | null): Promise<RespostaRede> {

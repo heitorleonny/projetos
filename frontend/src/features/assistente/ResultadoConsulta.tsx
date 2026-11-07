@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { RespostaRede } from './assistenteService';
+import GraficoConsulta from './GraficoConsulta';
+import { graficoDaResposta, rotuloDoMes } from './visualizacao';
+
+export type ModoVisualizacao = 'grafico' | 'tabela';
 
 const fontes: Record<string, string> = {
     'rede_service.calcular_indicadores_rede': 'Dados do portal · Indicadores da rede',
@@ -16,7 +20,20 @@ function formatar(valor: number | null, unidade: 'moeda' | 'numero') {
     return valor.toLocaleString('pt-BR', unidade === 'moeda' ? { style: 'currency', currency: 'BRL' } : { maximumFractionDigits: 2 });
 }
 
-export default function ResultadoConsulta({ resposta, fechar, escolher, enviando }: { resposta: RespostaRede; fechar: () => void; escolher: (pergunta: string) => void; enviando: boolean }) {
+function AlternarVisualizacao({ modo, alterar }: { modo: ModoVisualizacao; alterar: (modo: ModoVisualizacao) => void }) {
+    const opcoes: [ModoVisualizacao, string][] = [['grafico', 'Gráfico'], ['tabela', 'Tabela']];
+    return <div role="group" aria-label="Forma de exibição" className="inline-flex rounded-lg border border-neutral-700 p-0.5 text-xs">
+        {opcoes.map(([valor, rotulo]) => <button key={valor} type="button" aria-pressed={modo === valor} onClick={() => alterar(valor)}
+            className={`rounded-md px-3 py-1.5 ${modo === valor ? 'bg-primary-500/20 text-primary-100' : 'text-neutral-300 hover:bg-neutral-800'}`}>{rotulo}</button>)}
+    </div>;
+}
+
+export default function ResultadoConsulta({ resposta, fechar, escolher, enviando, modoInicial = 'grafico' }: { resposta: RespostaRede; fechar: () => void; escolher: (pergunta: string) => void; enviando: boolean; modoInicial?: ModoVisualizacao }) {
+    const [modo, setModo] = useState<ModoVisualizacao>(modoInicial);
+    const grafico = graficoDaResposta(resposta);
+    const exibirGrafico = grafico !== null && modo === 'grafico';
+    // Com série mensal, a alternância vale para a série; as linhas ficam sempre visíveis.
+    const serie = resposta.serie?.length ? resposta.serie : null;
     const [busca, setBusca] = useState('');
     const [expandido, setExpandido] = useState(false);
     const empresas = resposta.linhas.some(linha => linha.id_ej !== null);
@@ -40,7 +57,14 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
             {resposta.contexto.busca && <span className="rounded-full border border-neutral-700 px-2 py-1">Nome: {resposta.contexto.busca}</span>}
             {resposta.contexto.ferramenta === 'ranking' && resposta.contexto.criterio && <span className="rounded-full border border-neutral-700 px-2 py-1">Critério: {resposta.contexto.criterio}</span>}
         </div>}
-        {resposta.linhas.length > 0 && (empresas ? <div className="overflow-hidden rounded-xl border border-neutral-700/80">
+        {grafico && <AlternarVisualizacao modo={modo} alterar={setModo} />}
+        {exibirGrafico && <GraficoConsulta grafico={grafico} />}
+        {serie && !exibirGrafico && <table className="w-full overflow-hidden rounded-xl border border-neutral-700/80 text-sm">
+            <caption className="sr-only">Faturamento por mês</caption>
+            <thead className="bg-neutral-800/70 text-xs text-neutral-400"><tr><th scope="col" className="px-3 py-2 text-left font-medium">Mês</th><th scope="col" className="px-3 py-2 text-right font-medium">Faturamento do mês</th></tr></thead>
+            <tbody>{serie.map(ponto => <tr key={ponto.mes} className="border-t border-neutral-700/50"><td className="px-3 py-2">{rotuloDoMes(ponto.mes)}</td><td className="px-3 py-2 text-right tabular-nums text-neutral-200">{formatar(ponto.valor, 'moeda')}</td></tr>)}</tbody>
+        </table>}
+        {(serie || !exibirGrafico) && resposta.linhas.length > 0 && (empresas ? <div className="overflow-hidden rounded-xl border border-neutral-700/80">
             <div className="flex items-center justify-between gap-3 bg-neutral-800/70 px-3 py-2.5">
                 <span className="text-xs text-neutral-300">{resposta.linhas.length} EJs na resposta{resposta.total > resposta.linhas.length ? ` · ${resposta.total} no total` : ''}</span>
             </div>
