@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.ia.provedor import Interpretacao, ProvedorIndisponivel
 from app.models.ia import PlanoConsulta
+from app.utils import constants
 
 
 class ProvedorCompativel:
@@ -53,6 +54,15 @@ class ProvedorCompativel:
             "conceito: use null em todas as ferramentas exceto explicar. "
             "ritmo_mensal: contagens de EJs sem vendas, ritmo mínimo e significativo em UM mês. "
             "cluster: filtro de cluster OFICIAL do ano (1 a 5), disponível em todas as consultas. "
+            "metas: quantas EJs estão em cada faixa do percentual da meta ANUAL de faturamento: "
+            f"meta_atingida ({constants.LIMIAR_META_ATINGIDA:.0f}% ou mais), meta_parcial (de "
+            f"{constants.LIMIAR_META_PARCIAL:.0f}% a menos de {constants.LIMIAR_META_ATINGIDA:.0f}%), "
+            f"meta_abaixo (abaixo de {constants.LIMIAR_META_PARCIAL:.0f}%) e sem_meta. faixa=null para a "
+            "distribuição; uma faixa para listar as EJs dessa faixa. Só meta de FATURAMENTO e só essas faixas: "
+            "outro limiar ou outra meta (CSAT, engajamento, projetos) -> recusar. EXEMPLO: 'Quantas EJs bateram "
+            "a meta de faturamento?' -> metas, faixa null. EXEMPLO: 'Quais EJs estão abaixo de "
+            f"{constants.LIMIAR_META_PARCIAL:.0f}% da meta?' -> metas, faixa=meta_abaixo. "
+            "faixa: use null em todas as ferramentas exceto metas. "
             "perfil_ej: resumo de UMA EJ da federação (faturamento acumulado, % da meta, projeção anual, "
             "ritmo necessário, cluster oficial e tracking, CSAT e projetos). busca = trecho do nome da EJ "
             "exatamente como escrito na pergunta, sem acrescentar palavras. EXEMPLO: 'Como está a Fulano Jr?' "

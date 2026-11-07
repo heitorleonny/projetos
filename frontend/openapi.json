@@ -3873,6 +3873,7 @@
               "ritmo_mensal",
               "explicar",
               "perfil_ej",
+              "metas",
               "esclarecer",
               "recusar"
             ],
@@ -4029,6 +4030,23 @@
               }
             ],
             "title": "Ordem"
+          },
+          "faixa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "meta_atingida",
+                  "meta_parcial",
+                  "meta_abaixo",
+                  "sem_meta"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faixa"
           }
         },
         "additionalProperties": false,

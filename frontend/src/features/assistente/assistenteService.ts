@@ -4,7 +4,7 @@ export type Conceito = 'fora_do_zero' | 'ritmo' | 'cluster' | 'sde' | 'taxa_cola
     | 'csat' | 'engajamento' | 'tracking_cluster' | 'projecao_anual' | 'ritmo_necessario' | 'meta_atingida';
 
 export interface ContextoConsulta {
-    ferramenta: 'fora_do_zero' | 'indicadores_rede' | 'ranking' | 'sde' | 'ritmo_mensal' | 'explicar' | 'perfil_ej' | 'esclarecer' | 'recusar';
+    ferramenta: 'fora_do_zero' | 'indicadores_rede' | 'ranking' | 'sde' | 'ritmo_mensal' | 'explicar' | 'perfil_ej' | 'metas' | 'esclarecer' | 'recusar';
     ano: number | null;
     mes: number | null;
     criterio: 'faturamento' | 'csat' | 'projetos' | 'colab' | null;
@@ -15,6 +15,7 @@ export interface ContextoConsulta {
     federacao_mencionada?: string | null;
     conceito?: Conceito | null;
     ordem?: 'desc' | 'asc' | null;
+    faixa?: 'meta_atingida' | 'meta_parcial' | 'meta_abaixo' | 'sem_meta' | null;
 }
 
 export interface RespostaRede {

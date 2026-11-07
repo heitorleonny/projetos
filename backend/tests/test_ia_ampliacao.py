@@ -294,3 +294,87 @@ def test_esclarecimento_de_ej_mantem_plano_como_contexto():
     assert resposta.status == "esclarecimento" and resposta.contexto.busca == "Sintética"
     escolha = resposta.esclarecimento.opcoes[0].pergunta
     assert busca_com_intencao_de_nome(escolha, perfil(busca="EJ Sintética A"), resposta.contexto)
+
+
+# ── Item 3c: atingimento de metas da rede ──────────────────────────────────
+
+from app.services.calculo_service import calcular_percentual_meta, classificar_faixa_meta
+from app.utils import constants
+
+
+@pytest.mark.parametrize("percentual,faixa", [
+    (None, "sem_meta"), (constants.LIMIAR_META_ATINGIDA, "meta_atingida"), (250.0, "meta_atingida"),
+    (constants.LIMIAR_META_ATINGIDA - 0.01, "meta_parcial"), (constants.LIMIAR_META_PARCIAL, "meta_parcial"),
+    (constants.LIMIAR_META_PARCIAL - 0.01, "meta_abaixo"), (0.0, "meta_abaixo"),
+])
+def test_faixa_de_meta_usa_limiares_das_constantes(percentual, faixa):
+    assert classificar_faixa_meta(percentual) == faixa
+
+
+def test_faixa_parte_do_percentual_oficial():
+    # Meta ausente ou ≤ 0 é "sem meta", como em calcular_percentual_meta.
+    assert classificar_faixa_meta(calcular_percentual_meta(10, None)) == "sem_meta"
+    assert classificar_faixa_meta(calcular_percentual_meta(10, 0)) == "sem_meta"
+    assert classificar_faixa_meta(calcular_percentual_meta(100, 100)) == "meta_atingida"
+
+
+def banco_metas():
+    banco = banco_perfil(("EJ Sintética A", "EJ Sintética B", "EJ Sintética C", "EJ Sintética D"))
+    # Acumulado em março: 6000 para todas. Metas: 6000 (100%), 12000 (50%), 13000 (46,15%), sem meta.
+    banco.tabelas["metas"] = [{"id": i, "id_ej": 100 + i, "ano": 2026, "meta_faturamento": meta}
+                              for i, meta in ((1, 6000), (2, 12000), (3, 13000))]
+    banco.tabelas["metas"].append({"id": 9, "id_ej": 900, "ano": 2026, "meta_faturamento": 1})  # MG
+    return banco
+
+
+def test_distribuicao_de_metas_do_tenant():
+    resposta = executar_consulta(banco_metas(), plano(ferramenta="metas", ano=None, mes=None), federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "respondida" and resposta.fonte == "calculo_service.calcular_percentual_meta"
+    assert [(l.nome, l.valor) for l in resposta.linhas] == [
+        ("100% ou mais da meta", 1), ("De 50% a menos de 100%", 1), ("Abaixo de 50%", 1), ("Sem meta cadastrada", 1)]
+    assert all(l.id_ej is None for l in resposta.linhas) and resposta.total == 4
+    assert "1 de 4 EJs já bateram a meta" in resposta.resposta
+
+
+def test_metas_reaproveita_calcular_percentual_meta(monkeypatch):
+    from app.services import empresa_service
+    chamadas = []
+    original = empresa_service.calcular_percentual_meta
+    monkeypatch.setattr(empresa_service, "calcular_percentual_meta", lambda *a: chamadas.append(a) or original(*a))
+    executar_consulta(banco_metas(), plano(ferramenta="metas", ano=None, mes=None), federacao_id=12, ano_padrao=2026)
+    assert len(chamadas) == 4
+
+
+@pytest.mark.parametrize("faixa,ids", [
+    ("meta_abaixo", [103]), ("meta_parcial", [102]), ("meta_atingida", [101]), ("sem_meta", [104]),
+])
+def test_lista_de_uma_faixa(faixa, ids):
+    resposta = executar_consulta(banco_metas(), plano(ferramenta="metas", ano=None, mes=None, faixa=faixa),
+                                 federacao_id=12, ano_padrao=2026)
+    assert [l.id_ej for l in resposta.linhas] == ids and resposta.total == len(ids)
+
+
+def test_sugestao_de_acompanhamento_e_filtro_da_faixa():
+    resposta = perguntar(banco_metas(), provedor_falso(plano(ferramenta="metas", ano=2026, mes=3)),
+                         "Quantas EJs bateram a meta de faturamento?", federacao_id=12, usuario_id="fake", ano_padrao=2026)
+    assert resposta.sugestoes[0] == "Quais EJs em 03/2026 estão abaixo de 50% da meta de faturamento?"
+
+
+def test_metas_respeita_cobertura_do_mes():
+    resposta = executar_consulta(banco_metas(), plano(ferramenta="metas", ano=2026, mes=4), federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "sem_dados" and not resposta.linhas
+
+
+@pytest.mark.parametrize("valor", ["abaixo_de_80", "acima_100", 50])
+def test_faixa_fora_do_literal_rejeitada(valor):
+    with pytest.raises(ValidationError):
+        plano(ferramenta="metas", faixa=valor)
+
+
+@pytest.mark.parametrize("ferramenta", ["fora_do_zero", "ranking", "indicadores_rede", "perfil_ej"])
+def test_faixa_fora_de_metas_recusa_sem_ler_banco(ferramenta):
+    banco = Mock()
+    resposta = executar_consulta(banco, plano(ferramenta=ferramenta, faixa="meta_abaixo", busca="Sintética" if ferramenta == "perfil_ej" else None),
+                                 federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "fora_do_catalogo"
+    banco.table.assert_not_called()

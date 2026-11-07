@@ -11,6 +11,8 @@ from app.models.empresa import Ritmo, TendenciaCluster
 from app.utils.constants import (
     CLUSTER_RANGES,
     FATOR_ESCALA_PONTOS,
+    LIMIAR_META_ATINGIDA,
+    LIMIAR_META_PARCIAL,
     MESES_ANO,
     SDE_WEIGHTS,
 )
@@ -39,6 +41,27 @@ def calcular_percentual_meta(
     if not meta_faturamento or meta_faturamento <= 0:
         return None
     return round((faturamento_acumulado / meta_faturamento) * 100, 2)
+
+
+def classificar_faixa_meta(percentual_meta: float | None) -> str:
+    """
+    Faixa de atingimento da meta anual de faturamento (Nexo, consulta `metas`).
+
+    Recebe o resultado de `calcular_percentual_meta`; não recalcula o percentual.
+
+    Faixas (limiares em constants.py):
+        - meta_atingida: percentual ≥ LIMIAR_META_ATINGIDA
+        - meta_parcial:  LIMIAR_META_PARCIAL ≤ percentual < LIMIAR_META_ATINGIDA
+        - meta_abaixo:   percentual < LIMIAR_META_PARCIAL
+        - sem_meta:      percentual None (meta ausente ou ≤ 0)
+    """
+    if percentual_meta is None:
+        return "sem_meta"
+    if percentual_meta >= LIMIAR_META_ATINGIDA:
+        return "meta_atingida"
+    if percentual_meta >= LIMIAR_META_PARCIAL:
+        return "meta_parcial"
+    return "meta_abaixo"
 
 
 # ── 2. Classificação de Ritmo ────────────────────────────────

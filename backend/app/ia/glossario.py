@@ -169,8 +169,8 @@ VERBETES: dict[str, tuple[str, Callable[[], str], tuple[str, ...]]] = {
     "engajamento": ("Engajamento com o MEJ", _engajamento, ("O que é cluster?", "Qual o SDE da rede{sufixo}?")),
     "tracking_cluster": ("Tracking de cluster", _tracking_cluster, ("Qual o SDE da rede{sufixo}?",)),
     "projecao_anual": ("Projeção anual", _projecao_anual, ("O que é ritmo necessário?", "Top 10 EJs por faturamento{sufixo}")),
-    "ritmo_necessario": ("Ritmo necessário", _ritmo_necessario, ("O que significa meta atingida?",)),
-    "meta_atingida": ("Meta atingida", _meta_atingida, ("Top 10 EJs por faturamento{sufixo}",)),
+    "ritmo_necessario": ("Ritmo necessário", _ritmo_necessario, ("O que significa meta atingida?", "Quantas EJs atingiram a meta de faturamento{sufixo}?")),
+    "meta_atingida": ("Meta atingida", _meta_atingida, ("Quantas EJs atingiram a meta de faturamento{sufixo}?",)),
 }
 
 

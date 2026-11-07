@@ -134,3 +134,13 @@ test('componente: esclarecimento de EJ sem opções não desenha grupo vazio', (
     const html = renderizar({ ...resposta(null, []), status: 'esclarecimento', esclarecimento: { pergunta: 'Qual EJ?', opcoes: [] } });
     assert.doesNotMatch(html, /Escolha como consultar/);
 });
+
+test('componente: distribuição de metas em gráfico e lista de uma faixa em tabela com "% da meta"', () => {
+    const distribuicao = resposta('calculo_service.calcular_percentual_meta', [linha('100% ou mais da meta', 1), linha('Sem meta cadastrada', 2)]);
+    assert.match(renderizar(distribuicao), /data-visualizacao="grafico"/);
+    const faixa = resposta('calculo_service.calcular_percentual_meta', [linha('EJ Sintética A', 12.5, 1), linha('EJ Sintética B', null, 2)]);
+    const html = renderizar(faixa);
+    assert.doesNotMatch(html, /Forma de exibição/);
+    assert.match(html, />% da meta</);
+    assert.match(html, />Sem meta</);
+});

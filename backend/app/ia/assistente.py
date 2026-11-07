@@ -9,8 +9,17 @@ from app.ia.conversa import (aliases_da_federacao, normalizar, normalizar_refere
                              referencia_externa, ranking_ambiguo, esclarecer, sufixo_filtros, filtros_do_esclarecimento, busca_com_intencao_de_nome,
                              conceito_local)
 from app.ia.glossario import explicar, sugestoes_do_conceito
+from app.utils import constants
 
 logger = logging.getLogger(__name__)
+
+
+def sugestoes_de_metas(periodo: str, faixa: str | None) -> list[str]:
+    parcial = f"{constants.LIMIAR_META_PARCIAL:.0f}%"
+    sugestoes = [f"Quais EJs{periodo} estão abaixo de {parcial} da meta de faturamento?",
+                 f"Quais EJs{periodo} não têm meta de faturamento cadastrada?",
+                 "O que significa meta atingida?"]
+    return sugestoes if faixa is None else [f"Quantas EJs{periodo} atingiram a meta de faturamento?", sugestoes[2]]
 
 
 def perguntar(sb, provedor, pergunta: str, *, federacao_id: int, usuario_id: str, ano_padrao: int, contexto: PlanoConsulta | None = None, federacao: dict | None = None):
@@ -53,9 +62,12 @@ def perguntar(sb, provedor, pergunta: str, *, federacao_id: int, usuario_id: str
         resposta.contexto = plano.model_copy(update={"ano": resposta.ano, "mes": resposta.mes})
     periodo = sufixo_filtros(resposta.contexto)
     if resposta.status != "sem_dados" and not plano.busca and resposta.fonte != "glossario":
-        resposta.sugestoes = [f"Qual o faturamento total da rede{periodo}?",
-                          f"Como está o ritmo mensal{periodo}?",
-                          f"Qual o SDE da rede{periodo}?"]
+        if plano.ferramenta == "metas":
+            resposta.sugestoes = sugestoes_de_metas(periodo, plano.faixa)
+        else:
+            resposta.sugestoes = [f"Qual o faturamento total da rede{periodo}?",
+                              f"Como está o ritmo mensal{periodo}?",
+                              f"Qual o SDE da rede{periodo}?"]
     if preserva_contexto:
         resposta.contexto = contexto
     logger.info("ia_consulta tenant=%s usuario=%s modelo=%s ferramenta=%s status=%s entrada=%s saida=%s duracao_ms=%.0f",

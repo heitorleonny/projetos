@@ -5,7 +5,9 @@ from app.services.empresa_service import buscar_empresa, listar_empresas
 from app.services.leitura import ler_todas
 from app.services.rede_service import (calcular_indicadores_rede, gerar_ranking_com_exclusoes,
                                        calcular_sde_cenarios, calcular_ritmo_mensal)
+from app.services.calculo_service import classificar_faixa_meta
 from app.services.cluster_service import buscar_ids_por_cluster
+from app.utils import constants
 from app.services.tenant import filtrar_por_tenant
 from app.ia.conversa import esclarecer, normalizar, sufixo_filtros
 from app.ia.glossario import explicar, recusar_conceito
@@ -25,6 +27,10 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
         return explicar(plano.conceito)
     if plano.conceito is not None:
         return recusar_conceito()
+    if plano.faixa is not None and plano.ferramenta != "metas":
+        return RespostaRede(status="fora_do_catalogo", resposta=(
+            "Filtrar por faixa da meta está disponível só na consulta de atingimento de metas de faturamento."
+        ))
     if plano.ordem == "asc" and plano.ferramenta != "ranking":
         # Menores valores fora do ranking seriam ignorados em silêncio.
         return RespostaRede(status="fora_do_catalogo", resposta=(
@@ -92,21 +98,16 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
     if plano.ferramenta == "fora_do_zero":
         # A classificação usa o acumulado já calculado pelo service; todas as
         # páginas entram antes do filtro, inclusive nas federações maiores.
-        ejs = []
-        pagina = 1
-        while True:
-            lote = listar_empresas(sb, ano=ano, mes=mes, federacao_id=federacao_id, page=pagina, page_size=100,
-                                   cluster=plano.cluster)
-            ejs.extend(lote.data)
-            if pagina >= lote.meta.total_pages:
-                break
-            pagina += 1
+        ejs = _listar_todas(sb, ano=ano, mes=mes, federacao_id=federacao_id, cluster=plano.cluster)
         linhas = [LinhaResposta(id_ej=e.id_ej, nome=e.nome, valor=e.faturamento_acumulado)
                   for e in ejs if e.faturamento_acumulado > 0
                   and (not plano.busca or plano.busca.casefold() in e.nome.casefold())]
         return RespostaRede(status="respondida", resposta=(
             f"{len(linhas)} EJs{recorte} estão fora do zero em {periodo}: faturamento acumulado no ano maior que zero."
         ), fonte="empresa_service.listar_empresas", ano=ano, mes=mes, total=len(linhas), linhas=linhas, unidade="moeda")
+    if plano.ferramenta == "metas":
+        return _metas(_listar_todas(sb, ano=ano, mes=mes, federacao_id=federacao_id, cluster=plano.cluster),
+                      plano.faixa, ano=ano, mes=mes, recorte=recorte, periodo=periodo)
     if plano.ferramenta == "ranking":
         criterio = plano.criterio or "faturamento"
         ordem = plano.ordem or "desc"
@@ -196,3 +197,43 @@ def _perfil_ej(sb, id_ej: int, *, ano: int, mes: int, periodo: str, federacao_id
                         fonte="empresa_service.buscar_empresa", ano=ano, mes=mes, total=1, linhas=linhas,
                         serie=[PontoSerie(mes=m.mes, valor=m.faturamento) for m in perfil.serie_mensal],
                         sugestoes=["O que é tracking de cluster?", "O que é ritmo necessário?"])
+
+
+def _listar_todas(sb, *, ano: int, mes: int, federacao_id: int, cluster: int | None) -> list:
+    """Todas as páginas de listar_empresas (filtro de tenant no service + RLS)."""
+    ejs = []
+    pagina = 1
+    while True:
+        lote = listar_empresas(sb, ano=ano, mes=mes, federacao_id=federacao_id, page=pagina, page_size=100,
+                               cluster=cluster)
+        ejs.extend(lote.data)
+        if pagina >= lote.meta.total_pages:
+            break
+        pagina += 1
+    return ejs
+
+
+def rotulos_faixas_meta() -> dict[str, str]:
+    atingida = f"{constants.LIMIAR_META_ATINGIDA:.0f}%"
+    parcial = f"{constants.LIMIAR_META_PARCIAL:.0f}%"
+    return {"meta_atingida": f"{atingida} ou mais da meta", "meta_parcial": f"De {parcial} a menos de {atingida}",
+            "meta_abaixo": f"Abaixo de {parcial}", "sem_meta": "Sem meta cadastrada"}
+
+
+def _metas(ejs: list, faixa: str | None, *, ano: int, mes: int, recorte: str, periodo: str) -> RespostaRede:
+    # O % vem de calcular_percentual_meta, já aplicado por listar_empresas; aqui só agrupamos.
+    rotulos = rotulos_faixas_meta()
+    por_faixa: dict[str, list] = {chave: [] for chave in rotulos}
+    for ej in ejs:
+        por_faixa[classificar_faixa_meta(ej.percentual_meta)].append(ej)
+    base = dict(status="respondida", fonte="calculo_service.calcular_percentual_meta", ano=ano, mes=mes, unidade="numero")
+    if faixa is None:
+        linhas = [LinhaResposta(nome=rotulos[chave], valor=len(grupo)) for chave, grupo in por_faixa.items()]
+        return RespostaRede(**base, total=len(ejs), linhas=linhas, resposta=(
+            f"Atingimento da meta anual de faturamento{recorte} em {periodo}: "
+            f"{len(por_faixa['meta_atingida'])} de {len(ejs)} EJs já bateram a meta. "
+            "O percentual compara o faturamento acumulado com a meta do ano inteiro."))
+    grupo = sorted(por_faixa[faixa], key=lambda e: (e.percentual_meta is None, e.percentual_meta or 0, e.nome))
+    linhas = [LinhaResposta(id_ej=e.id_ej, nome=e.nome, valor=e.percentual_meta) for e in grupo]
+    return RespostaRede(**base, total=len(linhas), linhas=linhas, resposta=(
+        f"{len(linhas)} EJs{recorte} na faixa \"{rotulos[faixa]}\" da meta anual de faturamento em {periodo}."))

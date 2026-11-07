@@ -216,3 +216,20 @@ def test_perfil_do_tenant_sob_rls(banco_rls, monkeypatch, remover_filtro):
     assert resposta.status == "respondida" and resposta.linhas[0].id_ej == EJ_PE
     assert {l.nome: l.valor for l in resposta.linhas}["Faturamento acumulado"] == 100
     assert "MG da bateria" not in resposta.model_dump_json()
+
+
+@pytest.mark.parametrize("remover_filtro", [False, True])
+@pytest.mark.parametrize("faixa", [None, "sem_meta", "meta_abaixo"])
+def test_metas_so_contam_ejs_do_tenant(banco_rls, monkeypatch, remover_filtro, faixa):
+    if remover_filtro:
+        _sem_filtro_python(monkeypatch)
+    resposta = perguntar(banco_rls, provedor_falso(plano(ferramenta="metas", faixa=faixa)),
+                         "Quantas EJs bateram a meta?", federacao_id=12, usuario_id="sintetico", ano_padrao=2026)
+    assert resposta.status == "respondida"
+    assert "MG da bateria" not in resposta.model_dump_json()
+    # EJ_PE: acumulado 100 sobre meta 120.000 → abaixo. A EJ de MG não tem meta:
+    # se vazasse, apareceria como "sem meta cadastrada".
+    if faixa is None:
+        assert [l.valor for l in resposta.linhas] == [0, 0, 1, 0] and resposta.total == 1
+    else:
+        assert [l.id_ej for l in resposta.linhas] == ([EJ_PE] if faixa == "meta_abaixo" else [])

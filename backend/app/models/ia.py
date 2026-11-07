@@ -12,7 +12,7 @@ Conceito = Literal["fora_do_zero", "ritmo", "cluster", "sde", "taxa_colaboracao"
 class PlanoConsulta(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     ferramenta: Literal["fora_do_zero", "indicadores_rede", "ranking", "sde", "ritmo_mensal", "explicar",
-                        "perfil_ej", "esclarecer", "recusar"]
+                        "perfil_ej", "metas", "esclarecer", "recusar"]
     ano: int | None = Field(ge=2000, le=2100)
     mes: int | None = Field(ge=1, le=12)
     criterio: Literal["faturamento", "csat", "projetos", "colab"] | None
@@ -25,6 +25,8 @@ class PlanoConsulta(BaseModel):
     conceito: Conceito | None = None
     # Só com `ranking`: None = desc (maiores valores); asc = menores valores.
     ordem: Literal["desc", "asc"] | None = None
+    # Só com `metas`: None = distribuição; uma faixa = EJs dessa faixa (limiares em constants.py).
+    faixa: Literal["meta_atingida", "meta_parcial", "meta_abaixo", "sem_meta"] | None = None
 
     @field_validator("busca")
     @classmethod
