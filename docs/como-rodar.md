@@ -1,175 +1,186 @@
-# Como rodar o projeto
+> **05/11/2026:** o caminho Supabase abaixo é histórico. Heitor escolheu PostgreSQL próprio + Docker. Consulte `docs/entrega-tcc-2026-11-05.md` e o README da raiz para o estado da substituição. Não usar estas instruções antigas para o novo ambiente.
 
-Resumo prático. Detalhes de stack ficam no `AGENTS.md` de cada subprojeto.
+# Como rodar e testar
 
-## Pré-requisitos
+Atualizado em 04/10/2026. Execute os comandos na raiz `projetos/`.
 
-- Docker Desktop rodando (caminho recomendado), **ou** Python 3.11+ e Node 22+.
-- Credenciais do Supabase (`SUPABASE_URL` e `SUPABASE_KEY`). O backend **não sobe sem
-  elas** — são obrigatórias em `app/config.py`.
+## Preparar a máquina
 
-## Caminho rápido — Docker (tudo junto)
+- Python 3.11+; Node 22.12+ e npm.
+- Docker Desktop iniciado, com Docker Compose v2.
+- Para navegar na demo: Supabase CLI e `psql` no PATH.
 
 ```bash
-cp .env.example .env     # preencher SUPABASE_* e VITE_SUPABASE_*
-make up                  # frontend :8080, backend :8000
+make setup       # .venv na raiz, requirements do backend e npm ci no frontend
+make doctor      # ferramentas, dependências e Docker; não imprime segredos
+make help
 ```
 
-- App: http://localhost:8080
-- API + Swagger: http://localhost:8000/docs
-- Derrubar: `make down`
+`setup` não copia nem sobrescreve `.env`. No macOS, a CLI pode ser instalada por
+`brew install supabase/tap/supabase`; `psql` vem do PostgreSQL/libpq.
 
-O nginx do frontend faz proxy de `/api/v1` para o backend — por isso
-`VITE_API_BASE_URL=/api/v1` no modo produção local.
-
-### Desenvolvimento com hot reload
+## Testar com um comando
 
 ```bash
-make dev                 # Vite :5173 + backend com --reload em :8000
+make check
 ```
 
-Aqui o Vite fala direto com o backend (`VITE_API_BASE_URL_DEV`).
-
-### Outros atalhos
+Executa backend, build TypeScript/Vite e lint do frontend. O backend usa um
+Postgres **descartável**, sem porta publicada e com dados em memória: aplica
+`infra/db/init/00..NN`, verifica RLS e ingestão e remove esse banco ao terminar.
+O laboratório e a demo são preservados. `--require-lab` faz o pytest falhar caso
+haja testes pulados. Não precisa de planilha real, credenciais da nuvem ou CLI.
 
 ```bash
-make test        # pytest do backend dentro do container
-make lab         # sobe só o Postgres do laboratório do TCC (:55432)
-make logs / ps   # logs e estado dos containers
-make clean       # derruba tudo e APAGA volumes (perde os dados do lab)
-make help        # lista todos
+make test        # só backend e banco descartável, dentro do Docker
+make test-local  # Python do host + lab persistente; exige schema atualizado
+make front-build
+make front-lint
 ```
 
-## Caminho manual — sem Docker
+Um `pytest -q` avulso ainda pode pular testes de banco quando o lab está
+indisponível. Para verificar migrações novas sem apagar o lab, use `make test`.
 
-Backend (`portal_fejepe/`):
-
-```bash
-cd portal_fejepe
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env                 # SUPABASE_URL, SUPABASE_KEY, CORS_ORIGINS
-uvicorn app.main:app --reload --port 8000
-pytest                               # testes (não tocam na rede)
-```
-
-Frontend (`front_portal_fejepe/`):
+## Demo com autenticação real
 
 ```bash
-cd front_portal_fejepe
-npm install
-cp .env.example .env                 # VITE_API_BASE_URL, VITE_SUPABASE_*
-npm run dev                          # :5173
-npm run build                        # tsc -b && vite build
-npm run lint
-```
-
-Sem credenciais do Supabase, dá para ver a interface com `VITE_USE_MOCK=true` no
-`.env` do frontend (dados falsos, backend não é chamado).
-
-Calculadora de cluster (`calculadora_cluster/`) é um app Vite independente:
-`npm install && npm run dev`.
-
-## Laboratório de dados do TCC
-
-`make lab` sobe um Postgres **separado do Supabase**, só para a modelagem preditiva.
-O schema em `infra/db/init/01-schema.sql` roda sozinho na primeira subida.
-
-```bash
-psql postgresql://portal:portal@localhost:55432/portal_lab
-```
-
-Credenciais e porta saem de `POSTGRES_*` no `.env` da raiz.
-
-## Se der errado
-
-| Sintoma | Causa provável |
-|---|---|
-| Backend morre no start com erro de validação | falta `SUPABASE_URL`/`SUPABASE_KEY` no `.env` |
-| Front carrega mas as chamadas falham com CORS | origem não está em `CORS_ORIGINS` |
-| `make up` não acha variável | esqueceu de criar o `.env` **da raiz** (o compose lê esse) |
-| Porta ocupada | ajuste `FRONTEND_PORT` / `BACKEND_PORT` / `POSTGRES_PORT` no `.env` |
-
----
-
-## Ambiente de demonstração (stack Supabase completa)
-
-Outro ambiente, outra finalidade. O `make lab` é 1 container de Postgres onde os
-testes rodam rápido; o `make demo` é a stack inteira, onde se **abre a tela e
-olha**, com login de verdade. Os dois convivem. Ver o adendo de
-`docs/adr-002-rls-local-sem-stack-completa.md`.
-
-**Pré-requisitos:** Docker no ar e a CLI do Supabase
-(`brew tap supabase/tap && brew install supabase`). Verificado na **2.117.0**.
-
-### Do zero até o portal navegável
-
-```bash
-# 1. stack + schema (infra/db/init/01..12) + papel de carga
 make demo
+```
 
-# 2. dados (dry-run primeiro — a carga inteira roda e desfaz no fim)
-make demo-dados ARQUIVO=~/Documents/TCC/dados/monitoring_acumulated_2026_1220260921-1-9ldcm9.xlsx ANO=2026 DRY=1
-make demo-dados ARQUIVO=~/Documents/TCC/dados/monitoring_acumulated_2026_1220260921-1-9ldcm9.xlsx ANO=2026
+Na primeira execução, sobe o Supabase e aplica `infra/db/init/01..NN` (o shim
+`00` só pertence ao lab). Nas seguintes, reutiliza schema e dados. Confere a
+presença dos objetos mais recentes sem reaplicar migrações antigas; essa
+checagem não substitui uma comparação completa de schema. Se estiver antigo
+ou parcialmente migrado, o comando para com uma orientação.
 
-# 3. usuários de teste — e a PROVA de que o hook está ligado:
-#    o script loga, decodifica o JWT e falha se faltar federacao_id ou papel
+Na primeira preparação, depois do schema:
+
+```bash
+make demo-dados ARQUIVO=/caminho/exportacao.xlsx ANO=2026 DRY=1
+make demo-dados ARQUIVO=/caminho/exportacao.xlsx ANO=2026
 make demo-seed
 ```
 
-Atalho dos três: `make demo-tudo ARQUIVO=... ANO=2026`.
+Use a exportação original de monitoramento acumulado do Portal BJ, mantendo o
+nome do arquivo. As planilhas ficam fora do repositório. O atalho
+`make demo-tudo ARQUIVO=... ANO=2026` executa preparação, carga nacional e seed.
+O [levantamento do ETL](etl-planilhas-portal-bj.md) explica por que uma planilha
+acumulada por ano basta para as telas atuais. Para uma comparação 2025 × 2026
+com valores, carregue também o acumulado de 2025 com `ANO=2025`.
 
-| | |
+Em **dois terminais**, ambos na raiz:
+
+```bash
+# Terminal 1
+make demo-backend
+```
+
+```bash
+# Terminal 2
+make demo-frontend
+```
+
+Abra **http://localhost:5173**. API/Swagger: http://localhost:8000/docs.
+Os comandos descobrem as chaves da demo e configuram URL, CORS, tenant
+obrigatório e conexão da importação. A chave de serviço só vai para o backend;
+as chaves não são copiadas para arquivos. O Vite usa dados reais da demo.
+
+O backend assume `ANO_DEFAULT=2026`, alterável no ambiente. `TENANT_SLUG=fejepe`
+define a marca do login; após autenticar, marca e dados seguem o usuário. Se a
+senha do papel de carga mudou, exporte `INGESTAO_SENHA` também ao iniciar a API.
+
+| Usuário local | Papel | Federação |
+|---|---|---|
+| `um@teste.local` | admin | FEJEPE |
+| `dois@teste.local` | admin | FEJEMG |
+| `<slug>@teste.local` | admin | Cada uma das outras 25 federações |
+| `op@teste.local` | plataforma | FEJEPE nos dados de EJ; gestão de todas no painel |
+
+Senha de desenvolvimento: `demo1234` (ou `DEMO_SENHA` usada no seed).
+O `make demo-seed` cria essas 27 contas administrativas apenas na demo local;
+o slug de cada federação aparece no painel da plataforma. Para acesso real,
+é preciso cadastrar o endereço da pessoa responsável por cada federação.
+
+```bash
+make demo-smoke   # login, endpoints, paginação e acesso cruzado entre tenants
+make demo-stop    # para o Supabase e preserva os dados
+```
+
+`demo-smoke` usa FastAPI TestClient com Auth e PostgREST reais, sem precisar de
+uvicorn no ar; não imprime dados de EJs. Verifica leitura e isolamento, sem
+convites ou uploads. Pare API e Vite com Ctrl+C nos respectivos terminais.
+
+| Serviço | Endereço |
 |---|---|
-| API (Kong) | http://127.0.0.1:54421 |
-| Banco | `postgresql://postgres:postgres@127.0.0.1:54422/postgres` |
-| Studio | http://127.0.0.1:54423 |
-| E-mails (Mailpit) | http://127.0.0.1:54424 |
+| API Supabase (Kong) | http://127.0.0.1:54421 |
+| Banco demo | localhost:54422 |
+| Studio | http://localhost:54423 |
+| E-mails locais (Mailpit) | http://localhost:54424 |
 
-Portas no bloco **544xx**, não no 543xx padrão da CLI: havia outra stack
-Supabase na máquina ocupando as padrão. `make demo-status` reimprime tudo,
-inclusive as chaves.
+`make demo-status` imprime também chaves: não compartilhe a saída.
+`make demo-reset` **apaga os dados da demo** e recria schema; refaça carga e
+seed depois. `demo-schema` é para banco novo: as migrações históricas não são
+todas idempotentes. Não existe cópia delas em `supabase/migrations/`.
 
-### Subir o portal contra a demo
-
-Backend e frontend rodam **no host**, não em container — e por um motivo: o
-backend dentro do Docker não alcança `127.0.0.1:54421` (precisaria de
-`host.docker.internal`), e o navegador não alcança `host.docker.internal`. Como
-o compose passa a mesma `SUPABASE_URL` para os dois serviços, não há um valor
-que sirva aos dois. No host, ambos falam `127.0.0.1`.
+Se a demo já existia antes da migração 16, aplique **somente** esse arquivo,
+preservando os dados, antes de iniciar a API:
 
 ```bash
-export DEMO_SUPABASE_URL=http://127.0.0.1:54421
-export DEMO_ANON=$(supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)["ANON_KEY"])')
-
-# backend (:8000)
-cd portal_fejepe && SUPABASE_URL=$DEMO_SUPABASE_URL SUPABASE_ANON_KEY=$DEMO_ANON \
-  CORS_ORIGINS=http://localhost:5173,http://localhost:8080 ANO_DEFAULT=2026 \
-  ../.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-# frontend (:5173) — TENANT_SLUG decide o BRANDING, não o tenant dos dados
-cd front_portal_fejepe && VITE_API_BASE_URL=http://localhost:8000/api/v1 \
-  VITE_SUPABASE_URL=$DEMO_SUPABASE_URL VITE_SUPABASE_ANON_KEY=$DEMO_ANON \
-  VITE_USE_MOCK=false VITE_TENANT_SLUG=fejepe npm run dev -- --port 5173
+psql postgresql://postgres:postgres@127.0.0.1:54422/postgres \
+  -X -v ON_ERROR_STOP=1 -f infra/db/init/16-projetos-colaborativos.sql
 ```
 
-Abra **http://localhost:5173** — `localhost`, não `127.0.0.1`: o `CORS_ORIGINS`
-do backend lista `localhost`, e para o CORS os dois não são a mesma origem.
+Depois reenvie a exportação acumulada pelo painel (simular → gravar) para
+preencher os contratos colaborativos das linhas antigas. O admin da federação
+encontra o upload em **Administração → Importar planilha** e pode usar o arquivo
+nacional; só as linhas da própria federação são aplicadas. Use a exportação
+acumulada mais recente do ano e confira no relatório se o mês mais novo entrou.
 
-**Usuários:** `um@teste.local` (FEJEPE, 43 EJs) e `dois@teste.local` (FEJEMG,
-291 EJs), senha `demo1234` (ou `DEMO_SENHA`).
-
-Para ver o branding da FEJEMG é preciso reiniciar o Vite com
-`VITE_TENANT_SLUG=fejemg`: o branding vem do deploy, não do usuário logado.
-Ver `docs/achado-9.17-limites-com-segundo-tenant.md`.
-
-### Recomeçar
+## Docker para uma instalação configurada
 
 ```bash
-make demo-reset   # apaga os volumes e refaz stack + schema
-make demo-stop    # só para, preservando os dados
+cp .env.example .env   # somente se ainda não existir; preencha os valores
+make up               # nginx :8080 + API :8000
+make down
 ```
 
-`make demo-schema` **não** é idempotente: a migração 04 renomeia
-`empresa_junior.federacao` para `federacao_legado` sem guarda, então reaplicar
-por cima de um banco já migrado falha. É para isso que existe o `demo-reset`.
+`make dev` inicia apenas `backend-dev` e `frontend-dev`, em segundo plano;
+`make dev-down` para esses serviços. Não rode `up`, `dev` e a API no host ao
+mesmo tempo: compartilham portas.
+
+`SUPABASE_ANON_KEY` é a chave de leitura sob RLS. `SUPABASE_SERVICE_KEY` é
+opcional, exclusiva do convite no backend. `INGESTAO_DSN` precisa usar o papel
+`ingestao`. No Compose, `.env` é o da **raiz**. Swagger exige
+`DOCS_ENABLED=true` no modo `up`; em desenvolvimento ele está ligado.
+
+Para a demo local, prefira os comandos no host: `127.0.0.1` dentro de um
+container aponta para esse container, não para a stack Supabase no host.
+
+## Laboratório persistente
+
+```bash
+make lab        # aguarda o banco saudável em :55432
+make lab-down   # para preservando o volume
+```
+
+O lab testa modelagem multi-tenant, RLS e ingestão; usa shim de Auth e não serve
+login para o portal. Migrações só rodam automaticamente com volume vazio.
+`make clean` **apaga volumes do Compose**, inclusive o lab. Detalhes em
+[infra/db/README.md](../infra/db/README.md).
+
+## Se der errado
+
+| Sintoma | Ação |
+|---|---|
+| Docker indisponível | Abra Docker Desktop e rode `make doctor` |
+| Dependência ausente | Rode `make setup` |
+| Demo com schema antigo | Revise migrações; use `demo-reset` apenas se puder apagar os dados |
+| Login falha | Confira `make demo-seed` e `DEMO_SENHA` |
+| Porta ocupada | Pare a execução anterior; o Vite da demo recusa mudar de porta |
+| Erro de CORS | Abra `localhost:5173`; confira a origem no backend |
+| Convite responde 503 | Configure a chave de serviço no backend |
+| Upload responde 503 | Configure `INGESTAO_DSN` com papel de ingestão |
+
+O modo mock cobre parte das chamadas, mas o portal continua exigindo login;
+ele não substitui a demo. A calculadora de cluster é um app Vite independente
+em `tools/cluster-calculator/` (`npm ci && npm run dev`).

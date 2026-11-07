@@ -67,7 +67,6 @@ movimento.
 | `id_ej` | chave de junção com `metas`, `monitoramento` e `cluster_historico` |
 | `id` | chave React no front; não entra em cálculo |
 | `nome` | exibição, busca (`ilike`), ordenação |
-| `comunidade` | filtro, ordenação, participação por comunidade na rede |
 | `status` | filtro; no evento, decide se a EJ é "ativa" (⚠️ 9.20) |
 | `cidade`, `universidade` | filtro (`ilike`); gráfico "Faturamento por Cidade" |
 | `foto_url` | logo |
@@ -86,7 +85,7 @@ O banco real tem `cluster_2022..2026`; o código só mapeava de 2023 a 2026.
 |---|---|---|
 | `meta_faturamento` | % da meta, ritmo significativo, ritmo necessário, "verde" | R$ por ano |
 | `meta_csat` | Índice c/ Meta CSAT, Tracking, adaptativo (meses 1–6), falta para o próximo cluster | 0–5 (3,5 a 5,0 na exportação de 21/09) |
-| `meta_engajamento_mej` | Tracking (dividida por 100), adaptativo (sem dividir) | **0–100** (✅ 9.1, resolvida em 21/09; o adaptativo está errado) |
+| `meta_engajamento_mej` | Tracking e adaptativo (dividida por 100), SDE | **0–100** na planilha e no banco; cálculo em fração |
 | `meta_taxa_colaboracao` | só exibição ("Metas vs Realizado" mostra `valor%`) | percentual 0–100 na exportação de 21/09, com 4 valores acima de 100 ([9.A](#9a-resolvidas-contra-a-exportação-de-2109)) |
 | `meta_projetos_impacto` | devolvida pela API, não aparece em tela nenhuma | inteiro |
 | `meta_pdi` | nada lê | booleano |
@@ -97,8 +96,8 @@ O banco real tem `cluster_2022..2026`; o código só mapeava de 2023 a 2026.
 |---|---|---|
 | `faturamento_mes` | valor da última linha do recorte | ritmo, "Fat. Mês", crescimento mensal, projeção, série |
 | `faturamento_acumulado` | valor da última linha (**não é somado**) | % da meta, fora do zero, índices de cluster, totais da rede |
-| `faturamento_colab_mes` | **somado** no recorte | faturamento colab da EJ, taxa de colaboração |
-| `faturamento_colab_acumulado` | valor da última linha, só na rede e no ranking | ⚠️ 9.2: a coluna não existe no banco real |
+| `faturamento_colab_mes` | valor de cada linha | série mensal de faturamento colaborativo |
+| `faturamento_colab_acumulado` | valor da última linha | faturamento colab acumulado da EJ e da rede, taxa de colaboração, índices e SDE |
 | `projetos_vendidos_mes` | somado quando `projetos_totais` falta | projetos totais |
 | `projetos_totais` | valor da última linha | ⚠️ 9.3: a coluna não existe no banco real |
 | `projetos_colab_mes` | somado | projetos colab, filtro "fora do zero de colab" (⚠️ 9.3: ausente no schema do lab) |
@@ -113,7 +112,6 @@ O banco real tem `cluster_2022..2026`; o código só mapeava de 2023 a 2026.
 | Faixas de cluster, pesos do SDE, `ANO_DEFAULT = 2026`, `MESES_ANO = 12`, fator 100 | [constants.py](../portal_fejepe/app/utils/constants.py) (fonte oficial) |
 | Pesos do SDE, **duplicados** | [SimulacaoPage.tsx:8](../front_portal_fejepe/src/features/simulacao/SimulacaoPage.tsx#L8) |
 | Faixas de cluster e fórmula, **duplicadas** | [calculadora_cluster/src/App.tsx:4](../calculadora_cluster/src/App.tsx#L4) |
-| Lista de comunidades (CAPIBA, PRAIEIRA, TROPICANA, INCUBADORA DE APAIXONADOS, MANDACARU) | [IndicadoresPage.tsx:13](../front_portal_fejepe/src/features/indicadores/IndicadoresPage.tsx#L13), [DashboardFilters.tsx:10](../front_portal_fejepe/src/features/dashboard/DashboardFilters.tsx#L10) |
 | Evento CirandaMEJ'26: metas de 72/34/30/67%, mês de referência 5 | [evento_service.py:45](../portal_fejepe/app/services/evento_service.py#L45) |
 | Cores da barra de meta (80% / 50%) | [EjCard.tsx:92](../front_portal_fejepe/src/features/dashboard/EjCard.tsx#L92), [EmpresaPage.tsx:233](../front_portal_fejepe/src/features/empresa/EmpresaPage.tsx#L233) |
 | Regra temporária do cluster 4 no SDE | [rede_service.py:443](../portal_fejepe/app/services/rede_service.py#L443) |
@@ -231,10 +229,10 @@ Código: [calculo_service.py:82](../portal_fejepe/app/services/calculo_service.p
 
 - **Em linguagem de gestor:** que parte do faturamento veio de projetos colaborativos.
 - **Fórmula:** `faturamento colab acumulado ÷ faturamento_acumulado`, decimal com 4
-  casas. Nula se o faturamento for ≤ 0. Na EJ, o numerador é a **soma** de
-  `faturamento_colab_mes`.
+  casas. Nula se o faturamento for ≤ 0. O numerador vem da coluna acumulada
+  oficial do Portal BJ no último mês do recorte.
 - Entra como `(1 + taxa)` em todas as pontuações de cluster; se for nula, entra como 0.
-- **Na série mensal do Perfil**, a taxa do mês *m* é o colab somado até *m* ÷ o
+- **Na série mensal do Perfil**, a taxa do mês *m* é o colab acumulado informado pelo Portal BJ em *m* ÷ o
   `faturamento_acumulado` do mês *m* ([empresa_service.py:267](../portal_fejepe/app/services/empresa_service.py#L267)).
 - **Exemplo:** 8.000 ÷ 80.000 = **0,10** (10%).
 - **Aparece em:** Perfil (Informações Cadastrais, Metas vs Realizado, tooltip do
@@ -242,8 +240,9 @@ Código: [calculo_service.py:82](../portal_fejepe/app/services/calculo_service.p
 
 ### 4.5 Faturamento colaborativo, projetos colab e fora do zero de colab
 
-- **Faturamento colab acumulado:** na EJ, soma de `faturamento_colab_mes`; na rede,
-  a coluna `faturamento_colab_acumulado` (⚠️ 9.2).
+- **Faturamento colab acumulado:** EJ e rede leem a coluna
+  `faturamento_colab_acumulado` do último mês do recorte. O gráfico mensal
+  mantém `faturamento_colab_mes` para o valor de cada mês.
 - **Projetos colab:** soma de `projetos_colab_mes`.
 - **"Fora do zero de colab" tem duas definições** (⚠️ 9.4):
   - checkbox do Dashboard (`fora_do_zero_colab=true`,
@@ -319,10 +318,9 @@ e vermelho se < 0.
 
 - **Mensal:** `faturamento_mes` da última linha contra a penúltima linha, que não
   são necessariamente meses seguidos.
-- **Anual** ([empresa_service.py:686](../portal_fejepe/app/services/empresa_service.py#L686)):
-  acumulado atual contra o `faturamento_acumulado` do **último mês do ano anterior**.
-  ⚠️ 9.6: compara o ano parcial com o ano anterior cheio. Em setembro, uma EJ que
-  fatura igual ao ano passado aparece com cerca de −25%.
+- **Anual** ([empresa_service.py](../portal_fejepe/app/services/empresa_service.py)):
+  acumulado atual contra o acumulado do último mês disponível **até o mesmo mês**
+  do ano anterior. Sem dados no período atual ou anterior, exibe "—".
 
 ---
 
@@ -399,23 +397,11 @@ cluster 4 no terceiro.
 - **Casos de borda:** nulo se o faturamento for ≤ 0, se o mês for 0, ou se faltar o
   CSAT da fase (meta nas fases 1–2, real na fase 3). Sem pontos, o cluster calculado
   fica nulo e a tendência também.
-- ⚠️ 9.1, **o problema mais sério do levantamento.** Esta função recebe
-  `meta_engajamento_mej` **sem dividir por 100**, enquanto o Tracking e o SDE
-  dividem. Os testes usam 0,25 (decimal); o front exibe a meta como `25%`; o
-  documento do assistente de IA avisa que ela "às vezes" está em escala 0–100.
-  Se o banco guarda **25**:
-  - fase 1 multiplica por (1 + 25) = 26 em vez de 1,25. Uma EJ com R$ 30.000 até
-    março dá **1.544.400.000** pontos (cluster 5) em vez de 74.250.000 (cluster 4);
-  - fase 2 sempre cai na penalização, porque o limite vira 6,25, que um
-    engajamento decimal nunca alcança. O resultado é `real × 4`, que pode passar
-    da meta.
-
-  Isso contamina a **Tendência** ([§5.7](#57-tendência-de-cluster-sobe--mantém--desce))
-  do primeiro semestre, e o Ciranda é calculado em maio, dentro da fase 2.
-
-  **Confirmado em 21/09:** o dado vem em escala 0–100 (50 a 75), então o cenário
-  acima é o que acontece de fato. A correção fica para uma mudança própria, com
-  teste que fixe o número antes e depois.
+- **Escala corrigida em 04/10:** a exportação e a tabela `metas` guardam
+  `meta_engajamento_mej` em 0–100. A fórmula adaptativa divide por 100 antes das
+  fases 1 e 2, como Tracking e SDE já faziam. Com meta 50, faturamento de R$ 30.000
+  até março, CSAT 4,5 e taxa colaborativa 10%, a pontuação passa de
+  **3.029.400.000** incorretos para **89.100.000** pontos.
 
 ### 5.5 Tracking de Cluster (Cluster Track)
 
@@ -497,7 +483,7 @@ versão diferente, que anualiza e usa a meta de engajamento (⚠️ 9.13).
 ### 6.1 Indicadores da rede (`GET /rede/indicadores`)
 
 Código: [rede_service.py:28](../portal_fejepe/app/services/rede_service.py#L28).
-Universo: todas as EJs do filtro (ano, mês, cluster oficial, comunidade),
+Universo: todas as EJs do filtro (ano, mês, cluster oficial),
 **qualquer status**. Para cada EJ, usa a última linha do recorte.
 
 | Campo | Fórmula | Aparece? |
@@ -505,13 +491,12 @@ Universo: todas as EJs do filtro (ano, mês, cluster oficial, comunidade),
 | `faturamento_total` | Σ `faturamento_acumulado` | KPI "Faturamento Total" (Indicadores) e gráfico mês a mês ([§6.5](#65-faturamento-acumulado-da-rede-mês-a-mês)) |
 | `total_ejs` | nº de EJs no filtro, com ou sem dado | KPI "EJs na Rede" |
 | `ejs_fora_do_zero` | EJs com linha e `faturamento_acumulado > 0` | KPI "EJs Fora do Zero" |
-| `crescimento_vs_ano_anterior` | Σ acumulado atual vs Σ do **maior** acumulado de cada EJ no ano anterior (⚠️ 9.6: ano parcial contra ano cheio, embora a docstring diga "mesmo período") | KPI "Crescimento", verde ≥ 0 |
+| `crescimento_vs_ano_anterior` | Σ acumulado atual vs Σ do último acumulado de cada EJ disponível **até o mesmo mês** do ano anterior | KPI "Crescimento", verde ≥ 0 |
 | `distribuicao_clusters` | contagem por cluster oficial; **EJ sem cluster no ano conta como 1** (⚠️ 9.14) | pizza "Distribuição por Cluster"; totais do Simulador |
-| `faturamento_colab_total` | Σ da coluna `faturamento_colab_acumulado` (⚠️ 9.2: sempre 0 se a coluna não existir) | não |
-| `total_projetos` | Σ `projetos_totais` (⚠️ 9.3, sem o fallback que a EJ tem) | não |
+| `faturamento_colab_total` | Σ da coluna `faturamento_colab_acumulado` da última linha de cada EJ | não |
+| `total_projetos` | Σ `projetos_vendidos_mes` dos meses do recorte | não |
 | `media_csat` | média das médias de CSAT de cada EJ | não |
 | `ejs_ritmo_minimo`, `ejs_ritmo_significativo` | ritmo da última linha de cada EJ | não |
-| `participacao_comunidades` | Σ acumulado da comunidade ÷ total × 100 | não |
 | `sde` | sempre nulo; o SDE tem endpoint próprio | não |
 
 ### 6.2 Ritmo mensal da rede
@@ -635,7 +620,7 @@ e são regra de negócio visível ao usuário.
 Código: [IndicadoresPage.tsx:172-258](../front_portal_fejepe/src/features/indicadores/IndicadoresPage.tsx#L172-L258).
 
 Universo: as primeiras **100** EJs (em ordem alfabética) da listagem, com o filtro
-de ano, cluster e comunidade da tela e **sem mês**, ou seja, acumulado até o último
+de ano e cluster da tela e **sem mês**, ou seja, acumulado até o último
 mês com dado. Se houver mais de 100, a tela avisa.
 
 Com `m` = **mês do calendário** (setembro = 9):
@@ -703,15 +688,14 @@ Código: [ComparacaoPage.tsx](../front_portal_fejepe/src/features/comparacao/Com
 
 - Mês padrão = **mês do calendário** ([DashboardPage.tsx:13](../front_portal_fejepe/src/features/dashboard/DashboardPage.tsx#L13)).
   Ordem padrão: faturamento decrescente.
-- "Faturamento Total" e "Projetos" do topo são a soma **só das EJs carregadas na
-  página** (20, e mais 20 a cada "Carregar mais"). "Total de EJs" vem do backend
-  (⚠️ 9.16).
-- Seleção de mais de um cluster e filtro de ritmo são aplicados no navegador, sobre
-  a página já carregada, e sobrescrevem o total (⚠️ 9.15).
+- "Faturamento Total", "Projetos" e "Total de EJs" do topo são calculados sobre
+  **todas as EJs do recorte filtrado**, independentes do botão "Carregar mais".
+- Seleção de mais de um cluster e filtro de ritmo são aplicados no navegador
+  depois de buscar todas as EJs do recorte e antes de paginar.
 
 ### 8.8 Faturamento por cidade
 
-Soma do faturamento acumulado por `cidade` entre as até 100 EJs carregadas, top 10.
+Soma do faturamento acumulado por `cidade` entre todas as EJs carregadas, top 10.
 Cidade vazia vira "Nao informada".
 
 ### 8.9 Calculadora de cluster (app separado)
@@ -732,12 +716,12 @@ minha leitura, não fato.
 
 | # | O quê | Impacto | Decisão |
 |---|---|---|---|
-| 9.1 | **Escala de `meta_engajamento_mej`.** Tracking e SDE dividem por 100; o adaptativo não; os testes usam decimal; o front exibe como `%`. | Se o banco guarda 25, o cluster calculado dos meses 1–6 fica inflado (fase 1 multiplica por 26) e a Tendência e o selo do Ciranda ficam errados. | ✅ **Resolvida (21/09): escala 0–100.** Na exportação de 21/09, `META_DE_MEJ_ENGAGED_MEMBERS` vai de 50 a 75 (média 61,4). A ingestão grava assim. **Tracking e SDE estão certos; o adaptativo está errado** e infla os meses 1–6. A correção do `calculo_service.py` fica para outra mudança, com teste próprio. Ver [9.A](#9a-resolvidas-contra-a-exportação-de-2109). |
-| 9.2 | `faturamento_colab_acumulado` não existe no banco real, mas a rede e o ranking leem a coluna. A EJ soma `faturamento_colab_mes`. | `faturamento_colab_total` e o ranking colab dão 0. Nenhum aparece em tela hoje. | Calcular colab acumulado de um jeito só. **Fato novo (21/09):** a ingestão grava a coluna `FATURAMENTO_COLABORATIVO_ACUMULADO` da planilha, mas ela **não é** a soma corrida de `FATURAMENTO_COLABORATIVO`: diverge em 564 das 1.507 EJs, nos dois sentidos. Rede (que lê a coluna) e EJ (que soma os meses) passam a dar números diferentes. Continua em aberto. |
+| 9.1 | **Escala de `meta_engajamento_mej`.** O dado vem em 0–100; a fórmula usa fração. | Sem conversão, o cluster calculado dos meses 1–6 fica inflado. | ✅ **Corrigida em 04/10:** adaptativo divide a meta por 100 antes do cálculo; Tracking e SDE já faziam isso. Teste com meta realista fixa a pontuação. |
+| 9.2 | A coluna acumulada do Portal BJ difere da soma mensal em parte das EJs. | Rede, perfil, comparação e SDE mostravam valores diferentes para a mesma métrica. | ✅ **Decisão de 04/10:** `FATURAMENTO_COLABORATIVO_ACUMULADO` é a fonte oficial em todas as telas e cálculos acumulados; `FATURAMENTO_COLABORATIVO` continua no gráfico mensal. Na exportação de 04/10, 570 de 1.502 EJs divergem (> R$ 0,01) entre as duas formas. |
 | 9.3 | `projetos_totais` não existe no banco real; `projetos_colab_mes` falta no schema do lab. | `total_projetos` da rede dá 0 (não aparece em tela). Projetos colab e o filtro "fora do zero de colab" dependem de uma coluna não confirmada. | `[CONFIRMAR]` com `pg_dump --schema-only` do Supabase. **Decisão de 21/09:** a ingestão **não** grava `projetos_totais`. A candidata, `SOLUCOES`, é valor do mês (cai de um mês para o outro em 2.377 casos), e gravá-la ali mudaria o KPI "Projetos". Fica só na staging, e o portal segue somando `projetos_vendidos_mes` (`CONTRATOS`). |
 | 9.4 | "Fora do zero de colab": o filtro do Dashboard usa **projetos** colab > 0; o Ciranda usa **faturamento** colab > 0. | Contagens diferentes para o mesmo nome. | Escolher uma definição. |
 | 9.5 | Três "verdes": barra de meta (≥ 80%), Escalonado (≥ mês/12, com o mês do **calendário**) e Ciranda (≥ mês/12, com o mês do evento). | A mesma EJ pode estar âmbar, vermelha e verde em telas diferentes. O Escalonado de ano passado usa o mês de hoje. | Definir o limiar pelo mês dos dados ou pelo mês selecionado. |
-| 9.6 | Crescimento anual (EJ e rede) compara o ano parcial com o ano anterior cheio. A docstring da rede diz "mesmo período". | Crescimento negativo artificial até dezembro. | Comparar mesmo mês contra mesmo mês? |
+| 9.6 | Crescimento anual (EJ e rede) comparava o ano parcial com o ano anterior cheio. | Crescimento negativo artificial até dezembro. | ✅ **Corrigida em 04/10:** compara o acumulado ao mesmo mês do ano anterior, escolhendo a última linha do período em vez do maior valor. |
 | 9.7 | "Mês atual" é a última linha de cada EJ. EJ que parou de reportar mantém o ritmo e a anualização do último mês reportado. O ritmo mensal usa o mês exato. | KPI e gráfico de ritmo discordam; Tracking anualiza por menos meses. | ✅ **Resolvida (21/09): mês sem venda tem linha com zero.** 13.563 linhas = 1.507 EJs × 9 meses, sem buraco; `FATURAMENTO` nunca vem vazio, e 9.603 linhas são zero legítimo. Zero é dado e vazio é ausência: a ingestão não troca zero por nulo (fora o CSAT da 9.8) e não cria linha para mês que não veio. |
 | 9.8 | CSAT zero entra na média. | Derruba a média se 0 significar "sem coleta". | ✅ **Resolvida (21/09): CSAT 0 com coleta 0 significa "sem coleta".** Das 9.280 linhas com CSAT 0, 9.276 têm `PORCENTAGEM_DE_COLETA_CSAT` = 0. Só 4 têm nota zero com coleta real (100%, um detrator). A ingestão grava NULL quando CSAT = 0 e coleta = 0, e o valor que veio em qualquer outro caso. |
 | 9.9 | Engajamento = melhor mês ÷ membros do **último** mês. | Pode passar de 100%. | Manter ou normalizar. |
@@ -746,16 +730,16 @@ minha leitura, não fato.
 | 9.12 | Tracking: na listagem cai no cluster oficial (ou 1) quando falta dado; no perfil fica nulo. | Cluster Track e Perfil mostram coisas diferentes para a mesma EJ. | Um comportamento só. |
 | 9.13 | Falta em faturamento colab: backend (Índice real, engajamento real, sem anualizar) ≠ calculadora (Tracking, meta de engajamento, anualizado). O do backend nem aparece em tela. | Números diferentes para a mesma pergunta. | Escolher a versão oficial. |
 | 9.14 | EJ sem cluster no ano conta como cluster 1 na distribuição e no SDE. | Infla o C1 e mexe no SDE. | Tratar como "sem cluster". **Lado da ingestão resolvido (21/09):** a planilha traz cluster **0** para EJ sem cluster no ano (82 EJs em 2025, 35 em 2026; 75 das 82 foram federadas em 2025 ou 2026). A ingestão não grava linha em `cluster_historico` para o 0, então "sem cluster" fica distinguível no banco. O código do portal continua trocando ausente por 1 (`or 1`): essa parte segue aberta. |
-| 9.15 | Multi-cluster e filtro de ritmo aplicados no navegador, sobre a página carregada. | Resultados incompletos e total errado. | Levar para o backend. |
-| 9.16 | Totais do topo do Dashboard somam só a página carregada. | "Faturamento Total" muda ao clicar "Carregar mais". | Usar `/rede/indicadores`. |
-| 9.17 | Limites fixos: 100 EJs (Escalonado, Comparação, Cluster Track), 1.000 (SDE), 5.000 (eventos). | FEJEPE tem 42 EJs federadas na BJ; FEJEMG tem 285 e já estoura o limite de 100. | Rever com multi-federação. |
+| 9.15 | Multi-cluster e filtro de ritmo eram aplicados no navegador, sobre a página carregada. | Resultados incompletos e total errado. | ✅ **Corrigida em 04/10:** busca todo o recorte antes de aplicar filtros locais e paginar. Ainda convém levar os filtros ao backend para reduzir consultas. |
+| 9.16 | Totais do topo do Dashboard somavam só a página carregada. | "Faturamento Total" mudava ao clicar "Carregar mais". | ✅ **Corrigida em 04/10:** os totais vêm de uma consulta a todas as EJs do recorte, com os mesmos filtros do Dashboard. `/rede/indicadores` não cobre busca, cidade, universidade, multicluster e ritmo. |
+| 9.17 | Limites fixos: 100 EJs (Escalonado, Comparação, Cluster Track), 1.000 (SDE), 5.000 (eventos). | FEJEPE tem 42 EJs federadas na BJ; FEJEMG tem 285 e já estoura o limite de 100. | ✅ **Resolvida (29/09).** Os números certos são 43 e 291. A causa maior era o teto de 1000 linhas do PostgREST, que zerava 139 EJs da FEJEMG; os services agora paginam (`app/services/leitura.py`) e as telas buscam todas as páginas. Ver `docs/achado-9.17-limites-com-segundo-tenant.md`. |
 | 9.18 | Regra temporária: todo cluster 4 desce no cenário 1 do SDE, sem indicar qual indicador falta. | SDE do cenário 1 enviesado para baixo. | `[CONFIRMAR]` e documentar ou remover. |
 | 9.19 | Cores de cluster diferentes entre portal e calculadora. | Confunde quem usa as duas. | Cosmético. |
 | 9.20 | "EJ ativa" só existe no evento. Indicadores, SDE e Dashboard contam EJs inativas. | "EJs na Rede" inclui inativas. | Definir se inativa entra nos indicadores. |
 | 9.21 | Submeta de "verde de maio" sem percentual definido. | Código morto. | Remover ou definir. |
 | 9.22 | Projeção soma a reta nos 12 meses (a docstring diz outra coisa) e usa a posição na série como x; ritmo necessário conta linhas, não meses. | Com meses faltando, projeção e ritmo necessário ficam distorcidos. | Usar o número do mês. |
-| 9.23 | `faturamento_acumulado` é lido da coluna, não recalculado. | Se a coluna e a soma dos meses divergirem, vale a coluna. | ✅ **Resolvida (21/09): vale a coluna.** Ela bate com a soma corrida dos meses em 1.506 de 1.507 EJs. A divergente é a EJ 3647 (Codetech Jr., FEJESP), com faturamento de −R$ 350 no mês 6, que a origem não acumula. É dado inconsistente na origem: fica registrado, sem correção. A coluna vem **vazia** quando a soma corrida é ≤ 0 (5.509 linhas); a ingestão grava NULL, que o portal já lê como 0. Toda carga relata quantas EJs divergem. |
-| 9.24 | Comunidades e o evento Ciranda estão fixos no código; `comunidade` é vocabulário só da FEJEPE. | Não generaliza para outra federação. | Já mapeado no levantamento de 18/09 (núcleo). |
+| 9.23 | `faturamento_acumulado` é lido da coluna, não recalculado. | Se a coluna e a soma dos meses divergirem, vale a coluna. | ✅ **Resolvida (21/09): vale a coluna.** Ela bate com a soma corrida dos meses em 1.506 de 1.507 EJs. Uma EJ diverge por ajuste negativo na origem; o relatório de carga registra a ocorrência sem publicar sua identidade ou valores individuais. A coluna vem **vazia** quando a soma corrida é ≤ 0 (5.509 linhas); a ingestão grava NULL, que o portal já lê como 0. |
+| 9.24 | Evento Ciranda tem metas fixas no código. | A configuração do evento ainda não generaliza para outra federação. | A seção de comunidades foi retirada do portal; o Ciranda só aparece para a FEJEPE (`federacao_slug` em `evento_service.py`). As metas do evento continuam no código. |
 
 ### 9.A Resolvidas contra a exportação de 21/09
 
@@ -767,10 +751,10 @@ carga relata quantas linhas cada uma afetou.
 
 | # | O que o dado mostrou | O que a ingestão faz |
 |---|---|---|
-| 9.1 | `META_DE_MEJ_ENGAGED_MEMBERS`: mínimo 50, máximo 75, média 61,4. Escala 0–100. | Grava 0–100, como vem. **Consequência:** o cluster adaptativo (§5.4) está errado e infla os meses 1–6; Tracking e SDE estão certos. Corrigir `calculo_service.py` é outra mudança, com teste próprio, para que se saiba qual das duas mexeu no número da tela. |
+| 9.1 | `META_DE_MEJ_ENGAGED_MEMBERS`: mínimo 50, máximo 75, média 61,4. Escala 0–100. | Grava 0–100, como vem. Desde 04/10, o cálculo adaptativo divide por 100 antes das fases 1–2; Tracking e SDE já faziam isso. |
 | 9.7 | 1.507 × 9 = 13.563 linhas, sem buraco. `FATURAMENTO` nunca vazio; 9.603 zeros. | Zero é dado, vazio é ausência. Nenhuma linha inventada para mês que não veio, nenhuma apagada quando deixa de vir. |
 | 9.8 | 9.280 linhas com CSAT 0; 9.276 delas com coleta 0. | CSAT 0 + coleta 0 → NULL; o resto grava como veio. É a transformação com mais impacto em número de tela: 9.276 zeros derrubariam a média de CSAT de toda federação. |
-| 9.23 | Coluna × soma corrida dos meses: 1.506 de 1.507 EJs batem. A que diverge é a 3647 (Codetech Jr., FEJESP), com −R$ 350 no mês 6. A coluna vem vazia exatamente quando a soma corrida é ≤ 0. | Grava a coluna como vem (vazio → NULL, que o portal lê como 0) e relata as divergentes em toda carga. |
+| 9.23 | Coluna × soma corrida dos meses: 1.506 de 1.507 EJs batem na exportação de referência; a divergente teve ajuste negativo. A coluna vem vazia quando a soma corrida é ≤ 0. | Grava a coluna como vem (vazio → NULL, que o portal lê como 0) e relata as divergentes em toda carga, sem publicar dados individuais. |
 
 **Outros achados da mesma exportação**, registrados porque afetam a modelagem do TCC:
 
@@ -783,7 +767,8 @@ carga relata quantas linhas cada uma afetou.
 - **Cluster 0 = sem cluster** no ano (ver 9.14). Não é gravado.
 - **`SOLUCOES` é valor do mês**, não total (ver 9.3). Fica só na staging.
 - **`FATURAMENTO_COLABORATIVO_ACUMULADO` não é a soma do colaborativo mensal**
-  em 564 EJs (ver 9.2). É gravado como vem.
+  em 564 EJs na exportação de 21/09 (570 na de 04/10; ver 9.2). É gravado
+  como vem e usado como fonte oficial do acumulado.
 - **`META_DE_COLLABORATIVE_RATE`** é percentual (0 a 25 em quase todas), mas 4
   EJs têm valor acima de 100: 108 (25.000), 201 (1.200), 227 (1.825) e 2492
   (500). Gravado como veio. `[CONFIRMAR]` com as EJs ou com a federação se é
@@ -798,9 +783,9 @@ carga relata quantas linhas cada uma afetou.
 
 | Tela | Elemento | Campo / regra |
 |---|---|---|
-| **Dashboard** | cards do topo | `meta.total` (backend); faturamento e projetos somados na página (⚠️ 9.16) |
+| **Dashboard** | cards do topo | resumo de todas as EJs do recorte filtrado, independente da página exibida (9.16 resolvida em 04/10) |
 | | card da EJ | cluster oficial (selo), faturamento acumulado, projetos totais, ritmo, projetos colab, barra "Meta atingida" (80/50) |
-| | filtros | busca, cidade, universidade, clusters (1 no backend, vários no navegador), mês (padrão: mês do calendário), comunidade, ritmo (navegador), fora do zero de colab (projetos colab > 0), ordenação |
+| | filtros | busca, cidade, universidade, clusters (1 no backend, vários no navegador após busca completa), mês (padrão: mês do calendário), ritmo (navegador após busca completa), fora do zero de colab (projetos colab > 0), ordenação |
 | | CSV | 18 campos da listagem, incluindo `cluster_calculado` (adaptativo) e `tendencia_cluster` |
 | **Perfil da EJ** | cabeçalho | cluster oficial, selo de ritmo, cadastro |
 | | KPIs | faturamento acumulado, projetos, projetos colab, CSAT médio, % da meta (80/50) |
@@ -840,7 +825,7 @@ propósito), a modelagem nova precisa entregar, por EJ:
 - [ ] **cluster oficial por ano** (já resolvido por `cluster_historico`), distinguindo
       "sem cluster" de "cluster 1" (9.14);
 - [ ] status da EJ, com a definição de "ativa" (9.20);
-- [ ] a subdivisão interna (comunidade ou núcleo) e cidade/universidade para filtros;
+- [ ] cidade/universidade para filtros;
 - [ ] as metas de evento (percentuais, mês de referência) fora do código (9.24).
 
 **Decisões que eu tomaria antes de migrar qualquer tabela:**

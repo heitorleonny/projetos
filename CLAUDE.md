@@ -1,3 +1,15 @@
+> **Para a escrita atual (05/10/2026):** use
+> [`ESTADO-PORTAL-PARA-TCC.md`](ESTADO-PORTAL-PARA-TCC.md), com funcionalidades,
+> decisões, evidências e pendências consolidadas. O contexto acadêmico permanece
+> em [`CONTEXTO-TCC.md`](CONTEXTO-TCC.md). O conteúdo abaixo foi preservado somente
+> como histórico do plano abandonado; não é instrução vigente.
+
+> **⚠️ DESATUALIZADO (03/10/2026).** Este arquivo descreve o replanejamento de 15/09
+> (detecção antecipada de EJs em risco, multi-tenant fora do escopo, entrega em 16/11),
+> que foi **abandonado** após conversa com o orientador. O TCC atual é o Portal das
+> Federações multi-tenant com recursos de IA, entrega em 30/11/2026. Leia
+> [`CONTEXTO-TCC.md`](CONTEXTO-TCC.md) e não siga as regras abaixo.
+
 # CLAUDE.md — camada de TCC
 
 **Leia o `AGENTS.md` primeiro.** Ele descreve o produto, o monorepo, a stack, as

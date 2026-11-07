@@ -1,0 +1,43 @@
+{
+  "ambiente": "demo local; Auth + PostgREST + backend HTTP reais",
+  "data": "2026-10-04",
+  "resultados": [
+    {
+      "tenant": "fejepe",
+      "caso": "consulta",
+      "http_status": 200,
+      "status": "respondida",
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "isolamento": true,
+      "comportamento_esperado": true
+    },
+    {
+      "tenant": "fejepe",
+      "caso": "adversarial",
+      "http_status": 200,
+      "status": "fora_do_catalogo",
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "isolamento": true,
+      "comportamento_esperado": true
+    },
+    {
+      "tenant": "fejemg",
+      "caso": "consulta",
+      "http_status": 200,
+      "status": "respondida",
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "isolamento": true,
+      "comportamento_esperado": true
+    },
+    {
+      "tenant": "fejemg",
+      "caso": "adversarial",
+      "http_status": 200,
+      "status": "fora_do_catalogo",
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "isolamento": true,
+      "comportamento_esperado": true
+    }
+  ],
+  "sem_login": 401
+}

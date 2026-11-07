@@ -5,10 +5,53 @@
   aberto e navegado com login real, como `um@teste.local` (FEJEPE) e
   `dois@teste.local` (FEJEMG). Ver `docs/adr-002-rls-local-sem-stack-completa.md`,
   adendo dos dois ambientes.
-- **Status:** registrado, **não corrigido**. A correção é decisão consciente,
-  não patch no meio de uma tarefa de infraestrutura.
+- **Status:** **corrigido em 29/09/2026** — ver a seção abaixo. O texto
+  original, de 22/09, segue logo depois, com uma conclusão que se mostrou errada.
 - **Evidência:** capturas em
   `~/Documents/TCC/validacao/screenshots-demo-multitenant/{fejepe,fejemg}/`.
+
+## Atualização de 29/09/2026 — a causa era outra, e o viés não existia
+
+Reteste com os mesmos dois usuários, conferindo cada número contra SQL direto
+no banco da demo. A FEJEPE bateu em tudo. A FEJEMG não, e o motivo não era o
+limite de 100 do frontend:
+
+**O PostgREST devolve no máximo 1000 linhas por consulta** (`max_rows` em
+`supabase/config.toml`, e também o padrão do Supabase). Os services liam
+`monitoramento` sem paginar; a FEJEMG tem 2.619 linhas em 2026, chegavam 1000,
+e **139 das 291 EJs apareciam com faturamento R$ 0** em todas as telas. O corte
+não dá erro, só devolve menos. O `.limit(10000)` do SDE não adiantava, porque o
+teto é do servidor.
+
+| FEJEMG | Antes (API) | Banco | Depois (API) |
+|---|---|---|---|
+| Faturamento total | R$ 3.428.751,01 | R$ 4.924.112,28 | R$ 4.924.112,28 |
+| EJs fora do zero | 104 | 243 | 243 |
+| EJs com faturamento errado na lista | 139 de 291 | — | 0 de 291 |
+
+**O que isso muda neste documento.** A seção "O viés: some exatamente quem está
+em risco" foi medida sobre os dados cortados. As "191 ocultas, 187 zeradas"
+estavam zeradas pelo corte, não de fato. A conclusão de viés **não vale**. O
+"170 EJs" da Comparação, que tinha ficado sem explicação, era a união do top-100
+de 2025 com o top-100 de 2026. E os totais do topo do Dashboard **não** vêm de
+`/rede/indicadores`: somam a página carregada (divergência 9.16).
+
+**O que foi corrigido:**
+
+- `app/services/leitura.py`: toda consulta de várias EJs lê página por página e
+  falha (em vez de devolver número errado) se a contagem não fechar.
+- Frontend: Indicadores, Comparação e Cluster Track buscam todas as páginas
+  (`fetchTodasEmpresas`); o "Carregar mais" do Dashboard pede páginas de até 100
+  em vez de subir o `page_size` até o 422.
+- `get_federacao_id`/`get_papel` leem os claims do JWT. Liam o `app_metadata`
+  do cadastro no GoTrue, onde o hook não escreve: o tenant era sempre `None` e o
+  papel sempre `membro`.
+- O branding segue o usuário logado (`GET /federacao/minha`); o `TENANT_SLUG`
+  do deploy vale só para a tela de login. Com isso, o "achado de arquitetura" do
+  fim deste documento também foi resolvido.
+- Perfil da EJ mostra o nome da federação (lia a coluna renomeada na migração 04).
+- O slogan do Dashboard virou coluna (`federacao.slogan`, migração 14). A seção
+  de comunidades foi retirada do portal. O evento Ciranda passou a ser só da FEJEPE.
 
 ## Por que só aparece agora
 
