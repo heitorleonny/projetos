@@ -1,0 +1,667 @@
+import { useCallback, useState, useMemo } from 'react';
+import { useComparacao } from './useComparacao';
+import type { EmpresaComIndicadores } from '../../types/empresa';
+import { formatCurrency, getClusterInfo } from '../../utils/formatters';
+import EjLogo from '../../components/EjLogo';
+import ComparacaoExportModal, { type ComparacaoExportField } from './ComparacaoExportModal';
+import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
+import { corDoAno, ultimosAnos } from '../../utils/anos';
+import { variacaoComparacao } from './variacao';
+
+// Cinco anos: a janela que esta tela ja' oferecia. Calculada a partir do ano
+// de referencia da API, em vez de escrita a' mao.
+const ANOS_NA_COMPARACAO = 5;
+const MESES = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+type Indicador = 'faturamento' | 'faturamento_mes' | 'taxa_colab' | 'cluster' | 'percentual_meta' | 'projetos';
+
+const INDICADORES: { key: Indicador; label: string; icon: string }[] = [
+    { key: 'faturamento', label: 'Faturamento', icon: '💰' },
+    { key: 'faturamento_mes', label: 'Fat. Mês', icon: '📅' },
+    { key: 'taxa_colab', label: 'Taxa Colab', icon: '🤝' },
+    { key: 'cluster', label: 'Cluster', icon: '🏷️' },
+    { key: 'percentual_meta', label: '% Meta', icon: '🎯' },
+    { key: 'projetos', label: 'Projetos', icon: '📊' },
+];
+
+type BaseExportFieldKey =
+    | 'id_ej'
+    | 'nome'
+    | 'cidade'
+    | 'universidade'
+    | 'status';
+
+type AnoExportFieldKey =
+    | 'faturamento_acumulado'
+    | 'faturamento_mes'
+    | 'faturamento_colab_acumulado'
+    | 'projetos_totais'
+    | 'projetos_colab_totais'
+    | 'taxa_colaboracao'
+    | 'cluster'
+    | 'percentual_meta'
+    | 'csat_medio'
+    | 'ritmo';
+
+const EXPORT_FIELDS: ComparacaoExportField[] = [
+    { key: 'id_ej', label: 'ID EJ', scope: 'base', defaultSelected: true },
+    { key: 'nome', label: 'Nome', scope: 'base', defaultSelected: true },
+    { key: 'cidade', label: 'Cidade', scope: 'base' },
+    { key: 'universidade', label: 'Universidade', scope: 'base' },
+    { key: 'status', label: 'Status', scope: 'base' },
+    { key: 'faturamento_acumulado', label: 'Faturamento', scope: 'ano', defaultSelected: true },
+    { key: 'projetos_totais', label: 'Projetos', scope: 'ano', defaultSelected: true },
+    { key: 'faturamento_mes', label: 'Faturamento Mes', scope: 'ano' },
+    { key: 'faturamento_colab_acumulado', label: 'Faturamento Colab.', scope: 'ano' },
+    { key: 'projetos_colab_totais', label: 'Projetos Colab.', scope: 'ano' },
+    { key: 'taxa_colaboracao', label: 'Taxa Colaboracao', scope: 'ano' },
+    { key: 'cluster', label: 'Cluster', scope: 'ano' },
+    { key: 'percentual_meta', label: '% Meta', scope: 'ano' },
+    { key: 'csat_medio', label: 'CSAT Medio', scope: 'ano' },
+    { key: 'ritmo', label: 'Ritmo', scope: 'ano' },
+];
+
+const selectClass =
+    'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all cursor-pointer appearance-none';
+const selectStyle = {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394A3B8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 10px center',
+    backgroundSize: '16px',
+};
+
+interface EjRow {
+    id_ej: number;
+    nome: string;
+    foto_url: string | null;
+    cidade: string | null;
+    universidade: string | null;
+    status: string | null;
+    porAno: Record<number, EmpresaComIndicadores | undefined>;
+}
+
+export default function ComparacaoPage() {
+    const { anoDefault } = useFederacaoBranding();
+    const anosDisponiveis = useMemo(
+        () => ultimosAnos(anoDefault, ANOS_NA_COMPARACAO),
+        [anoDefault],
+    );
+    // Abre comparando o ano de referencia com o anterior.
+    const [anosSelecionados, setAnosSelecionados] = useState<number[]>(
+        () => [anoDefault - 1, anoDefault],
+    );
+    const [mesSelecionado, setMesSelecionado] = useState<number | undefined>(undefined);
+    const [indicador, setIndicador] = useState<Indicador>('faturamento');
+    const [busca, setBusca] = useState('');
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [selectedExportFields, setSelectedExportFields] = useState<string[]>(
+        () => EXPORT_FIELDS.filter((field) => field.defaultSelected).map((field) => field.key),
+    );
+
+    const { data, isLoading, isError, error } = useComparacao(
+        anosSelecionados,
+        mesSelecionado,
+    );
+
+    const toggleAno = (ano: number) => {
+        setAnosSelecionados((prev) => {
+            if (prev.includes(ano)) {
+                if (prev.length <= 1) return prev;
+                return prev.filter((a) => a !== ano);
+            }
+            return [...prev, ano].sort();
+        });
+    };
+
+    const rows = useMemo<EjRow[]>(() => {
+        if (!data) return [];
+
+        const map = new Map<number, EjRow>();
+
+        for (const { ano, empresas } of data) {
+            for (const ej of empresas) {
+                if (!map.has(ej.id_ej)) {
+                    map.set(ej.id_ej, {
+                        cidade: ej.cidade,
+                        universidade: ej.universidade,
+                        status: ej.status,
+                        id_ej: ej.id_ej,
+                        nome: ej.nome,
+                        foto_url: ej.foto_url,
+                        porAno: {},
+                    });
+                }
+                const row = map.get(ej.id_ej)!;
+                row.porAno[ano] = ej;
+                if (ano === Math.max(...anosSelecionados)) {
+                    row.cidade = ej.cidade;
+                    row.universidade = ej.universidade;
+                    row.status = ej.status;
+                    row.nome = ej.nome;
+                    row.foto_url = ej.foto_url;
+                }
+            }
+        }
+
+        let result = Array.from(map.values());
+
+        if (busca.trim()) {
+            const term = busca.trim().toLowerCase();
+            result = result.filter((r) => r.nome.toLowerCase().includes(term));
+        }
+
+        return result.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }, [data, anosSelecionados, busca]);
+
+    const formatTaxaColab = (value: number | null | undefined): string => {
+        if (value == null) return '—';
+        return `${(value * 100).toFixed(1)}%`;
+    };
+
+    const getValor = useCallback((ej: EmpresaComIndicadores | undefined): number | null => {
+        if (!ej) return null;
+        switch (indicador) {
+            case 'faturamento': return ej.faturamento_acumulado;
+            case 'faturamento_mes': return ej.faturamento_mes;
+            case 'taxa_colab': return ej.taxa_colaboracao;
+            case 'cluster': return ej.cluster;
+            case 'percentual_meta': return ej.percentual_meta;
+            case 'projetos': return ej.projetos_totais;
+        }
+    }, [indicador]);
+
+    const formatValor = (value: number | null): string => {
+        if (value == null) return '—';
+        switch (indicador) {
+            case 'faturamento':
+            case 'faturamento_mes':
+                return formatCurrency(value);
+            case 'taxa_colab':
+                return formatTaxaColab(value);
+            case 'percentual_meta':
+                return `${value.toFixed(1)}%`;
+            case 'cluster':
+            case 'projetos':
+                return value.toString();
+        }
+    };
+
+    // Summary per year
+    const summaryPerAno = useMemo(() => {
+        if (!data) return {};
+        const result: Record<number, { total: number; fatTotal: number; projTotal: number; mediaPercMeta: number | null }> = {};
+        for (const { ano } of data) {
+            const empresas = rows.map((row) => row.porAno[ano]).filter((ej): ej is EmpresaComIndicadores => ej != null);
+            const metaVals = empresas.map((e) => e.percentual_meta).filter((v): v is number => v != null);
+            result[ano] = {
+                total: empresas.length,
+                fatTotal: empresas.reduce((s, e) => s + e.faturamento_acumulado, 0),
+                projTotal: empresas.reduce((s, e) => s + e.projetos_totais, 0),
+                mediaPercMeta: metaVals.length > 0 ? metaVals.reduce((a, b) => a + b, 0) / metaVals.length : null,
+            };
+        }
+        return result;
+    }, [data, rows]);
+
+    // Find max value across all rows for bar visualization
+    const maxValor = useMemo(() => {
+        let max = 0;
+        for (const row of rows) {
+            for (const ano of anosSelecionados) {
+                const val = getValor(row.porAno[ano]);
+                if (val != null && val > max) max = val;
+            }
+        }
+        return max || 1;
+    }, [rows, anosSelecionados, getValor]);
+
+
+    const exportarCsv = (selectedFieldKeys: string[]) => {
+        if (selectedFieldKeys.length === 0) return;
+
+        const anosOrdenados = [...anosSelecionados].sort((a, b) => a - b);
+        const selectedOrdered = EXPORT_FIELDS.filter((field) => selectedFieldKeys.includes(field.key));
+
+        const baseFields = selectedOrdered.filter(
+            (field) => field.scope === 'base',
+        ) as Array<ComparacaoExportField & { key: BaseExportFieldKey; scope: 'base' }>;
+
+        const anoFields = selectedOrdered.filter(
+            (field) => field.scope === 'ano',
+        ) as Array<ComparacaoExportField & { key: AnoExportFieldKey; scope: 'ano' }>;
+
+        const baseFieldGetters: Record<BaseExportFieldKey, (row: EjRow) => string | number> = {
+            id_ej: (row) => row.id_ej,
+            nome: (row) => row.nome,
+            cidade: (row) => row.cidade ?? '',
+            universidade: (row) => row.universidade ?? '',
+            status: (row) => row.status ?? '',
+        };
+
+        const anoFieldGetters: Record<AnoExportFieldKey, (ej: EmpresaComIndicadores | undefined) => string | number> = {
+            faturamento_acumulado: (ej) => ej?.faturamento_acumulado ?? '',
+            faturamento_mes: (ej) => ej?.faturamento_mes ?? '',
+            faturamento_colab_acumulado: (ej) => ej?.faturamento_colab_acumulado ?? '',
+            projetos_totais: (ej) => ej?.projetos_totais ?? '',
+            projetos_colab_totais: (ej) => ej?.projetos_colab_totais ?? '',
+            taxa_colaboracao: (ej) => ej?.taxa_colaboracao ?? '',
+            cluster: (ej) => ej?.cluster ?? '',
+            percentual_meta: (ej) => ej?.percentual_meta ?? '',
+            csat_medio: (ej) => ej?.csat_medio ?? '',
+            ritmo: (ej) => ej?.ritmo ?? '',
+        };
+
+        const headers = [
+            ...baseFields.map((field) => field.label),
+            ...anosOrdenados.flatMap((ano) => anoFields.map((field) => `${field.label} (${ano})`)),
+        ];
+
+        const escapeCsv = (value: string | number) => {
+            const str = String(value);
+            if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const csvRows = rows.map((row) => {
+            const base = baseFields.map((field) => baseFieldGetters[field.key](row));
+            const porAno = anosOrdenados.flatMap((ano) => {
+                const ejAno = row.porAno[ano];
+                return anoFields.map((field) => anoFieldGetters[field.key](ejAno));
+            });
+            return [...base, ...porAno].map(escapeCsv).join(';');
+        });
+
+        const bom = '\uFEFF';
+        const csv = bom + [headers.join(';'), ...csvRows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `comparacao_${anosOrdenados.join('_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExportConfirm = (selectedFieldKeys: string[]) => {
+        setSelectedExportFields(selectedFieldKeys);
+        exportarCsv(selectedFieldKeys);
+        setShowExportModal(false);
+    };
+
+    return (
+        <div>
+            {/* Page Header */}
+            <div className="mb-8">
+                <div className="flex items-center gap-3 mb-1">
+                    <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-50">
+                        Comparação entre anos
+                    </h1>
+                </div>
+                <p className="text-neutral-400 text-sm">
+                    Compare os indicadores das EJs ao longo dos anos.
+                </p>
+            </div>
+
+            {/* Summary cards per year — richer design */}
+            {data && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {anosSelecionados.map((ano) => {
+                        const s = summaryPerAno[ano];
+                        const color = corDoAno(ano);
+                        return (
+                            <div
+                                key={ano}
+                                className="glass-card rounded-2xl p-5 relative overflow-hidden group"
+                            >
+                                {/* Accent bar */}
+                                <div
+                                    className="absolute top-0 left-0 w-full h-1 rounded-t-2xl"
+                                    style={{ background: color }}
+                                />
+                                <div className="flex items-center justify-between mb-3">
+                                    <span
+                                        className="text-2xl font-bold font-heading"
+                                        style={{ color }}
+                                    >
+                                        {ano}
+                                    </span>
+                                    <span className="text-[11px] text-neutral-400 bg-white/5 px-2 py-0.5 rounded-full">
+                                        {s?.total ? `${s.total} EJs` : 'Sem série'}
+                                    </span>
+                                </div>
+                                {s?.total ? (
+                                    <>
+                                        <p className="text-lg font-bold text-white mb-1">{formatCurrency(s.fatTotal)}</p>
+                                        <div className="flex items-center gap-3 text-[11px] text-neutral-400">
+                                            <span>{s.projTotal} projetos</span>
+                                            <span className="w-px h-3 bg-white/10" />
+                                            <span>{s.mediaPercMeta == null ? 'Meta indisponível' : `${s.mediaPercMeta.toFixed(0)}% meta média`}</span>
+                                        </div>
+                                    </>
+                                ) : <p className="text-sm text-neutral-400">Importe o monitoramento acumulado de {ano}.</p>}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Filters */}
+            <div className="glass-card rounded-2xl p-5 mb-8">
+                <div className="flex flex-col gap-5">
+                    {/* Row 1: Years + Indicator selector */}
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-5">
+                        {/* Year toggle chips */}
+                        <div className="flex-1">
+                            <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
+                                Selecionar Anos
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {anosDisponiveis.map((ano) => {
+                                    const active = anosSelecionados.includes(ano);
+                                    const color = corDoAno(ano);
+                                    return (
+                                        <button
+                                            key={ano}
+                                            onClick={() => toggleAno(ano)}
+                                            className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border
+                                                ${active
+                                                    ? 'text-white border-transparent shadow-lg'
+                                                    : 'bg-white/5 text-neutral-400 border-white/10 hover:bg-white/10 hover:text-neutral-300'
+                                                }`}
+                                            style={active ? {
+                                                backgroundColor: `${color}20`,
+                                                borderColor: `${color}50`,
+                                                color,
+                                                boxShadow: `0 0 20px ${color}15`,
+                                            } : undefined}
+                                        >
+                                            {active && (
+                                                <span
+                                                    className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-neutral-900"
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            )}
+                                            {ano}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Month dropdown */}
+                        <div className="sm:w-44">
+                            <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
+                                Mês
+                            </label>
+                            <select
+                                value={mesSelecionado ?? ''}
+                                onChange={(e) =>
+                                    setMesSelecionado(e.target.value ? Number(e.target.value) : undefined)
+                                }
+                                className={selectClass}
+                                style={selectStyle}
+                            >
+                                <option value="" className="bg-neutral-800">
+                                    Acumulado (todos)
+                                </option>
+                                {MESES.map((label, i) => (
+                                    <option key={i + 1} value={i + 1} className="bg-neutral-800">
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="sm:ml-auto">
+                            <button
+                                onClick={() => setShowExportModal(true)}
+                                disabled={rows.length === 0}
+                                className="h-[42px] px-4 rounded-xl glass-card text-sm font-medium text-primary-400 hover:text-white hover:bg-primary-500/20 border border-primary-500/20 hover:border-primary-500/40 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                Exportar planilha
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Indicator pills */}
+                    <div>
+                        <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2.5 block">
+                            Indicador
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {INDICADORES.map((ind) => {
+                                const active = indicador === ind.key;
+                                return (
+                                    <button
+                                        key={ind.key}
+                                        onClick={() => setIndicador(ind.key)}
+                                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer border
+                                            ${active
+                                                ? 'bg-primary-500/15 text-primary-300 border-primary-500/30 shadow-sm'
+                                                : 'bg-white/[0.03] text-neutral-400 border-white/5 hover:bg-white/[0.06] hover:text-neutral-300'
+                                            }`}
+                                    >
+                                        <span className="text-xs">{ind.icon}</span>
+                                        {ind.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Row 3: Search */}
+                    <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Buscar EJ por nome..."
+                            value={busca}
+                            onChange={(e) => setBusca(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-neutral-500
+                                       focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-all"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Loading */}
+            {isLoading && (
+                <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="glass-card rounded-2xl p-5 animate-pulse">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-white/10 rounded-full shrink-0" />
+                                <div className="flex-1">
+                                    <div className="h-4 bg-white/10 rounded w-1/3 mb-2" />
+                                    <div className="h-3 bg-white/5 rounded w-1/5" />
+                                </div>
+                                <div className="flex gap-3">
+                                    {anosSelecionados.map((ano) => (
+                                        <div key={ano} className="h-6 bg-white/5 rounded w-20" />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Error */}
+            {isError && (
+                <div className="text-center py-16 glass-card rounded-2xl">
+                    <div className="text-4xl mb-3">⚠️</div>
+                    <h3 className="font-heading font-semibold text-lg text-white mb-1">
+                        Erro ao carregar dados
+                    </h3>
+                    <p className="text-neutral-400 text-sm">
+                        {(error as Error)?.message ?? 'Tente novamente mais tarde.'}
+                    </p>
+                </div>
+            )}
+
+            {/* Comparison — Card-based list */}
+            {data && rows.length > 0 && (
+                <div>
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mb-4 px-1">
+                        {anosSelecionados.map((ano) => (
+                            <div key={ano} className="flex items-center gap-1.5">
+                                <span
+                                    className="w-3 h-3 rounded-sm"
+                                    style={{ backgroundColor: corDoAno(ano) }}
+                                />
+                                <span className="text-xs font-semibold text-neutral-400">{ano}</span>
+                            </div>
+                        ))}
+                        <span className="ml-auto text-xs text-neutral-600">
+                            {rows.length} EJ{rows.length !== 1 ? 's' : ''}
+                            {mesSelecionado ? ` · ${MESES[mesSelecionado - 1]}` : ' · Acumulado'}
+                        </span>
+                    </div>
+
+                    <div className="space-y-3">
+                        {rows.map((row) => {
+                            const valores = anosSelecionados.map((ano) => getValor(row.porAno[ano]));
+
+                            let variacao: number | null = null;
+                            if (anosSelecionados.length >= 2) {
+                                const primeiro = valores[0];
+                                const ultimo = valores[valores.length - 1];
+                                variacao = variacaoComparacao(indicador, primeiro, ultimo);
+                            }
+
+                            return (
+                                <div
+                                    key={row.id_ej}
+                                    className="glass-card rounded-2xl p-4 sm:p-5 transition-all hover:bg-white/[0.03] group"
+                                >
+                                    {/* Top: EJ info + variation badge */}
+                                    <div className="flex items-center gap-3 mb-4">
+                                        {/* Avatar */}
+                                        <EjLogo
+                                            nome={row.nome}
+                                            fotoUrl={row.foto_url}
+                                            sizeClassName="w-10 h-10"
+                                            roundedClassName="rounded-full"
+                                            className="shrink-0 border border-white/10"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-semibold text-sm text-white truncate group-hover:text-primary-300 transition-colors">
+                                                {row.nome}
+                                            </h3>
+                                        </div>
+                                        {/* Variation badge */}
+                                        {variacao != null && (
+                                            <span
+                                                className="shrink-0 inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
+                                                style={{
+                                                    color: variacao > 0 ? '#16A34A' : variacao < 0 ? '#DC2626' : '#94A3B8',
+                                                    backgroundColor: variacao > 0 ? '#16A34A12' : variacao < 0 ? '#DC262612' : '#94A3B812',
+                                                    border: `1px solid ${variacao > 0 ? '#16A34A25' : variacao < 0 ? '#DC262625' : '#94A3B825'}`,
+                                                }}
+                                            >
+                                                {variacao > 0 ? '▲' : variacao < 0 ? '▼' : '—'}
+                                                {Math.abs(variacao).toFixed(indicador === 'cluster' ? 0 : 1)}
+                                                {indicador === 'cluster' ? ' nível(is)' : indicador === 'percentual_meta' || indicador === 'taxa_colab' ? ' p.p.' : '%'}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Year bars */}
+                                    <div className="space-y-2">
+                                        {anosSelecionados.map((ano, idx) => {
+                                            const val = valores[idx];
+                                            const color = corDoAno(ano);
+                                            const barWidth = val != null && indicador !== 'cluster'
+                                                ? Math.max((Math.abs(val) / maxValor) * 100, 2)
+                                                : 0;
+
+                                            return (
+                                                <div key={ano} className="flex items-center gap-3">
+                                                    <span className="text-[11px] font-bold w-10 text-right shrink-0" style={{ color }}>
+                                                        {ano}
+                                                    </span>
+                                                    {indicador === 'cluster' && val != null ? (
+                                                        <div className="flex-1 flex items-center">
+                                                            <ClusterBadge cluster={val} />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex-1 flex items-center gap-3">
+                                                            <div className="flex-1 h-6 bg-white/[0.04] rounded-lg overflow-hidden relative">
+                                                                <div
+                                                                    className="h-full rounded-lg transition-all duration-500 ease-out"
+                                                                    style={{
+                                                                        width: `${barWidth}%`,
+                                                                        background: color,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-sm font-semibold text-white tabular-nums w-24 text-right shrink-0">
+                                                                {formatValor(val)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Empty */}
+            {data && rows.length === 0 && (
+                <div className="text-center py-16 glass-card rounded-2xl">
+                    <div className="text-neutral-600 text-5xl mb-4">
+                        <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                        </svg>
+                    </div>
+                    <h3 className="font-heading font-semibold text-lg text-white mb-1">
+                        Nenhuma EJ encontrada
+                    </h3>
+                    <p className="text-neutral-400 text-sm">
+                        {busca ? 'Nenhuma EJ corresponde à busca.' : 'Nenhum dado disponível para os anos selecionados.'}
+                    </p>
+                </div>
+            )}
+
+            {showExportModal && (
+                <ComparacaoExportModal
+                    fields={EXPORT_FIELDS}
+                    initialSelectedKeys={selectedExportFields}
+                    onClose={() => setShowExportModal(false)}
+                    onConfirm={handleExportConfirm}
+                />
+            )}
+        </div>
+    );
+}
+
+/* ── Sub-components ── */
+
+function ClusterBadge({ cluster }: { cluster: number }) {
+    const info = getClusterInfo(cluster);
+    return (
+        <span
+            className="inline-block px-3 py-1 rounded-lg text-[11px] font-bold border"
+            style={{
+                color: info.color,
+                backgroundColor: `${info.color}15`,
+                borderColor: `${info.color}30`,
+            }}
+        >
+            {info.label}
+        </span>
+    );
+}

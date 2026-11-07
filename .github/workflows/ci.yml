@@ -1,0 +1,79 @@
+name: Verificação do portal
+"on":
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: portal-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Banco efêmero com TODAS as migrações; --require-lab recusa skips.
+      - name: Testes e isolamento no banco descartável
+        run: make test
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+  deploy-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validar manifests sem imprimir configuração
+        run: |
+          docker compose config --quiet
+          docker compose --env-file infra/deploy/aws.env.example -f infra/deploy/compose.aws.yml config --quiet
+          docker run --rm -e PORTAL_DOMAIN=portal.example.com -e ACME_EMAIL=operador@example.com -v "$PWD/infra/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Regressões de segurança da configuração de deploy
+        run: python3 infra/deploy/test-check-env.py
+      - name: Comparador somente leitura com dados sintéticos
+        run: python3 -m unittest discover -s scripts -p test_regressao_api.py -v
+  cluster-calculator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools/cluster-calculator
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/cluster-calculator/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run build
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [backend, frontend, deploy-config]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Construir as imagens que serão publicadas
+        run: |
+          docker build --target runtime -t portal-api:beta backend
+          docker build -t portal-web:beta frontend
+      - name: Verificar startup, SPA e proxy sem segredos ou portas públicas
+        run: python3 infra/deploy/smoke-containers.py

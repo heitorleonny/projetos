@@ -1,0 +1,22 @@
+fastapi==0.133.*
+# Piso de segurança: GHSA-82w8-qh3p-5jfq e demais correções até 1.3.1.
+starlette>=1.3.1,<1.4
+uvicorn[standard]==0.34.*
+postgrest==2.*
+pydantic[email]==2.*
+pydantic-settings==2.*
+python-dotenv==1.*
+httpx==0.28.*
+numpy==2.*
+# Upload de arquivo (UploadFile/Form) no painel administrativo.
+python-multipart==0.0.*
+
+# ── Ingestão das planilhas do Portal BJ (app/ingestao/) ──────
+# pandas + openpyxl leem o .xlsx. psycopg é o driver da CARGA: ela escreve
+# direto no Postgres, sob o papel `ingestao` (sujeito a RLS), porque upsert em
+# lote de 13 mil linhas via PostgREST, uma requisição por linha, não se sustenta.
+# A leitura da API continua via PostgREST (cliente Supabase) — nada muda nela.
+# psycopg também é o que tests/test_rls.py usa para verificar as políticas.
+pandas==2.*
+openpyxl==3.*
+psycopg[binary]==3.*

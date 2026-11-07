@@ -1,0 +1,140 @@
+"""Esclarecimentos e identificação declarativa; autoridade permanece no JWT."""
+
+import re
+import unicodedata
+from app.models.ia import Esclarecimento, OpcaoEsclarecimento, PlanoConsulta, RespostaRede
+
+
+def normalizar(texto: str) -> str:
+    return ''.join(c for c in unicodedata.normalize('NFKD', texto.casefold()) if not unicodedata.combining(c)).strip()
+
+
+def aliases_da_federacao(federacao: dict | None) -> set[str]:
+    return {normalizar(str(federacao[chave])) for chave in ('nome', 'slug')
+            if federacao and federacao.get(chave)}
+
+
+def normalizar_referencia_propria(pergunta: str, federacao: dict | None) -> str:
+    # Somente aliases obtidos pelo backend com JWT; nenhum alias vem do corpo.
+    aliases = aliases_da_federacao(federacao)
+    if not aliases:
+        return pergunta
+    padrao = r'(?<!\w)(?:' + '|'.join(re.escape(a) for a in sorted(aliases, key=len, reverse=True)) + r')(?!\w)'
+    # Mapear cada caractere normalizado ao original conserva nomes/acentos da EJ.
+    caracteres, indices = [], []
+    for indice, caractere in enumerate(pergunta):
+        for normalizado in normalizar(caractere):
+            caracteres.append(normalizado)
+            indices.append(indice)
+        if caractere.isspace():
+            caracteres.append(caractere)
+            indices.append(indice)
+    texto = ''.join(caracteres)
+    intervalos = []
+    for correspondencia in re.finditer(padrao, texto, flags=re.I):
+        inicio = indices[correspondencia.start()]
+        fim = indices[correspondencia.end() - 1] + 1
+        while fim < len(pergunta) and unicodedata.combining(pergunta[fim]):
+            fim += 1
+        intervalos.append((inicio, fim))
+    for inicio, fim in reversed(intervalos):
+        pergunta = pergunta[:inicio] + 'minha federação' + pergunta[fim:]
+    return pergunta
+
+
+def referencia_externa(pergunta: str) -> bool:
+    texto = normalizar(pergunta)
+    # Siglas nacionais, mais referências explicitamente fora da própria rede.
+    return bool(re.search(r'\b(?:feje[a-z]+|fej[a-z]{2,}|unijr(?:[- ]?[a-z]{2})?|riojunior|concentro)\b', texto)
+                or re.search(r'\b(?:outra[s]?|todas as|todas|demais) federa(?:cao|coes)\b', texto))
+
+
+def filtros_do_esclarecimento(pergunta: str, contexto: PlanoConsulta | None, ano_padrao: int) -> PlanoConsulta:
+    plano = contexto or PlanoConsulta(ferramenta='ranking', ano=None, mes=None, criterio=None, limite=None)
+    texto = normalizar(pergunta)
+    alteracoes = {}
+    cluster = re.search(r'\bcluster\s+([1-5])\b', texto)
+    ano = re.search(r'\b(20\d{2}|2100)\b', texto)
+    numerico = re.search(r'\b(0?[1-9]|1[0-2])/(20\d{2}|2100)\b', texto)
+    nomes = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    if cluster:
+        alteracoes['cluster'] = int(cluster.group(1))
+    if ano:
+        alteracoes['ano'] = int(ano.group(1))
+    if numerico:
+        alteracoes.update(mes=int(numerico.group(1)), ano=int(numerico.group(2)))
+    else:
+        for mes, nome in enumerate(nomes, 1):
+            if re.search(r'\b' + nome + r'\b', texto):
+                alteracoes['mes'] = mes
+                alteracoes.setdefault('ano', plano.ano or ano_padrao)
+    return plano.model_copy(update=alteracoes)
+
+
+
+def sufixo_filtros(plano: PlanoConsulta | None) -> str:
+    if plano is None:
+        return ''
+    recorte = f' do cluster {plano.cluster}' if plano.cluster is not None else ''
+    if plano.mes and plano.ano:
+        recorte += f' em {plano.mes:02d}/{plano.ano}'
+    elif plano.ano:
+        recorte += f' em {plano.ano}'
+    return recorte
+
+
+def esclarecer(motivo: str | None, contexto: PlanoConsulta | None) -> RespostaRede:
+    filtros = sufixo_filtros(contexto)
+    if motivo == 'metrica_ranking':
+        pergunta = 'Qual indicador você quer usar para comparar as EJs?'
+        opcoes = [OpcaoEsclarecimento(rotulo=rotulo, pergunta=f'Top 10 EJs por {criterio}{filtros}')
+                  for rotulo, criterio in [('Maior faturamento', 'faturamento'), ('Maior CSAT', 'CSAT'),
+                                          ('Mais projetos', 'projetos'), ('Maior colaboração', 'colab')]]
+    else:
+        pergunta = 'O que você quer consultar sobre sua rede?'
+        opcoes = [OpcaoEsclarecimento(rotulo='Indicadores da rede', pergunta=f'Quais são os indicadores da rede{filtros}?'),
+                  OpcaoEsclarecimento(rotulo='EJs fora do zero', pergunta=f'Quais EJs estão fora do zero{filtros}?')]
+    return RespostaRede(status='esclarecimento', resposta=pergunta, contexto=contexto,
+                        esclarecimento=Esclarecimento(pergunta=pergunta, opcoes=opcoes))
+
+
+def ranking_ambiguo(pergunta: str) -> bool:
+    texto = normalizar(pergunta)
+    ambiguo = re.search(r'\b(?:melhores|piores|melhor desempenho|melhor performance)\b', texto)
+    metrica = re.search(r'\b(?:faturamento|csat|projetos|colab|colaborativo|colaboracao)\b', texto)
+    if not ambiguo or metrica:
+        return False
+    # Só antecipamos pedidos simples com filtros suportados. Qualquer requisito
+    # restante vai ao intérprete, evitando descartar cidade/universidade etc.
+    cluster = re.search(r'\bcluster\s+(\d+)\b', texto)
+    if cluster and int(cluster.group(1)) not in range(1, 6):
+        return False
+    restante = re.sub(r'\b(?:0?[1-9]|1[0-2])/(?:20\d{2}|2100)\b', '', texto)
+    restante = re.sub(r'\b(?:20\d{2}|2100|[1-5])\b', '', restante)
+    palavras = {'quais', 'qual', 'sao', 'as', 'os', 'a', 'o', 'ejs', 'ej', 'empresas', 'juniores',
+                'melhores', 'piores', 'melhor', 'desempenho', 'performance', 'ranking', 'da', 'de',
+                'do', 'das', 'dos', 'no', 'na', 'em', 'por', 'minha', 'rede', 'federacao', 'cluster',
+                'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto',
+                'setembro', 'outubro', 'novembro', 'dezembro'}
+    return all(palavra in palavras for palavra in re.findall(r'\w+', restante))
+
+
+def busca_com_intencao_de_nome(pergunta: str, plano: PlanoConsulta, contexto: PlanoConsulta | None) -> bool:
+    """Busca só pode representar nome pedido literalmente ou seguimento limitado.
+
+    Uma palavra de cidade/universidade não vira nome de EJ por decisão do modelo.
+    O plano contextual não autoriza uma busca diferente da anterior.
+    """
+    if not plano.busca:
+        return True
+    texto = normalizar(pergunta)
+    if re.search(r'\b(?:cidade|municipio|universidade|localizadas|sediadas)\b', texto):
+        return False
+    marcador = re.search(r'\b(?:nome|contendo|chamada[s]?|chamado[s]?|denominada[s]?|denominado[s]?)\b', texto)
+    if marcador and normalizar(plano.busca) in texto[marcador.end():]:
+        return True
+    if not contexto or not contexto.busca or normalizar(contexto.busca) != normalizar(plano.busca):
+        return False
+    mes = r'(?:janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|(?:0?[1-9]|1[0-2])/(?:20\d{2}|2100))'
+    seguimento = r'(?:e|agora) (?:em ' + mes + r'(?: de (?:20\d{2}|2100))?(?: no cluster [1-5])?|no cluster [1-5])\??'
+    return bool(re.fullmatch(seguimento, texto))
