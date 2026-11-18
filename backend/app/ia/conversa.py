@@ -180,6 +180,9 @@ _TERMOS_CONCEITO = {
     'ritmo necessario': 'ritmo_necessario',
     'meta atingida': 'meta_atingida', '% da meta': 'meta_atingida', 'percentual da meta': 'meta_atingida',
     'porcentagem da meta': 'meta_atingida', 'atingimento da meta': 'meta_atingida',
+    'projeto de impacto': 'projeto_impacto', 'projetos de impacto': 'projeto_impacto',
+    'formula adaptativa': 'formula_adaptativa', 'formula adaptativa de cluster': 'formula_adaptativa',
+    'cluster adaptativo': 'formula_adaptativa',
 }
 _PERGUNTA_CONCEITO = re.compile(
     r'(?:o que (?:e|sao|significa|quer dizer|seria)|como (?:e|sao) calculad[oa]s?|como se calcula|como calcula'

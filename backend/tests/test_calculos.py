@@ -7,11 +7,13 @@ Valida cada fórmula estratégica conforme documentado em calculos.md.
 import pytest
 
 from app.services.calculo_service import (
+    aplicar_regra_projeto_impacto,
     calcular_crescimento,
     calcular_media_csat,
     calcular_percentual_meta,
     calcular_pontos_cluster,
     calcular_pontos_cluster_adaptativo,
+    calcular_projetos_impacto,
     calcular_ritmo_necessario,
     calcular_sde,
     calcular_taxa_colaboracao,
@@ -19,6 +21,7 @@ from app.services.calculo_service import (
     classificar_cluster,
     classificar_ritmo,
     projetar_faturamento_anual,
+    tem_projeto_impacto,
 )
 from app.models.empresa import Ritmo, TendenciaCluster
 
@@ -409,3 +412,52 @@ class TestMediaCSAT:
 
     def test_lista_vazia(self):
         assert calcular_media_csat([]) is None
+
+
+class TestProjetoImpacto:
+    """Projeto de impacto é obrigatório no C4 e no C5: o cluster real só chega
+    a eles, e só permanece neles, com ao menos um projeto de impacto. Sem
+    projeto o cluster real fica limitado ao C3."""
+
+    @pytest.mark.parametrize(
+        "projetos, esperado",
+        [(None, False), (0, False), (1, True), (3, True)],
+    )
+    def test_tem_projeto_impacto(self, projetos, esperado):
+        assert tem_projeto_impacto(projetos) is esperado
+
+    def test_projetos_impacto_vazio_em_todas_as_linhas_e_nenhum(self):
+        linhas = [{"mes": 1, "projetos_impacto": None}, {"mes": 2}]
+        assert calcular_projetos_impacto(linhas) is None
+        assert calcular_projetos_impacto([]) is None
+
+    def test_projetos_impacto_usa_o_maximo_e_nao_a_ultima_linha(self):
+        """Se a EJ parou de reportar e a última linha veio vazia, o projeto não some."""
+        linhas = [
+            {"mes": 1, "projetos_impacto": None},
+            {"mes": 2, "projetos_impacto": 1},
+            {"mes": 3, "projetos_impacto": None},
+        ]
+        assert calcular_projetos_impacto(linhas) == 1
+
+    @pytest.mark.parametrize(
+        "apontado, tem_projeto, esperado",
+        [
+            # Sem projeto: nunca passa do C3, venha o apontado do C4 ou do C5.
+            (5, False, 3),
+            (4, False, 3),
+            # Com projeto o C4 e o C5 valem.
+            (5, True, 5),
+            (4, True, 4),
+            # Do C3 para baixo a regra não mexe em nada, com ou sem projeto.
+            (3, False, 3),
+            (3, True, 3),
+            (1, False, 1),
+        ],
+    )
+    def test_aplicar_regra_projeto_impacto(self, apontado, tem_projeto, esperado):
+        assert aplicar_regra_projeto_impacto(apontado, tem_projeto) == esperado
+
+    def test_aplicar_regra_projeto_impacto_sem_cluster_devolve_none(self):
+        assert aplicar_regra_projeto_impacto(None, False) is None
+        assert aplicar_regra_projeto_impacto(None, True) is None

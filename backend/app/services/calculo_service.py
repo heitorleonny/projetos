@@ -9,6 +9,8 @@ Referência principal: calculos.md
 
 from app.models.empresa import Ritmo, TendenciaCluster
 from app.utils.constants import (
+    CLUSTER_EXIGE_PROJETO_IMPACTO,
+    CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO,
     CLUSTER_RANGES,
     FATOR_ESCALA_PONTOS,
     LIMIAR_META_ATINGIDA,
@@ -45,7 +47,7 @@ def calcular_percentual_meta(
 
 def classificar_faixa_meta(percentual_meta: float | None) -> str:
     """
-    Faixa de atingimento da meta anual de faturamento (Nexo, consulta `metas`).
+    Faixa de atingimento da meta anual de faturamento (Lamps, consulta `metas`).
 
     Recebe o resultado de `calcular_percentual_meta`; não recalcula o percentual.
 
@@ -322,6 +324,59 @@ def calcular_tendencia_cluster(
     if cluster_atual < cluster_anterior:
         return TendenciaCluster.desce
     return TendenciaCluster.mantem
+
+
+# ── 6b. Projeto de impacto × cluster real ────────────────────
+
+
+def calcular_projetos_impacto(monitoramentos: list[dict]) -> int | None:
+    """
+    Projetos de impacto da EJ no período, a partir das linhas mensais.
+
+    A planilha repete o valor mês a mês depois que o primeiro projeto aparece
+    (nenhuma EJ perde o valor ao longo do ano), então o MÁXIMO das linhas lidas
+    é o mesmo que a última linha — e continua certo se a última linha vier
+    vazia por a EJ ter parado de reportar. Vazio quer dizer "nenhum projeto":
+    sem nenhuma linha preenchida o resultado é None.
+    """
+    valores = [
+        int(m["projetos_impacto"])
+        for m in monitoramentos
+        if m.get("projetos_impacto") is not None
+    ]
+    return max(valores) if valores else None
+
+
+def tem_projeto_impacto(projetos_impacto: int | None) -> bool:
+    """A EJ tem ao menos um projeto de impacto? None (vazio) é "não"."""
+    return projetos_impacto is not None and projetos_impacto >= 1
+
+
+def aplicar_regra_projeto_impacto(
+    cluster: int | None,
+    tem_projeto: bool,
+) -> int | None:
+    """
+    Cluster REAL a partir do cluster apontado por um índice ou pelo tracking.
+
+    Regra (Heitor, 09/11/2026): projeto de impacto é obrigatório no C4 e no C5.
+    O tracking pode apontar o C4 ou o C5, mas o cluster real só chega a eles, e só
+    permanece neles, se a EJ tiver projeto de impacto. Sem projeto o cluster real
+    fica limitado ao C3 — vale para quem sobe do C3 e para quem já está no C4 ou C5.
+    Do C3 para baixo a regra não mexe em nada.
+
+    Args:
+        cluster: Cluster apontado pelo índice/tracking (1–5) ou None.
+        tem_projeto: Resultado de `tem_projeto_impacto`.
+
+    Returns:
+        O cluster efetivo, ou None se `cluster` for None.
+    """
+    if cluster is None:
+        return None
+    if cluster >= CLUSTER_EXIGE_PROJETO_IMPACTO and not tem_projeto:
+        return CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO
+    return cluster
 
 
 # ── 7. SDE da Rede ───────────────────────────────────────────

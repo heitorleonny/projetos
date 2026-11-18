@@ -351,7 +351,7 @@ export default function ComparacaoPage() {
             )}
 
             {/* Filters */}
-            <div className="glass-card rounded-2xl p-5 mb-8">
+            <div data-tour="comparacao-filtros" className="glass-card rounded-2xl p-5 mb-8">
                 <div className="flex flex-col gap-5">
                     {/* Row 1: Years + Indicator selector */}
                     <div className="flex flex-col sm:flex-row sm:items-end gap-5">

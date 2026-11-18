@@ -53,7 +53,7 @@ export default function AdminPage() {
                 </p>
             </div>
 
-            <div role="tablist" className="flex flex-wrap gap-1 mb-6 border-b border-white/10">
+            <div data-tour="admin-abas" role="tablist" className="flex flex-wrap gap-1 mb-6 border-b border-white/10">
                 {abas.map((a) => (
                     <button
                         key={a.id}

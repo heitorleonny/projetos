@@ -1665,6 +1665,563 @@
         ]
       }
     },
+    "/api/v1/metricas/catalogo": {
+      "get": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Get Catalogo",
+        "operationId": "get_catalogo_api_v1_metricas_catalogo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalogo"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/metricas": {
+      "get": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Get Metricas",
+        "operationId": "get_metricas_api_v1_metricas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "arquivadas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Arquivadas"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Metrica"
+                  },
+                  "title": "Response Get Metricas Api V1 Metricas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Metrica",
+        "operationId": "post_metrica_api_v1_metricas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metricas/{metrica_id}/resultado": {
+      "get": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Get Resultado",
+        "operationId": "get_resultado_api_v1_metricas__metrica_id__resultado_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoMetrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metricas/previa": {
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Previa",
+        "operationId": "post_previa_api_v1_metricas_previa_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoMetrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/metricas/interpretar": {
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Interpretar",
+        "operationId": "post_interpretar_api_v1_metricas_interpretar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextoLivreEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropostaMetrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/metricas/ordem": {
+      "put": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Put Ordem",
+        "operationId": "put_ordem_api_v1_metricas_ordem_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrdemEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Metrica"
+                  },
+                  "type": "array",
+                  "title": "Response Put Ordem Api V1 Metricas Ordem Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/metricas/{metrica_id}": {
+      "put": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Put Metrica",
+        "operationId": "put_metrica_api_v1_metricas__metrica_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Delete Metrica",
+        "operationId": "delete_metrica_api_v1_metricas__metrica_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metricas/{metrica_id}/painel": {
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Painel",
+        "operationId": "post_painel_api_v1_metricas__metrica_id__painel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PainelEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metricas/{metrica_id}/arquivar": {
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Arquivar",
+        "operationId": "post_arquivar_api_v1_metricas__metrica_id__arquivar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metricas/{metrica_id}/restaurar": {
+      "post": {
+        "tags": [
+          "Métricas personalizadas"
+        ],
+        "summary": "Post Restaurar",
+        "operationId": "post_restaurar_api_v1_metricas__metrica_id__restaurar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metrica_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Metrica Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrica"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/federacao/branding": {
       "get": {
         "tags": [
@@ -1790,6 +2347,139 @@
         ]
       }
     },
+    "/api/v1/federacao/logo": {
+      "get": {
+        "tags": [
+          "Federação"
+        ],
+        "summary": "Logo enviada pela federação",
+        "description": "Arquivo da logo (PNG, JPEG ou WebP) de uma federação ativa. Endpoint PÚBLICO, pelo mesmo motivo de `/branding`: a tela de login mostra a logo antes do token. O parâmetro `v` vem de `logo_url` e só serve para renovar o cache.",
+        "operationId": "get_logo_api_v1_federacao_logo_get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "V"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {},
+              "image/jpeg": {},
+              "image/webp": {}
+            }
+          },
+          "404": {
+            "description": "Sem logo enviada"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/federacao/minha/logo": {
+      "put": {
+        "tags": [
+          "Federação"
+        ],
+        "summary": "Envia a logo da federação do usuário",
+        "operationId": "put_logo_api_v1_federacao_minha_logo_put",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_logo_api_v1_federacao_minha_logo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederacaoBranding"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Federação"
+        ],
+        "summary": "Remove a logo enviada pela federação do usuário",
+        "operationId": "delete_logo_api_v1_federacao_minha_logo_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederacaoBranding"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -1852,6 +2542,21 @@
           "ano"
         ],
         "title": "Body_importar_planilha_api_v1_admin_importacoes_post"
+      },
+      "Body_put_logo_api_v1_federacao_minha_logo_put": {
+        "properties": {
+          "arquivo": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Arquivo",
+            "description": "PNG, JPEG ou WebP de até 512 KB."
+          }
+        },
+        "type": "object",
+        "required": [
+          "arquivo"
+        ],
+        "title": "Body_put_logo_api_v1_federacao_minha_logo_put"
       },
       "Carga": {
         "properties": {
@@ -1986,6 +2691,37 @@
         "title": "Carga",
         "description": "Uma linha de `ingestao_carga`, sem o resumo completo."
       },
+      "Catalogo": {
+        "properties": {
+          "pode_editar": {
+            "type": "boolean",
+            "title": "Pode Editar"
+          },
+          "ano": {
+            "type": "integer",
+            "title": "Ano"
+          },
+          "variaveis": {
+            "items": {
+              "$ref": "#/components/schemas/VariavelCatalogo"
+            },
+            "type": "array",
+            "title": "Variaveis"
+          },
+          "texto_livre_disponivel": {
+            "type": "boolean",
+            "title": "Texto Livre Disponivel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pode_editar",
+          "ano",
+          "variaveis",
+          "texto_livre_disponivel"
+        ],
+        "title": "Catalogo"
+      },
       "Convite": {
         "properties": {
           "nome": {
@@ -2030,6 +2766,97 @@
         ],
         "title": "Convite"
       },
+      "DefinicaoMetrica": {
+        "properties": {
+          "expressao": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Expressao"
+          },
+          "unidade": {
+            "type": "string",
+            "enum": [
+              "moeda",
+              "numero"
+            ],
+            "title": "Unidade",
+            "default": "numero"
+          },
+          "ano": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 2000.0,
+            "title": "Ano"
+          },
+          "mes_inicio": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Mes Inicio",
+            "default": 1
+          },
+          "mes_fim": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 12.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes Fim"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "ordem": {
+            "type": "string",
+            "enum": [
+              "desc",
+              "asc"
+            ],
+            "title": "Ordem",
+            "default": "desc"
+          },
+          "limite": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limite",
+            "default": 10
+          },
+          "agregacao_rede": {
+            "type": "string",
+            "enum": [
+              "soma",
+              "media"
+            ],
+            "title": "Agregacao Rede",
+            "default": "soma"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expressao",
+          "ano"
+        ],
+        "title": "DefinicaoMetrica",
+        "description": "O que a métrica calcula. É dado, não código: a expressão é revalidada sempre."
+      },
       "Direcao": {
         "type": "string",
         "enum": [
@@ -2070,6 +2897,33 @@
               }
             ],
             "title": "Cluster Calculado"
+          },
+          "cluster_apontado": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Apontado"
+          },
+          "tem_projeto_impacto": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tem Projeto Impacto"
+          },
+          "limitado_por_projeto_impacto": {
+            "type": "boolean",
+            "title": "Limitado Por Projeto Impacto",
+            "default": false
           },
           "foto_url": {
             "anyOf": [
@@ -2291,6 +3145,55 @@
               }
             ],
             "title": "Tracking Cluster Calculado"
+          },
+          "projetos_impacto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projetos Impacto"
+          },
+          "tem_projeto_impacto": {
+            "type": "boolean",
+            "title": "Tem Projeto Impacto",
+            "default": false
+          },
+          "meta_projetos_impacto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Projetos Impacto"
+          },
+          "tracking_cluster_efetivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Cluster Efetivo"
+          },
+          "indice_cluster_efetivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indice Cluster Efetivo"
           },
           "indice_cluster": {
             "anyOf": [
@@ -2704,6 +3607,39 @@
               }
             ],
             "title": "Tracking Cluster Calculado"
+          },
+          "indice_cluster_efetivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indice Cluster Efetivo"
+          },
+          "indice_meta_csat_efetivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indice Meta Csat Efetivo"
+          },
+          "tracking_cluster_efetivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Cluster Efetivo"
           }
         },
         "type": "object",
@@ -3489,6 +4425,45 @@
         "title": "IndicadoresRede",
         "description": "KPIs consolidados de toda a rede FEJEPE."
       },
+      "LinhaMetrica": {
+        "properties": {
+          "posicao": {
+            "type": "integer",
+            "title": "Posicao"
+          },
+          "id_ej": {
+            "type": "integer",
+            "title": "Id Ej"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicao",
+          "id_ej",
+          "nome",
+          "valor"
+        ],
+        "title": "LinhaMetrica"
+      },
       "LinhaResposta": {
         "properties": {
           "id_ej": {
@@ -3639,6 +4614,17 @@
             ],
             "title": "Meta Projetos Impacto"
           },
+          "projetos_impacto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projetos Impacto"
+          },
           "meta_engajamento_mej": {
             "anyOf": [
               {
@@ -3666,6 +4652,148 @@
         "title": "MetaVsRealizado",
         "description": "Comparação entre meta e valor realizado."
       },
+      "Metrica": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "visual": {
+            "type": "string",
+            "enum": [
+              "ranking",
+              "valor",
+              "serie"
+            ],
+            "title": "Visual"
+          },
+          "no_painel": {
+            "type": "boolean",
+            "title": "No Painel"
+          },
+          "ordem": {
+            "type": "integer",
+            "title": "Ordem"
+          },
+          "versao": {
+            "type": "integer",
+            "title": "Versao"
+          },
+          "arquivada": {
+            "type": "boolean",
+            "title": "Arquivada"
+          },
+          "definicao": {
+            "$ref": "#/components/schemas/DefinicaoMetrica"
+          },
+          "formula_legivel": {
+            "type": "string",
+            "title": "Formula Legivel"
+          },
+          "criado_em": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Criado Em"
+          },
+          "atualizado_em": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Atualizado Em"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "descricao",
+          "visual",
+          "no_painel",
+          "ordem",
+          "versao",
+          "arquivada",
+          "definicao",
+          "formula_legivel",
+          "criado_em",
+          "atualizado_em"
+        ],
+        "title": "Metrica"
+      },
+      "MetricaEntrada": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 3,
+            "title": "Nome"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "visual": {
+            "type": "string",
+            "enum": [
+              "ranking",
+              "valor",
+              "serie"
+            ],
+            "title": "Visual",
+            "default": "ranking"
+          },
+          "no_painel": {
+            "type": "boolean",
+            "title": "No Painel",
+            "default": true
+          },
+          "definicao": {
+            "$ref": "#/components/schemas/DefinicaoMetrica"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nome",
+          "definicao"
+        ],
+        "title": "MetricaEntrada"
+      },
       "OpcaoEsclarecimento": {
         "properties": {
           "rotulo": {
@@ -3684,6 +4812,24 @@
         ],
         "title": "OpcaoEsclarecimento"
       },
+      "OpcaoProposta": {
+        "properties": {
+          "rotulo": {
+            "type": "string",
+            "title": "Rotulo"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rotulo",
+          "texto"
+        ],
+        "title": "OpcaoProposta"
+      },
       "OrdemEmpresa": {
         "type": "string",
         "enum": [
@@ -3697,6 +4843,25 @@
         ],
         "title": "OrdemEmpresa",
         "description": "Campos disponíveis para ordenação de EJs."
+      },
+      "OrdemEntrada": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "OrdemEntrada"
       },
       "PaginacaoMeta": {
         "properties": {
@@ -3726,6 +4891,20 @@
         ],
         "title": "PaginacaoMeta",
         "description": "Metadados de paginação."
+      },
+      "PainelEntrada": {
+        "properties": {
+          "no_painel": {
+            "type": "boolean",
+            "title": "No Painel"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "no_painel"
+        ],
+        "title": "PainelEntrada"
       },
       "PaletaFederacao": {
         "properties": {
@@ -3874,6 +5053,7 @@
               "explicar",
               "perfil_ej",
               "metas",
+              "ejs_do_cluster",
               "esclarecer",
               "recusar"
             ],
@@ -4007,7 +5187,9 @@
                   "tracking_cluster",
                   "projecao_anual",
                   "ritmo_necessario",
-                  "meta_atingida"
+                  "meta_atingida",
+                  "projeto_impacto",
+                  "formula_adaptativa"
                 ]
               },
               {
@@ -4114,6 +5296,38 @@
         ],
         "title": "PlanoDados"
       },
+      "PontoMetrica": {
+        "properties": {
+          "mes": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Mes"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          },
+          "ejs": {
+            "type": "integer",
+            "title": "Ejs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mes",
+          "valor",
+          "ejs"
+        ],
+        "title": "PontoMetrica"
+      },
       "PontoSerie": {
         "properties": {
           "mes": {
@@ -4134,6 +5348,92 @@
         ],
         "title": "PontoSerie",
         "description": "Um mês da série exibida na visualização da consulta; preenchido só pelo backend."
+      },
+      "PreviaEntrada": {
+        "properties": {
+          "definicao": {
+            "$ref": "#/components/schemas/DefinicaoMetrica"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definicao"
+        ],
+        "title": "PreviaEntrada"
+      },
+      "PropostaMetrica": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pronta",
+              "esclarecimento",
+              "fora_do_catalogo"
+            ],
+            "title": "Status"
+          },
+          "mensagem": {
+            "type": "string",
+            "title": "Mensagem"
+          },
+          "opcoes": {
+            "items": {
+              "$ref": "#/components/schemas/OpcaoProposta"
+            },
+            "type": "array",
+            "title": "Opcoes",
+            "default": []
+          },
+          "metrica": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricaEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_legivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula Legivel"
+          },
+          "resultado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultadoMetrica"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modelo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "mensagem"
+        ],
+        "title": "PropostaMetrica"
       },
       "RankingItem": {
         "properties": {
@@ -4335,6 +5635,142 @@
         ],
         "title": "ResultadoImportacao",
         "description": "O relatório de `app.ingestao.importacao.importar`, mais o texto que a CLI\nimprime. `simulacao=True`: nada foi gravado, as contagens são as reais."
+      },
+      "ResultadoMetrica": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "sem_dados"
+            ],
+            "title": "Status"
+          },
+          "mensagem": {
+            "type": "string",
+            "title": "Mensagem"
+          },
+          "ano": {
+            "type": "integer",
+            "title": "Ano"
+          },
+          "mes_inicio": {
+            "type": "integer",
+            "title": "Mes Inicio"
+          },
+          "mes_fim": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes Fim"
+          },
+          "unidade": {
+            "type": "string",
+            "enum": [
+              "moeda",
+              "numero"
+            ],
+            "title": "Unidade"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          },
+          "formula_legivel": {
+            "type": "string",
+            "title": "Formula Legivel"
+          },
+          "explicacao": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Explicacao"
+          },
+          "agregacao_rede": {
+            "type": "string",
+            "enum": [
+              "soma",
+              "media"
+            ],
+            "title": "Agregacao Rede"
+          },
+          "ordem": {
+            "type": "string",
+            "enum": [
+              "desc",
+              "asc"
+            ],
+            "title": "Ordem"
+          },
+          "linhas": {
+            "items": {
+              "$ref": "#/components/schemas/LinhaMetrica"
+            },
+            "type": "array",
+            "title": "Linhas",
+            "default": []
+          },
+          "total_ejs": {
+            "type": "integer",
+            "title": "Total Ejs",
+            "default": 0
+          },
+          "avaliadas": {
+            "type": "integer",
+            "title": "Avaliadas",
+            "default": 0
+          },
+          "sem_cobertura": {
+            "type": "integer",
+            "title": "Sem Cobertura",
+            "default": 0
+          },
+          "sem_valor": {
+            "type": "integer",
+            "title": "Sem Valor",
+            "default": 0
+          },
+          "valor_rede": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Rede"
+          },
+          "serie": {
+            "items": {
+              "$ref": "#/components/schemas/PontoMetrica"
+            },
+            "type": "array",
+            "title": "Serie",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "mensagem",
+          "ano",
+          "mes_inicio",
+          "mes_fim",
+          "unidade",
+          "formula",
+          "formula_legivel",
+          "explicacao",
+          "agregacao_rede",
+          "ordem"
+        ],
+        "title": "ResultadoMetrica"
       },
       "Ritmo": {
         "type": "string",
@@ -4600,6 +6036,22 @@
         "title": "TendenciaCluster",
         "description": "Tendência do cluster em relação ao período anterior."
       },
+      "TextoLivreEntrada": {
+        "properties": {
+          "texto": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Texto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "title": "TextoLivreEntrada"
+      },
       "Usuario": {
         "properties": {
           "convite_url": {
@@ -4787,6 +6239,38 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VariavelCatalogo": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "rotulo": {
+            "type": "string",
+            "title": "Rotulo"
+          },
+          "descricao": {
+            "type": "string",
+            "title": "Descricao"
+          },
+          "unidade": {
+            "type": "string",
+            "enum": [
+              "moeda",
+              "numero"
+            ],
+            "title": "Unidade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "rotulo",
+          "descricao",
+          "unidade"
+        ],
+        "title": "VariavelCatalogo"
       },
       "VinculoPlano": {
         "properties": {

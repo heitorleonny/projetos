@@ -63,7 +63,10 @@ def _cluster() -> str:
         "(1 + engajamento com o MEJ) e (1 + taxa de colaboração), e o resultado é multiplicado por "
         f"{constants.FATOR_ESCALA_PONTOS}. As faixas são: {_faixas_cluster()}. O cluster oficial do ano "
         "é o registrado pela Brasil Júnior; durante o ano, o portal também calcula estimativas, como o "
-        "tracking de cluster. Para a federação, o cluster orienta o acompanhamento e é a base do SDE."
+        "tracking de cluster. O projeto de impacto é obrigatório a partir do cluster "
+        f"{constants.CLUSTER_EXIGE_PROJETO_IMPACTO}: sem ao menos um projeto de impacto, o cluster real da EJ "
+        f"fica limitado ao {constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO}, mesmo que a pontuação aponte um cluster "
+        "maior. Para a federação, o cluster orienta o acompanhamento e é a base do SDE."
     )
 
 
@@ -72,7 +75,11 @@ def _sde() -> str:
         "SDE é o Saldo de Evolução da Rede. Para cada cluster, ele subtrai as EJs que estão descendo das "
         f"que estão subindo e multiplica pelo peso do cluster oficial atual dessas EJs: {_pesos_sde()}. A referência é o "
         "cluster oficial do ano, comparado com o cluster calculado pelo portal em três cenários: índice "
-        "de cluster com valores reais, índice com a meta de CSAT e tracking de cluster. Um SDE positivo "
+        "de cluster com valores reais, índice com a meta de CSAT e tracking de cluster. Em todos os cenários "
+        "vale o cluster real: EJ sem projeto de impacto não passa do cluster "
+        f"{constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO}, então não sobe para o "
+        f"{constants.CLUSTER_EXIGE_PROJETO_IMPACTO} ou o 5 e a que já está nesses clusters conta como descendo. "
+        "Um SDE positivo "
         "indica que a rede, no conjunto, tende a subir de cluster; negativo, que tende a descer."
     )
 
@@ -120,7 +127,10 @@ def _tracking_cluster() -> str:
         "e cumprir as metas de qualidade. O faturamento acumulado é anualizado (dividido pelo mês atual da "
         f"EJ e multiplicado por {constants.MESES_ANO}) e entra na fórmula de pontos com a meta de CSAT, a "
         "meta de engajamento e a taxa de colaboração real. Sem meta de CSAT ou sem faturamento, o perfil "
-        "da EJ não mostra o tracking. Para a federação, antecipa quais EJs tendem a subir ou cair de cluster."
+        "da EJ não mostra o tracking. O tracking apenas aponta o cluster: o cluster real só chega ao "
+        f"{constants.CLUSTER_EXIGE_PROJETO_IMPACTO} ou ao 5, e só permanece neles, se a EJ tiver projeto de "
+        f"impacto; sem ele fica no {constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO}. Para a federação, antecipa quais EJs "
+        "tendem a subir ou cair de cluster."
     )
 
 
@@ -151,9 +161,32 @@ def _meta_atingida() -> str:
         "O percentual da meta atingida compara o faturamento acumulado no ano com a meta anual de "
         "faturamento: acumulado dividido pela meta, em percentual. A comparação é com a meta do ano "
         "inteiro, não com a parcela proporcional ao mês; EJ sem meta cadastrada fica sem percentual. "
-        f"No Nexo, as EJs são agrupadas em: {atingida}% ou mais, de {parcial}% a menos de {atingida}%, "
+        f"No Lamps, as EJs são agrupadas em: {atingida}% ou mais, de {parcial}% a menos de {atingida}%, "
         f"abaixo de {parcial}% e sem meta cadastrada. Para a federação, mostra quanto da meta anual a "
         "rede já cumpriu."
+    )
+
+
+def _projeto_impacto() -> str:
+    return (
+        f"O projeto de impacto é obrigatório a partir do cluster {constants.CLUSTER_EXIGE_PROJETO_IMPACTO}, "
+        f"ou seja, nos clusters {constants.CLUSTER_EXIGE_PROJETO_IMPACTO} e 5. O tracking pode apontar subida "
+        "para esses clusters, mas o cluster real só chega a eles, e só permanece neles, se a EJ tiver ao menos "
+        f"um projeto de impacto. Sem projeto, o cluster real fica limitado ao {constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO}, "
+        f"e do cluster {constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO} para baixo a regra não muda nada. "
+        "A EJ conta como tendo projeto quando o maior valor informado no ano é pelo menos um; campo vazio "
+        "significa nenhum projeto. Para a federação, mostra quais EJs só sustentam o cluster alto se registrarem esse projeto."
+    )
+
+
+def _formula_adaptativa() -> str:
+    return (
+        "A fórmula adaptativa estima o cluster de fim de ano usando metas no lugar do que ainda não foi medido, "
+        "e troca por valores reais conforme o ano avança. O faturamento é sempre anualizado e a taxa de "
+        "colaboração é sempre a real. No primeiro trimestre, CSAT e engajamento vêm das metas. No segundo "
+        "trimestre, o CSAT continua sendo a meta e o engajamento usa a meta se o real alcançou um quarto dela; "
+        "senão, usa o real dividido por um quarto. Do segundo semestre em diante, CSAT e engajamento são os reais. "
+        "Sem faturamento ou sem o CSAT da fase, não há estimativa."
     )
 
 
@@ -171,6 +204,8 @@ VERBETES: dict[str, tuple[str, Callable[[], str], tuple[str, ...]]] = {
     "projecao_anual": ("Projeção anual", _projecao_anual, ("O que é ritmo necessário?", "Top 10 EJs por faturamento{sufixo}")),
     "ritmo_necessario": ("Ritmo necessário", _ritmo_necessario, ("O que significa meta atingida?", "Quantas EJs atingiram a meta de faturamento{sufixo}?")),
     "meta_atingida": ("Meta atingida", _meta_atingida, ("Quantas EJs atingiram a meta de faturamento{sufixo}?",)),
+    "projeto_impacto": ("Projeto de impacto", _projeto_impacto, ("O que é cluster?", "Quais EJs estão no cluster 4?")),
+    "formula_adaptativa": ("Fórmula adaptativa de cluster", _formula_adaptativa, ("O que é tracking de cluster?", "O que é cluster?")),
 }
 
 

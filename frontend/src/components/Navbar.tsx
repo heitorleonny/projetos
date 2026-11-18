@@ -63,7 +63,7 @@ export default function Navbar() {
                         <span className="block text-xs text-neutral-400">Gestão da rede</span>
                     </span>
                 </NavLink>
-                <div className="hidden lg:flex items-center gap-1">
+                <div data-tour="nav-abas" className="hidden lg:flex items-center gap-1">
                     {principais.map(aba => <NavLink key={aba.id} to={aba.to} className={estiloLink}>{aba.label}</NavLink>)}
                     <details className="relative">
                         <summary className={`cursor-pointer list-none rounded-lg px-3 py-2 text-sm font-medium ${analises.some(aba => aba.to === location.pathname) ? 'bg-secondary-500/20 text-accent-300' : 'text-neutral-300 hover:bg-white/5'}`}>Análises <span aria-hidden="true">⌄</span></summary>
@@ -73,7 +73,7 @@ export default function Navbar() {
                     </details>
                 </div>
                 <div className="flex items-center gap-2">
-                    <details className="lg:hidden">
+                    <details data-tour="nav-abas-movel" className="lg:hidden">
                         <summary aria-label="Abrir navegação" className="cursor-pointer list-none rounded-lg px-3 py-2 text-sm text-neutral-300 hover:bg-white/5">Abas <span aria-hidden="true">⌄</span></summary>
                         <div className="absolute inset-x-0 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto border-b border-neutral-700 bg-neutral-900 p-4 shadow-xl">
                             {principais.map(aba => <NavLink key={aba.id} to={aba.to} className={estiloLink}>{aba.label}</NavLink>)}
@@ -81,7 +81,7 @@ export default function Navbar() {
                             {analises.map(aba => <NavLink key={aba.id} to={aba.to} className={estiloLink}>{aba.label}</NavLink>)}
                         </div>
                     </details>
-                    <details className="relative">
+                    <details data-tour="menu-conta" className="relative">
                         <summary className="cursor-pointer list-none rounded-lg border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/5">Minha conta <span aria-hidden="true">⌄</span></summary>
                         <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-700 bg-neutral-900 p-2 shadow-xl">
                             <p className="break-all border-b border-white/10 px-3 py-2 text-xs text-neutral-400">{user?.email}</p>

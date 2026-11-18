@@ -111,6 +111,10 @@ FATO_MENSAL: tuple[Coluna, ...] = (
     _c("CSAT", D),                                # 0 a 5; 0 com coleta 0 = "sem coleta" (9.8)
     _c("PORCENTAGEM_DE_COLETA_CSAT", D),          # 0 a 100
     _c("QUANTIDADE_DE_MEMBROS_ENGAJADOS_COM_MEJ", I),
+    # Realizado do projeto de impacto. Vazio ou 1 em 21/09; vazio = nenhum projeto.
+    # Obrigatória de propósito: uma exportação sem a coluna gravaria NULL por cima
+    # de projetos que a EJ já tem, e o cluster 5 dependeria disso.
+    _c("PROJETOS_DE_IMPACTO", I),
 )
 
 # Faixas oficiais são 1–5 (app/utils/constants.py). O 0 vem da origem para EJ

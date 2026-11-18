@@ -26,6 +26,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": null,
         "tracking_cluster_calculado": 1,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 1,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -60,6 +65,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": 48600000.0,
         "tracking_cluster_calculado": 3,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 30000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -94,6 +104,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 30000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -128,6 +143,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -162,6 +182,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 1782000000.0,
         "tracking_cluster_calculado": 5,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 1375000000.0,
         "indice_cluster_calculado": 5,
         "meta_faturamento": 120000.0,
@@ -196,6 +221,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 89064360.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 54978000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -230,6 +260,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 50000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -264,6 +299,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": null,
         "tracking_cluster_calculado": 2,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 2,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -325,6 +365,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": null,
         "tracking_cluster_calculado": 1,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 1,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -375,6 +420,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": null,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -387,7 +433,10 @@
       "indice_meta_csat": null,
       "indice_meta_csat_calculado": null,
       "tracking_cluster": null,
-      "tracking_cluster_calculado": null
+      "tracking_cluster_calculado": null,
+      "indice_cluster_efetivo": null,
+      "indice_meta_csat_efetivo": null,
+      "tracking_cluster_efetivo": null
     },
     "900002": {
       "empresa": {
@@ -432,6 +481,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": 48600000.0,
         "tracking_cluster_calculado": 3,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 30000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -482,6 +536,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.0,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -494,7 +549,10 @@
       "indice_meta_csat": 33750000.0,
       "indice_meta_csat_calculado": 3,
       "tracking_cluster": 48600000.0,
-      "tracking_cluster_calculado": 3
+      "tracking_cluster_calculado": 3,
+      "indice_cluster_efetivo": 3,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900003": {
       "empresa": {
@@ -539,6 +597,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 30000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -579,6 +642,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.0,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -591,7 +655,10 @@
       "indice_meta_csat": 33750000.0,
       "indice_meta_csat_calculado": 3,
       "tracking_cluster": 81000000.0,
-      "tracking_cluster_calculado": 4
+      "tracking_cluster_calculado": 4,
+      "indice_cluster_efetivo": 3,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900004": {
       "empresa": {
@@ -636,6 +703,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -686,6 +758,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.0,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -698,7 +771,10 @@
       "indice_meta_csat": 56250000.0,
       "indice_meta_csat_calculado": 3,
       "tracking_cluster": 81000000.0,
-      "tracking_cluster_calculado": 4
+      "tracking_cluster_calculado": 4,
+      "indice_cluster_efetivo": 1,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900005": {
       "empresa": {
@@ -743,6 +819,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 1782000000.0,
         "tracking_cluster_calculado": 5,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 1375000000.0,
         "indice_cluster_calculado": 5,
         "meta_faturamento": 120000.0,
@@ -793,6 +874,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.1,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -805,7 +887,10 @@
       "indice_meta_csat": 1237500000.0,
       "indice_meta_csat_calculado": 5,
       "tracking_cluster": 1782000000.0,
-      "tracking_cluster_calculado": 5
+      "tracking_cluster_calculado": 5,
+      "indice_cluster_efetivo": 3,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900006": {
       "empresa": {
@@ -850,6 +935,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 89064360.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 54978000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -900,6 +990,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.1,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -912,7 +1003,10 @@
       "indice_meta_csat": 61850250.0,
       "indice_meta_csat_calculado": 4,
       "tracking_cluster": 89064360.0,
-      "tracking_cluster_calculado": 4
+      "tracking_cluster_calculado": 4,
+      "indice_cluster_efetivo": 3,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900007": {
       "empresa": {
@@ -957,6 +1051,11 @@
         "tendencia_cluster": "sobe",
         "tracking_cluster": 81000000.0,
         "tracking_cluster_calculado": 4,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 3,
+        "indice_cluster_efetivo": 3,
         "indice_cluster": 50000000.0,
         "indice_cluster_calculado": 3,
         "meta_faturamento": 120000.0,
@@ -1007,6 +1106,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": 0.0,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": 1.5
       },
@@ -1019,7 +1119,10 @@
       "indice_meta_csat": 56250000.0,
       "indice_meta_csat_calculado": 3,
       "tracking_cluster": 81000000.0,
-      "tracking_cluster_calculado": 4
+      "tracking_cluster_calculado": 4,
+      "indice_cluster_efetivo": 3,
+      "indice_meta_csat_efetivo": 3,
+      "tracking_cluster_efetivo": 3
     },
     "900008": {
       "empresa": {
@@ -1064,6 +1167,11 @@
         "tendencia_cluster": null,
         "tracking_cluster": null,
         "tracking_cluster_calculado": 2,
+        "projetos_impacto": null,
+        "tem_projeto_impacto": false,
+        "meta_projetos_impacto": null,
+        "tracking_cluster_efetivo": 2,
+        "indice_cluster_efetivo": null,
         "indice_cluster": null,
         "indice_cluster_calculado": null,
         "meta_faturamento": 120000.0,
@@ -1083,6 +1191,7 @@
         "meta_taxa_colaboracao": 0.2,
         "taxa_colaboracao": null,
         "meta_projetos_impacto": null,
+        "projetos_impacto": null,
         "meta_engajamento_mej": 50.0,
         "engajamento_mej": null
       },
@@ -1095,7 +1204,10 @@
       "indice_meta_csat": null,
       "indice_meta_csat_calculado": null,
       "tracking_cluster": null,
-      "tracking_cluster_calculado": null
+      "tracking_cluster_calculado": null,
+      "indice_cluster_efetivo": null,
+      "indice_meta_csat_efetivo": null,
+      "tracking_cluster_efetivo": null
     }
   },
   "calcular_indicadores_rede": {
@@ -1133,6 +1245,9 @@
             "nome": "B Sem cluster",
             "cluster_atual": 1,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1140,6 +1255,9 @@
             "nome": "C Parou reporte",
             "cluster_atual": 2,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1147,6 +1265,9 @@
             "nome": "F Abaixo verde",
             "cluster_atual": 1,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           }
         ],
@@ -1156,6 +1277,9 @@
             "nome": "A Zerada",
             "cluster_atual": 1,
             "cluster_calculado": 1,
+            "cluster_apontado": 1,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1163,6 +1287,9 @@
             "nome": "D CSAT zero",
             "cluster_atual": 1,
             "cluster_calculado": 1,
+            "cluster_apontado": 1,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1170,6 +1297,9 @@
             "nome": "G Inativa",
             "cluster_atual": 3,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1177,6 +1307,9 @@
             "nome": "H Sem dados",
             "cluster_atual": 2,
             "cluster_calculado": 2,
+            "cluster_apontado": 2,
+            "tem_projeto_impacto": null,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           }
         ],
@@ -1186,6 +1319,9 @@
             "nome": "E Acima meta",
             "cluster_atual": 4,
             "cluster_calculado": 3,
+            "cluster_apontado": 5,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           }
         ]
@@ -1193,13 +1329,16 @@
       {
         "nome": "Índice c/ Meta CSAT",
         "descricao": "Faturamento real × Meta CSAT × Engajamento real",
-        "sde": 1.3,
+        "sde": 1.0,
         "subindo": [
           {
             "id_ej": 900002,
             "nome": "B Sem cluster",
             "cluster_atual": 1,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1207,6 +1346,9 @@
             "nome": "C Parou reporte",
             "cluster_atual": 2,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1214,20 +1356,19 @@
             "nome": "D CSAT zero",
             "cluster_atual": 1,
             "cluster_calculado": 3,
-            "foto_url": null
-          },
-          {
-            "id_ej": 900005,
-            "nome": "E Acima meta",
-            "cluster_atual": 4,
-            "cluster_calculado": 5,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
             "id_ej": 900006,
             "nome": "F Abaixo verde",
             "cluster_atual": 1,
-            "cluster_calculado": 4,
+            "cluster_calculado": 3,
+            "cluster_apontado": 4,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           }
         ],
@@ -1237,6 +1378,9 @@
             "nome": "A Zerada",
             "cluster_atual": 1,
             "cluster_calculado": 1,
+            "cluster_apontado": 1,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1244,6 +1388,9 @@
             "nome": "G Inativa",
             "cluster_atual": 3,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
@@ -1251,56 +1398,68 @@
             "nome": "H Sem dados",
             "cluster_atual": 2,
             "cluster_calculado": 2,
+            "cluster_apontado": 2,
+            "tem_projeto_impacto": null,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           }
         ],
-        "descendo": []
+        "descendo": [
+          {
+            "id_ej": 900005,
+            "nome": "E Acima meta",
+            "cluster_atual": 4,
+            "cluster_calculado": 3,
+            "cluster_apontado": 5,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
+            "foto_url": null
+          }
+        ]
       },
       {
         "nome": "Tracking de Cluster",
         "descricao": "Faturamento anualizado × Meta CSAT × Meta Engajamento",
-        "sde": 1.45,
+        "sde": 1.0,
         "subindo": [
           {
             "id_ej": 900002,
             "nome": "B Sem cluster",
             "cluster_atual": 1,
             "cluster_calculado": 3,
+            "cluster_apontado": 3,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           },
           {
             "id_ej": 900003,
             "nome": "C Parou reporte",
             "cluster_atual": 2,
-            "cluster_calculado": 4,
+            "cluster_calculado": 3,
+            "cluster_apontado": 4,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           },
           {
             "id_ej": 900004,
             "nome": "D CSAT zero",
             "cluster_atual": 1,
-            "cluster_calculado": 4,
-            "foto_url": null
-          },
-          {
-            "id_ej": 900005,
-            "nome": "E Acima meta",
-            "cluster_atual": 4,
-            "cluster_calculado": 5,
+            "cluster_calculado": 3,
+            "cluster_apontado": 4,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           },
           {
             "id_ej": 900006,
             "nome": "F Abaixo verde",
             "cluster_atual": 1,
-            "cluster_calculado": 4,
-            "foto_url": null
-          },
-          {
-            "id_ej": 900007,
-            "nome": "G Inativa",
-            "cluster_atual": 3,
-            "cluster_calculado": 4,
+            "cluster_calculado": 3,
+            "cluster_apontado": 4,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           }
         ],
@@ -1310,6 +1469,19 @@
             "nome": "A Zerada",
             "cluster_atual": 1,
             "cluster_calculado": 1,
+            "cluster_apontado": 1,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": false,
+            "foto_url": null
+          },
+          {
+            "id_ej": 900007,
+            "nome": "G Inativa",
+            "cluster_atual": 3,
+            "cluster_calculado": 3,
+            "cluster_apontado": 4,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
             "foto_url": null
           },
           {
@@ -1317,10 +1489,24 @@
             "nome": "H Sem dados",
             "cluster_atual": 2,
             "cluster_calculado": 2,
+            "cluster_apontado": 2,
+            "tem_projeto_impacto": null,
+            "limitado_por_projeto_impacto": false,
             "foto_url": null
           }
         ],
-        "descendo": []
+        "descendo": [
+          {
+            "id_ej": 900005,
+            "nome": "E Acima meta",
+            "cluster_atual": 4,
+            "cluster_calculado": 3,
+            "cluster_apontado": 5,
+            "tem_projeto_impacto": false,
+            "limitado_por_projeto_impacto": true,
+            "foto_url": null
+          }
+        ]
       }
     ]
   },

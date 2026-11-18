@@ -29,3 +29,28 @@ Não há previsão de risco, alteração de dados, consulta por cidade, série t
 A revisão paralela está em [pesquisa-identidade-assistente.md](pesquisa-identidade-assistente.md), [pesquisa-assistente-backend.md](pesquisa-assistente-backend.md) e [pesquisa-assistente-ux.md](pesquisa-assistente-ux.md), com fontes primárias da Anthropic, OWASP, Supabase, OpenRouter e W3C. A evidência final está em [verificacao-nexo-2026-10-04.md](verificacao-nexo-2026-10-04.md).
 
 > O Nexo utiliza um modelo de linguagem como intérprete de consultas parametrizadas, sem acesso direto ao banco. A saída estruturada identifica uma ferramenta do catálogo e seus argumentos, que são validados e executados pelos services sob a identidade autenticada do usuário. Continuidade conversacional é representada por um plano limitado, e não por resultados recuperados ou credenciais. A federação permanece uma propriedade da autorização, independente da pergunta ou da interpretação do modelo. Assim, a IA constitui um caminho adicional de leitura submetido à mesma fronteira multi-tenant, cuja eficácia é verificada por tentativas adversariais e testes com RLS real.
+
+## Adendo de 07/11/2026 — nome Lamps e prompt reorganizado
+
+Por decisão de Heitor, o assistente passa a se chamar **Lamps** em todo o portal:
+prompt, botão, painel, tour e mensagens de limite. O descritor "Pergunte à sua rede" e o
+mascote vaga-lume continuam. Documentos anteriores mantêm "Nexo" como registro da época;
+identificadores internos (`NexoMascot`, `data-tour="nexo"`, `docs/nexo-*`) não mudaram.
+
+Trade-off registrado: "Lamps" era o nome interno da FEJEPE (ADR-004, decisão 1). Em
+outras federações o assistente aparece com esse nome. Se isso pesar, o nome pode virar
+configuração por federação, como logo e cores; não foi feito agora.
+
+O prompt de sistema saiu de `adaptadores/compativel.py` para `app/ia/prompt.py`, de modo
+que qualquer adaptador reaproveite o mesmo texto. Foi reorganizado em seções (formato,
+regras prioritárias em ordem, catálogo com exemplos, campos e contexto) e passou a cobrir:
+- limite pedido ("top 5");
+- mês sem ano;
+- "faturamento colaborativo" → `colab`;
+- datas relativas → `esclarecer` com `periodo`, porque o modelo não sabe a data de hoje;
+- pergunta e contexto como dado, nunca instrução.
+
+O contrato `PlanoConsulta` não mudou. `tests/test_ia_prompt.py` exige que todo valor
+aceito pelo schema apareça no prompt. A exceção é `ordem="desc"`: o prompt pede `null`
+para os maiores valores. **A mudança de prompt exige nova avaliação com modelo real**;
+nenhum resultado anterior vale para este texto.

@@ -14,6 +14,7 @@ const fontes: Record<string, string> = {
     'rede_service.calcular_ritmo_mensal': 'Dados do portal · Ritmo mensal',
     'empresa_service.buscar_empresa': 'Dados do portal · Perfil da EJ',
     'calculo_service.calcular_percentual_meta': 'Dados do portal · Meta anual de faturamento',
+    'cluster_service.buscar_ids_por_cluster': 'Dados do portal · EJs por cluster oficial',
     glossario: 'Glossário do portal · regras nacionais do MEJ',
 };
 
@@ -43,6 +44,8 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
     const [expandido, setExpandido] = useState(false);
     const empresas = resposta.linhas.some(linha => linha.id_ej !== null);
     const metas = resposta.fonte === 'calculo_service.calcular_percentual_meta';
+    // Lista de pertencimento (EJs do cluster): não há valor por EJ, então a coluna some.
+    const semValor = resposta.fonte === 'cluster_service.buscar_ids_por_cluster';
     const cabecalhoValor = metas ? '% da meta' : resposta.unidade === 'moeda' ? 'Faturamento' : 'Valor';
     const filtradas = resposta.linhas.filter(linha => linha.nome.toLocaleLowerCase('pt-BR').includes(busca.toLocaleLowerCase('pt-BR')));
     const visiveis = expandido ? filtradas : filtradas.slice(0, 8);
@@ -87,10 +90,10 @@ export default function ResultadoConsulta({ resposta, fechar, escolher, enviando
             </div>}
             <table className="w-full text-sm">
                 <caption className="sr-only">Empresas juniores e valores consultados</caption>
-                <thead className="text-xs text-neutral-400"><tr><th scope="col" className="px-3 py-2 text-left font-medium">Empresa júnior</th><th scope="col" className="px-3 py-2 text-right font-medium">{cabecalhoValor}</th></tr></thead>
+                <thead className="text-xs text-neutral-400"><tr><th scope="col" className="px-3 py-2 text-left font-medium">Empresa júnior</th>{!semValor && <th scope="col" className="px-3 py-2 text-right font-medium">{cabecalhoValor}</th>}</tr></thead>
                 <tbody>{visiveis.map((linha, indice) => <tr key={`${linha.id_ej}-${indice}`} className="border-t border-neutral-700/50">
                     <td className="px-3 py-3">{linha.id_ej !== null ? <Link className="text-primary-200 underline-offset-4 hover:underline" to={`/empresas/${linha.id_ej}`} onClick={fechar}>{linha.nome}</Link> : linha.nome}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-neutral-200">{formatar(linha.valor, linha.unidade ?? resposta.unidade, metas ? 'Sem meta' : 'Sem coleta')}</td>
+                    {!semValor && <td className="px-3 py-3 text-right tabular-nums text-neutral-200">{formatar(linha.valor, linha.unidade ?? resposta.unidade, metas ? 'Sem meta' : 'Sem coleta')}</td>}
                 </tr>)}</tbody>
             </table>
             {filtradas.length === 0 && <p className="p-4 text-sm text-neutral-400">Nenhuma EJ com esse nome nesta resposta.</p>}

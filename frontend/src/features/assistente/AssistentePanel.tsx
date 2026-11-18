@@ -50,11 +50,11 @@ export default function AssistentePanel({ aberto, fechar }: { aberto: boolean; f
                 <header className="flex shrink-0 items-center gap-3 border-b border-neutral-700/70 bg-neutral-800/50 px-5 py-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary-400/30 bg-primary-500/15"><NexoMascot size={40} className="text-primary-300" /></div>
                     <div className="min-w-0 flex-1">
-                        <h2 ref={titulo} tabIndex={-1} id="assistente-titulo" className="text-base font-semibold outline-none">Nexo</h2>
+                        <h2 ref={titulo} tabIndex={-1} id="assistente-titulo" className="text-base font-semibold outline-none">Lamps</h2>
                         <p className="mt-0.5 truncate text-xs text-neutral-400">Pergunte à sua rede · {nome}</p>
                     </div>
                     <button type="button" onClick={() => { limpar(); setPergunta(''); }} disabled={mensagens.length === 0 && !pergunta} className="rounded-lg px-2 py-2 text-xs text-neutral-300 hover:bg-neutral-700 disabled:opacity-30" title="Apagar esta conversa">Limpar</button>
-                    <button type="button" onClick={fechar} aria-label="Fechar Nexo" className="rounded-lg px-3 py-2 text-xl text-neutral-300 hover:bg-neutral-700">×</button>
+                    <button type="button" onClick={fechar} aria-label="Fechar Lamps" className="rounded-lg px-3 py-2 text-xl text-neutral-300 hover:bg-neutral-700">×</button>
                 </header>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
                     {mensagens.length === 0 && <div className="space-y-6">
@@ -70,11 +70,11 @@ export default function AssistentePanel({ aberto, fechar }: { aberto: boolean; f
                         </div>
                         <p className="text-xs leading-relaxed text-neutral-500">Para um período específico, inclua mês e ano. Exemplo: “faturamento em setembro de {anoDefault}”. Depois, você pode continuar com “e em agosto?”.</p>
                     </div>}
-                    <div role="log" aria-label="Conversa com Nexo" aria-live="polite" aria-relevant="additions text" className="space-y-6">
+                    <div role="log" aria-label="Conversa com Lamps" aria-live="polite" aria-relevant="additions text" className="space-y-6">
                         {mensagens.map(mensagem => <article key={mensagem.id} className="space-y-3">
                             <div className="ml-8 rounded-2xl rounded-tr-sm border border-primary-400/20 bg-primary-500/15 px-4 py-3"><p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-primary-200">Você</p><p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-neutral-100">{mensagem.pergunta}</p></div>
                             {(mensagem.resposta || mensagem.erro || mensagem.interrompida) && <div className="rounded-2xl rounded-tl-sm border border-neutral-700/60 bg-neutral-800/20 p-4">
-                                <p className="mb-3 text-[10px] font-medium uppercase tracking-wider text-primary-200">Nexo</p>
+                                <p className="mb-3 text-[10px] font-medium uppercase tracking-wider text-primary-200">Lamps</p>
                                 {mensagem.resposta && <ResultadoConsulta resposta={mensagem.resposta} fechar={fechar} escolher={perguntar} enviando={enviando} />}
                                 {mensagem.erro && <p className="text-sm leading-relaxed text-red-200">{mensagem.erro}</p>}
                                 {mensagem.interrompida && <p className="text-sm text-neutral-400">Consulta interrompida.</p>}

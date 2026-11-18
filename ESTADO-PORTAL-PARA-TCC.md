@@ -559,3 +559,180 @@ data PostgreSQL e ausência. Suíte backend: 584 passaram, zero falhas/pulos.
 Imagem reconstruída. Smoke autenticado FEJECE: GET /admin/importacoes retornou
 200, uma carga, todas as linhas restritas a federacao_id=15. Sessão de verificação
 revogada ao terminar; nenhum conteúdo da planilha foi registrado.
+
+## Onboarding com tour guiado e logo da federação — 07/11/2026
+Pedido de Heitor. **Tour guiado** (`frontend/src/features/onboarding/TourGuiado.tsx`,
+roteiro em `passosDoTour.ts`) substitui a visita por barra inferior. São 11 passos,
+mais Administração para quem administra. Cada passo:
+- abre a tela correspondente (`?tour=N` mantém o passo ao recarregar);
+- escurece o restante e destaca o elemento marcado com `data-tour`;
+- posiciona o cartão abaixo, acima ou sobreposto ao alvo, dentro da janela.
+
+Navegação por setas, pelas teclas ← e → e por Esc. Sem animação com
+`prefers-reduced-motion`. Sem alvo visível, o cartão aparece centralizado. Conferido
+em captura do Chrome sem interface, desktop e iframe de 390 px, com página de teste e
+dados sintéticos; não houve navegação autenticada no portal real.
+
+**Logo enviada pela federação.**
+- Migração aditiva `25-logo-federacao.sql`: tabela `federacao_logo` sem GRANT para
+  clientes e com RLS ligada sem política. A escrita passa pelas RPCs
+  `definir_logo_da_federacao`/`remover_logo_da_federacao`, com papel, vínculo ativo e
+  tenant do JWT verificados como na paleta.
+- A leitura é pública por slug (`logo_da_federacao`), só para federação ativa, porque
+  a tela de login mostra a logo antes do token.
+- API: `PUT/DELETE /api/v1/federacao/minha/logo` (admin) e `GET /api/v1/federacao/logo`
+  (pública, `nosniff`, CSP `sandbox`, cache por versão).
+- Só PNG, JPEG e WebP de até 512 KB, conferidos pelos bytes na API e de novo no banco.
+  SVG é recusado.
+- A remoção preserva uma logo externa definida pela plataforma. O formulário fica em
+  Administração → Aparência e na etapa "Logo e cores" do onboarding.
+- O inventário de rotas públicas (`test_federacao.py`) passou a incluir
+  `/api/v1/federacao/logo`, por decisão explícita.
+
+`make check`: backend **766 passaram, 0 falhas, 0 pulados**; frontend **40
+passaram, 0 falhas, 0 pulados**; lint/build/calculadora aprovados. Testes de banco
+cobrem admin de outra federação, membro, claim forjado, rebaixamento sem renovar
+token, anon sem escrita, federação inativa e validação de formato sem passar pela API.
+A migração 25 ainda não foi aplicada ao volume local de Heitor (aplica no próximo `make up`).
+
+## Assistente renomeado para Lamps e prompt reorganizado — 07/11/2026
+Por decisão de Heitor, o assistente do portal passa a se chamar **Lamps**. A mudança
+vale em todos os textos visíveis: prompt, botão, painel, tour e mensagens de limite.
+Trade-off e detalhes estão no adendo ao [ADR-005](docs/adr-005-nexo.md): "Lamps" era o
+nome interno da FEJEPE e aparece igual para as demais federações. Seções anteriores
+deste arquivo mantêm "Nexo" como registro histórico.
+
+O prompt foi para `backend/app/ia/prompt.py` e foi reorganizado; o contrato
+`PlanoConsulta` não mudou. Teste novo garante que todo valor do schema é explicado
+no prompt. `make check`: backend **770 passaram, 0 falhas, 0 pulados**; frontend
+**40 passaram, 0 falhas, 0 pulados**. Avaliação com modelo real pendente para este
+prompt.
+
+## Projeto de impacto e cluster real — 09/11/2026
+**Estado: implementado e verificado localmente sem banco; migração 26, testes de banco/RLS e
+`make check` completo ainda não executados.** Detalhes da regra em
+[`docs/regras-de-negocio.md` §5.8](docs/regras-de-negocio.md) e `backend/calculos.md` §7.
+
+**Regra (informada por Heitor):** projeto de impacto é obrigatório nos clusters 4 e 5. O
+tracking e os índices apontam o cluster; o cluster **real** só chega ao C4 ou ao C5, e só
+permanece neles, com ao menos um projeto de impacto. Sem projeto, o real fica limitado ao C3.
+
+**O que mudou**
+- Dado: coluna `PROJETOS_DE_IMPACTO` (obrigatória no contrato de entrada) →
+  `monitoramento.projetos_impacto` (migração aditiva `26`, com a coluna gerada na staging e
+  GRANT por coluna ao papel `ingestao`). Vazio = nenhum projeto.
+- Cálculo: `calcular_projetos_impacto`, `tem_projeto_impacto` e `aplicar_regra_projeto_impacto`
+  em `calculo_service.py`; constantes em `constants.py`.
+- API: campos `*_efetivo` (cluster real) ao lado dos `*_calculado` (apontado), mais
+  `projetos_impacto`, `tem_projeto_impacto` e `meta_projetos_impacto`. No SDE,
+  `EjMovimento` ganhou `cluster_apontado` e `limitado_por_projeto_impacto`.
+- SDE: a regra vale nos três cenários e **substituiu** a regra temporária "todo C4 desce no
+  cenário 1" (achado 9.18, resolvido).
+- Telas: perfil da EJ (3 cards de índice, linha "Projeto de Impacto" em Metas vs Realizado),
+  Cluster Track (coluna nova, cluster apontado riscado ao lado do real, "Falta projeto de
+  impacto") e lista de movimentos do SDE (selo "sem projeto de impacto").
+- Assistente: verbetes de cluster, SDE e tracking explicam a regra; o resumo da EJ passou a
+  trazer "Cluster real pelo tracking" e "Projetos de impacto" (a lista de campos do teste
+  de allowlist foi ampliada de propósito).
+
+**Baseline de caracterização (`baseline-2026-10-13.json`) alterado de propósito, em 3 das
+5 funções.** `listar_empresas` e `buscar_empresa`: só campos novos, nenhum valor mudou.
+`calcular_sde_cenarios`: a EJ "E Acima meta" (C4 oficial, sem projeto na massa sintética) passou a descer
+ao C3 nos três cenários, e quem apontava C4 sem projeto passou a parar no C3 (SDE dos
+cenários: 0,85 → 0,70; 1,15 → 1,00; 1,30 → 1,00; valores anteriores já refletiam a versão
+da regra só no C5). `calcular_indicadores_rede` e `calcular_evento` ficaram idênticos.
+
+**Efeito nos dados reais (exportação de 21/09, última linha por EJ, cluster oficial 2026):**
+C5 = 87 EJs, 24 com projeto; C4 = 80 EJs, 5 com projeto (167 EJs, 29 com projeto). O SDE
+real tende a cair bastante com a regra. (Versão anterior deste texto trazia C5 = 85, erro.) Não é erro de cálculo: é a regra aplicada aos dados.
+
+**Verificação (ambiente: VM Linux, Python 3.10, sem Docker/Postgres)**
+- Backend: **582 passaram, 0 falhas, 223 pulados**. Os 223 pulados são os testes que exigem
+  o banco (RLS, privilégios, carga de ingestão). **Não valem como evidência de isolamento**
+  (regra 6 do `AGENTS.md`); precisam rodar com `make check`.
+- Testes novos (regra no C4 e C5): função pura e leitura do dado, SDE dirigidos,
+  indicadores por EJ, perfil na API e ingestão. Checagem de mutação: com a regra
+  desligada, 9 deles falham.
+- Frontend: `tsc -b --noEmit` e `eslint` limpos nos arquivos alterados. `vite build` e o
+  arquivo `test-nexo.mjs` não rodam nesta VM (esbuild de macOS em `node_modules`); os 5
+  subtestes do arquivo passam e a falha é o erro de plataforma do esbuild.
+- Migração 26: sintaxe validada com o parser do PostgreSQL (`pglast`); **não aplicada** a banco.
+
+**Pendências e `[CONFIRMAR]`**
+1. Aplicar a migração 26 e **recarregar a planilha**: linhas anteriores ficam com
+   `projetos_impacto` nulo, lido como "sem projeto". Até lá, todo C4 e C5 aparece limitado ao C3.
+2. Rodar `make check` (testes de banco e `vite build`).
+3. Tendência de cluster, meta 4 da Ciranda e filtro `cluster_track` seguem pelo cluster
+   **apontado**. Decidir se passam ao cluster real (muda números de evento).
+4. Confirmar com a Brasil Júnior o alcance da regra (C4 e C5; definido por Heitor).
+5. A calculadora auxiliar (`tools/cluster-calculator`) não aplica a regra.
+
+## Lamps com modelo gratuito e preparação de deploy — 12/11/2026
+**Estado: implementado e verificado localmente (`make check`: 820 testes de backend com banco/RLS, 0
+pulados; 40 de frontend, 0 pulados; lint, build e calculadora auxiliar ok). Modelo real testado só
+pelo provedor, não pela tela.**
+
+- **Modelo:** `IA_MODELO=particle-ai/particle-1:free` (reserva: `nvidia/nemotron-3.5-super-vl:free`).
+  Nas perguntas dependentes do modelo, 24 de 24 corretas; mais 9 resolvidas por guardas locais.
+  Latência de 1,1 a 4,8 s, sem 429. `[CONFIRMAR]` modelos `:free` mudam com frequência e o
+  particle-1 é recente; reexecutar `app/ia/avaliacao/runner.py` antes de apresentar.
+- **Limite:** a chave gratuita permite **50 requisições/dia** (`free_model_daily_requests`).
+  Perguntas resolvidas localmente (glossário, esclarecimento, outra federação) não gastam cota.
+  `[CONFIRMAR]` valor do limite após creditar a conta. `[CONFIRMAR]` política de dados do
+  OpenRouter para modelos `:free` (prompts podem ser registrados pelo provedor).
+- **Código:** nova ferramenta `ejs_do_cluster` (lista EJs do cluster oficial, filtrada por tenant),
+  conceitos de glossário `projeto_impacto` e `formula_adaptativa`, prompt revisado (casos de cluster,
+  recusas), corpus de avaliação de 33 para 41 casos. Frontend: tipos e rótulo de fonte da nova
+  ferramenta. Regras de segurança e testes de allowlist não foram relaxados.
+- **Banco de deploy:** dump só de dados (16 tabelas) sem `usuario`, `auth.*` nem contadores de limite
+  da IA, guardado fora do repositório. Um único operador é criado na VPS por script, com senha
+  digitada pelo próprio operador.
+- **Deploy:** o guia vigente é `infra/deploy/DEPLOY-VPS-POSTGRES.md` (no repositório novo
+  `portal-das-federações`); `compose.aws.yml` e `VPS.md` são da arquitetura Supabase, históricos.
+
+## Painel de métricas personalizadas — 12/11/2026
+**Estado: implementado e verificado localmente (`make check` em 13/11: 915 testes de backend com banco/RLS, 0 pulados; 40 de frontend, 0 pulados; lint, build e calculadora auxiliar ok). Verificado na tela com
+banco descartável e dados sintéticos. Interpretação em texto livre ainda NÃO avaliada com modelo real.**
+
+- **O que é:** nova aba **Análises → Métricas** (`/metricas`). Todos os usuários da federação veem
+  o painel; só `admin` ativo da federação (papel lido do banco) cria, edita, reordena, tira do
+  painel, arquiva, restaura e exclui. Cada cartão mostra ranking de EJs, valor da rede ou série
+  mensal, com "Como é calculado" em linguagem de gestor e o selo "Personalizada". A métrica não é
+  indicador oficial e não altera cluster, SDE ou tracking.
+- **Como se cria:** (1) **texto livre** — o modelo devolve um plano fechado (`PlanoMetrica`); o
+  backend valida a fórmula, calcula uma prévia e só salva quando o admin confirma; ou (2)
+  **construtor manual** com variáveis do catálogo e operadores `+ − × ÷`, que funciona sem
+  provedor de IA. Pedidos ambíguos recebem esclarecimento, e os fora do catálogo recebem recusa,
+  sempre com textos fixos do portal.
+- **Segurança:** a métrica é dado, não código. O parser é próprio, sem `eval` nem SQL dinâmico,
+  e o catálogo de variáveis é fechado. A migração `27-metricas-personalizadas.sql` é aditiva e
+  força RLS: leitura por tenant; escrita só por admin da federação segundo o banco; exclusão só
+  de métrica arquivada; tenant, autoria e versão sem GRANT de escrita; teto de 50 ativas. Os
+  testes de RLS estão em `tests/test_rls_metricas.py`.
+- **Regras de cálculo (decisões D1–D9 de Heitor):** só 2026; período contínuo dentro do ano.
+  CSAT é valor único, implementado como o último registrado no período `[CONFIRMAR]`. Projetos
+  vendidos (soma) e projetos no ano (acumulado) são variáveis separadas. EJ sem monitoramento em
+  todos os meses do período sai do cálculo e é contada. Mês pedido sem dados não é substituído.
+- **Evidência:** `tests/test_metricas.py` (72 casos: parser hostil, cálculo, papéis na API e
+  texto livre com intérprete simulado) e `tests/test_rls_metricas.py` (Postgres real). Na tela,
+  com banco descartável de dados sintéticos: os dois exemplos do pedido foram criados por texto
+  livre e conferidos contra SQL direto; também foram exercitados série mensal, esclarecimento,
+  recusa, outra federação, construtor, tirar do painel, arquivar, restaurar, excluir,
+  reordenar, membro sem escrita (403 na API) e celular (375 px, sem rolagem horizontal). O
+  "modelo" usado na tela foi um endpoint local com planos escritos à mão, não um LLM.
+- **Pendente:** rodar `python -m app.ia.avaliacao.metricas` (20 casos, 6 adversariais) com o
+  modelo real depois de creditar o OpenRouter. A janela por minuto é compartilhada com o Lamps
+  e não há orçamento mensal. `frontend/openapi.json` foi regerado e passou a incluir também a
+  atualização do `PlanoConsulta` de 12/11.
+- **Referências:** [ADR-009](docs/adr-009-metricas-personalizadas.md) e
+  [plano](docs/plano-metricas-personalizadas-2026-11-12.md).
+- **Infra de teste:** o healthcheck do `db-test` (`docker-compose.yml`) passou a exigir que o PID 1
+  já seja o `postgres` definitivo. Antes, o `make test` podia começar enquanto o servidor temporário
+  da inicialização ainda aplicava migrações; isso aconteceu uma vez em 13/11 (pulos da migração 27 e
+  conexões recusadas) e não era defeito do código.
+- **13/11 — admin master também gere métricas:** por decisão de Heitor, o papel `plataforma` passa a
+  criar, editar, arquivar e excluir métricas, só na federação vinculada à própria conta. Migração
+  aditiva `28-metricas-gestao-plataforma.sql`: a função `pode_gerir_metricas()` (admin ou plataforma
+  ativo, com federação lida do banco) substitui `eh_admin_da_federacao()` nas políticas de escrita.
+  O router faz a mesma checagem. Há testes para o admin master na própria federação, para outra
+  federação com claim forjado e para conta desativada.

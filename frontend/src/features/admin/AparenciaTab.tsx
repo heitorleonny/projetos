@@ -6,6 +6,7 @@ import { useFederacaoBranding } from '../../branding/useFederacaoBranding';
 import { corDeTexto, normalizarHex } from '../../branding/tema';
 import { lerErro } from './adminService';
 import { AvisoErro, AvisoOk, botaoPrimario, botaoSecundario, Cartao } from './ui';
+import FormularioLogo from './FormularioLogo';
 import type { ErroApi } from './adminService';
 
 type Paleta = Pick<FederacaoBranding, 'cor_primaria' | 'cor_secundaria' | 'cor_acento'>;
@@ -17,7 +18,10 @@ const CAMPOS = [
 
 export default function AparenciaTab() {
     const { branding } = useFederacaoBranding();
-    return <FormularioPaleta key={branding.slug} />;
+    return <div className="space-y-6">
+        <FormularioLogo key={`logo:${branding.slug}`} />
+        <FormularioPaleta key={branding.slug} />
+    </div>;
 }
 
 export function FormularioPaleta() {

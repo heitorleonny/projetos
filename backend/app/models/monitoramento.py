@@ -26,6 +26,7 @@ class Monitoramento(BaseModel):
     csat: float | None = None
     numero_membros: int | None = None
     membros_engajados_mes: int | None = None
+    projetos_impacto: int | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}

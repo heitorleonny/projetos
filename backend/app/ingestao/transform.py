@@ -315,6 +315,8 @@ def transformar(
             # dia da exportação, repetida — não o número de membros daquele mês.
             "numero_membros": _int(r["MEMBROS"]),
             "membros_engajados_mes": _int(r["QUANTIDADE_DE_MEMBROS_ENGAJADOS_COM_MEJ"]),
+            # Vazio fica NULL e o backend lê NULL como "sem projeto de impacto".
+            "projetos_impacto": _int(r["PROJETOS_DE_IMPACTO"]),
         })
 
         # A linha como veio: sem transformação nenhuma (CSAT 0 continua 0).

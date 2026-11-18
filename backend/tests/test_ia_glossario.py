@@ -28,7 +28,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 def test_catalogo_de_conceitos_tem_verbete_para_cada_valor():
     assert set(CONCEITOS) == set(glossario.VERBETES)
-    assert len(CONCEITOS) == 12
+    assert len(CONCEITOS) == 14
 
 
 @pytest.mark.parametrize("conceito", CONCEITOS)
@@ -50,6 +50,10 @@ def test_verbete_curto_com_ligacao_ao_dado(conceito):
     ("o que é saldo de evolução da rede", "sde"),
     ("Explique o CSAT", "csat"),
     ("O que é % da meta?", "meta_atingida"),
+    ("Como funciona o projeto de impacto?", "projeto_impacto"),
+    ("O que são projetos de impacto?", "projeto_impacto"),
+    ("Como funciona a fórmula adaptativa?", "formula_adaptativa"),
+    ("o que é o cluster adaptativo", "formula_adaptativa"),
 ])
 def test_guarda_local_reconhece_definicoes(pergunta, conceito):
     assert conceito_local(pergunta) == conceito
@@ -57,10 +61,27 @@ def test_guarda_local_reconhece_definicoes(pergunta, conceito):
 
 @pytest.mark.parametrize("pergunta", [
     "Qual o SDE da rede?", "Como está o ritmo mensal em setembro?", "Quais EJs estão fora do zero?",
-    "O que é o Nexo?", "Como funciona o cluster da minha EJ?", "O que é SDE e qual o valor em setembro?",
+    "O que é o Lamps?", "Como funciona o cluster da minha EJ?", "O que é SDE e qual o valor em setembro?",
 ])
 def test_guarda_local_deixa_pedidos_de_dado_para_o_interprete(pergunta):
     assert conceito_local(pergunta) is None
+
+
+def test_verbete_do_projeto_de_impacto_segue_a_regra_dos_clusters_4_e_5():
+    texto = glossario.texto_do_conceito("projeto_impacto")
+    assert f"cluster {constants.CLUSTER_EXIGE_PROJETO_IMPACTO}" in texto
+    assert f"limitado ao {constants.CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO}" in texto
+    assert "tracking" in texto and "nenhum projeto" in texto
+
+
+def test_projeto_de_impacto_responde_sem_modelo_nem_banco():
+    banco, modelo = Mock(), provedor_falso(plano())
+    resposta = perguntar(banco, modelo, "Como funciona o projeto de impacto?",
+                         federacao_id=12, usuario_id="fake", ano_padrao=2026)
+    assert resposta.status == "respondida" and resposta.fonte == "glossario"
+    assert resposta.resposta.startswith("Projeto de impacto")
+    modelo.interpretar.assert_not_called()
+    banco.table.assert_not_called()
 
 
 def test_pergunta_simples_nao_chama_modelo_nem_banco():

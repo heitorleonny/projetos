@@ -88,11 +88,14 @@ function LogoComFallback({
     const baseClass = `${sizeClassName} ${roundedClassName} ${className}`.trim();
 
     if (src && !falhou) {
+        // Fundo branco por padrão: logos PNG com transparência (geralmente
+        // desenhadas para fundo claro) somem no tema escuro do portal. A imagem
+        // ocupa o círculo inteiro, por cima do branco.
         return (
             <img
                 src={src}
                 alt={`Logo ${nome}`}
-                className={`${baseClass} object-contain`}
+                className={`${baseClass} bg-white object-contain`}
                 loading="lazy"
                 decoding="async"
                 referrerPolicy="no-referrer"

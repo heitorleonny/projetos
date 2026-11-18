@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ENV } from '../config/env';
+import { resolverLogoDaApi } from '../branding/logoUrl';
 
 /**
  * Branding da federação — a única chamada que precisa funcionar deslogado.
@@ -39,11 +40,15 @@ const clientePublico = axios.create({
     timeout: 5000,
 });
 
+export function comLogoResolvido(branding: FederacaoBranding): FederacaoBranding {
+    return { ...branding, logo_url: resolverLogoDaApi(branding.logo_url, ENV.API_BASE_URL) };
+}
+
 export async function buscarBranding(slug: string): Promise<FederacaoBranding> {
     const { data } = await clientePublico.get<FederacaoBranding>('/federacao/branding', {
         params: { slug },
     });
-    return data;
+    return comLogoResolvido(data);
 }
 
 /**
@@ -59,7 +64,7 @@ export async function buscarBrandingDoUsuario(token: string): Promise<FederacaoB
     const { data } = await clientePublico.get<FederacaoBranding>('/federacao/minha', {
         headers: { Authorization: `Bearer ${token}` },
     });
-    return data;
+    return comLogoResolvido(data);
 }
 
 /**

@@ -21,6 +21,42 @@ def definir_paleta(sb: Client, dados: dict) -> dict | None:
     return linhas[0] if linhas else None
 
 
+# ── Logo enviada pela federação (migração 25) ────────────────
+
+TAMANHO_MAXIMO_LOGO = 512 * 1024  # mesmo limite do CHECK em federacao_logo
+
+
+def detectar_tipo_logo(dados: bytes) -> str | None:
+    """Tipo pela assinatura do arquivo, nunca pelo nome ou Content-Type do cliente.
+
+    Só PNG, JPEG e WebP: imagens sem script. SVG e qualquer outro formato → None.
+    """
+    if dados.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if dados.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(dados) >= 12 and dados[:4] == b"RIFF" and dados[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def definir_logo(sb: Client, conteudo: bytes, tipo: str) -> dict | None:
+    """RPC limitada por auth.uid e papel atual; não recebe id de federação."""
+    linhas = sb.rpc("definir_logo_da_federacao", {"p_conteudo": conteudo, "p_tipo": tipo}).execute().data or []
+    return linhas[0] if linhas else None
+
+
+def remover_logo(sb: Client) -> dict | None:
+    linhas = sb.rpc("remover_logo_da_federacao", {}).execute().data or []
+    return linhas[0] if linhas else None
+
+
+def buscar_logo_publica(sb: Client, slug: str) -> dict | None:
+    """Arquivo da logo de uma federação ativa, por slug (leitura pública)."""
+    linhas = sb.rpc("logo_da_federacao", {"p_slug": slug}).execute().data or []
+    return linhas[0] if linhas else None
+
+
 def buscar_federacao_do_usuario(sb: Client, federacao_id: int | None) -> dict | None:
     """
     A linha de `federacao` do usuário, ou None se não houver.

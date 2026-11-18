@@ -39,18 +39,29 @@ def executar_consulta(sb, plano: PlanoConsulta, *, federacao_id: int, ano_padrao
         ))
     if plano.ferramenta == "recusar" or (plano.busca and plano.ferramenta not in ("fora_do_zero", "perfil_ej")):
         return RespostaRede(status="fora_do_catalogo", resposta=(
-            "Posso consultar EJs fora do zero, indicadores, rankings, ritmo mensal, SDE e o perfil de uma EJ "
-            "da sua federação, com filtro de cluster, e explicar os indicadores. Busca por nome está disponível "
+            "Posso consultar EJs fora do zero, indicadores, rankings, ritmo mensal, SDE, metas, as EJs de um cluster "
+            "e o perfil de uma EJ da sua federação, com filtro de cluster, e explicar os indicadores. Busca por nome está disponível "
             "nas EJs fora do zero e no perfil de EJ. "
             "Para rankings, indique faturamento, CSAT, projetos ou faturamento colaborativo."
         ))
     if plano.ferramenta == "perfil_ej" and not plano.busca:
         return esclarecer("ej", plano)
+    if plano.ferramenta == "ejs_do_cluster" and plano.cluster is None:
+        return esclarecer("escopo", plano)
     ano = plano.ano if plano.ano is not None else ano_padrao
     empresas = ler_todas(sb, "empresa_junior", "id_ej,nome", lambda q: filtrar_por_tenant(q, federacao_id))
     if plano.cluster is not None:
         ids_cluster = set(buscar_ids_por_cluster(sb, ano=ano, cluster=plano.cluster))
         empresas = [e for e in empresas if e["id_ej"] in ids_cluster]
+    if plano.ferramenta == "ejs_do_cluster":
+        # Pertencimento ao cluster oficial do ano: já recortado acima pelo tenant e
+        # pelo histórico de cluster; não depende de monitoramento mensal.
+        linhas = [LinhaResposta(id_ej=e["id_ej"], nome=e["nome"])
+                  for e in sorted(empresas, key=lambda e: normalizar(e["nome"] or ""))]
+        texto = (f"{len(linhas)} EJs da sua federação estão no cluster {plano.cluster} em {ano} (cluster oficial do ano)."
+                 if linhas else f"Nenhuma EJ da sua federação está no cluster {plano.cluster} em {ano}.")
+        return RespostaRede(status="respondida", resposta=texto, fonte="cluster_service.buscar_ids_por_cluster",
+                            ano=ano, total=len(linhas), linhas=linhas, unidade="numero")
     if plano.ferramenta == "perfil_ej":
         # Resolução só entre as EJs já lidas com o tenant (filtro + RLS): EJ de
         # outra federação cai no mesmo caminho de EJ inexistente.
@@ -190,6 +201,9 @@ def _perfil_ej(sb, id_ej: int, *, ano: int, mes: int, periodo: str, federacao_id
         LinhaResposta(nome="Ritmo necessário por mês", valor=perfil.ritmo_necessario, unidade="moeda"),
         LinhaResposta(nome="Cluster oficial", valor=ind.cluster, unidade="numero"),
         LinhaResposta(nome="Cluster pelo tracking", valor=perfil.tracking_cluster_calculado, unidade="numero"),
+        # Cluster real: o do tracking limitado pelo projeto de impacto (sem projeto, no máximo C3).
+        LinhaResposta(nome="Cluster real pelo tracking", valor=perfil.tracking_cluster_efetivo, unidade="numero"),
+        LinhaResposta(nome="Projetos de impacto", valor=ind.projetos_impacto or 0, unidade="numero"),
         LinhaResposta(nome="CSAT médio", valor=ind.csat_medio, unidade="numero"),
         LinhaResposta(nome="Projetos no ano", valor=ind.projetos_totais, unidade="numero"),
     ]

@@ -139,3 +139,25 @@ Pontos = Fat_anualizado * CSAT_real * (1 + engaj_real) * (1 + % Fat_Colab_real) 
 
 No final do ano (mês 12), o faturamento anualizado converge com o faturamento real
 e todos os indicadores são os definitivos, equivalendo à fórmula oficial.
+
+7️⃣ Projeto de Impacto e os Clusters 4 e 5
+📌 Regra
+
+Projeto de impacto é obrigatório nos Clusters 4 e 5. O tracking (e os índices) podem
+apontar o Cluster 4 ou 5, mas o cluster REAL só chega a eles, e só permanece neles, se a
+EJ tiver ao menos um projeto de impacto. Sem projeto, o cluster real fica limitado ao
+Cluster 3.
+
+```
+cluster_real = 3                se cluster_apontado >= 4 e projetos_de_impacto < 1
+cluster_real = cluster_apontado nos demais casos
+```
+
+Vale para o tracking de cluster, para os dois índices de cluster e para os três cenários
+do SDE. Fonte do dado: coluna `PROJETOS_DE_IMPACTO` da planilha (vazio = nenhum projeto).
+
+📌 Observação
+
+Regra informada por Heitor em 09/11/2026. Alcance até o Cluster 4 definido por ele
+no mesmo dia. `[CONFIRMAR]` com a Brasil Júnior.
+

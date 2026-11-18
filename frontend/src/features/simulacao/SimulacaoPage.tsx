@@ -122,7 +122,7 @@ export default function SimulacaoPage() {
                 </div>
 
                 {/* Resultado */}
-                <div className="glass-card rounded-2xl p-6 mb-6 flex items-center justify-between">
+                <div data-tour="simulacao-resultado" className="glass-card rounded-2xl p-6 mb-6 flex items-center justify-between">
                     <div>
                         <p className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-1">
                             SDE Simulado

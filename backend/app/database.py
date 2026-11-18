@@ -10,8 +10,8 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from postgrest.exceptions import APIError
 
-TABELAS = {'empresa_junior', 'metas', 'monitoramento', 'cluster_historico', 'federacao', 'nucleo', 'plano', 'usuario', 'ingestao_carga', 'dashboard_evento_ia'}
-RPCS = {'usuario_atual', 'admin_listar_usuarios', 'master_resumo_federacoes', 'master_salvar_plano', 'master_vincular_plano', 'definir_paleta_da_federacao', 'reservar_consulta_ia', 'consultar_creditos_dashboard_ia', 'persistir_dashboard_evento_ia', 'atualizar_publicacao_dashboard_evento_ia', 'dashboard_evento_publico'}
+TABELAS = {'empresa_junior', 'metas', 'monitoramento', 'cluster_historico', 'federacao', 'nucleo', 'plano', 'usuario', 'ingestao_carga', 'dashboard_evento_ia', 'metrica_personalizada'}
+RPCS = {'usuario_atual', 'admin_listar_usuarios', 'master_resumo_federacoes', 'master_salvar_plano', 'master_vincular_plano', 'definir_paleta_da_federacao', 'definir_logo_da_federacao', 'remover_logo_da_federacao', 'logo_da_federacao', 'reservar_consulta_ia', 'consultar_creditos_dashboard_ia', 'persistir_dashboard_evento_ia', 'atualizar_publicacao_dashboard_evento_ia', 'dashboard_evento_publico'}
 ESCALARES = {'reservar_consulta_ia', 'persistir_dashboard_evento_ia', 'master_vincular_plano'}
 
 
@@ -154,7 +154,7 @@ class Consulta:
         elif self.operacao == 'update':
             if not partes: raise ValueError('Atualização exige filtro')
             query = sql.SQL('UPDATE {} SET ').format(origem)+sql.SQL(',').join(sql.SQL('{}=%s').format(identificador(k)) for k in self.dados)+where+sql.SQL(' RETURNING *')
-            valores = list(self.dados.values())+valores
+            valores = [Jsonb(v) if isinstance(v,(dict,list)) else v for v in self.dados.values()]+valores
         else:
             if not partes: raise ValueError('Exclusão exige filtro')
             query = sql.SQL('DELETE FROM {}').format(origem)+where+sql.SQL(' RETURNING *')

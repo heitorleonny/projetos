@@ -389,6 +389,44 @@ def test_filtro_cluster_recorta_cobertura_antes_do_service(monkeypatch):
     assert "cluster 2" in resposta.resposta
 
 
+def test_ejs_do_cluster_lista_so_as_ejs_do_tenant_no_cluster(monkeypatch):
+    banco = Banco()
+    banco.tabelas["empresa_junior"].append({"id": 3, "id_ej": 103, "nome": "EJ Alfa", "federacao_id": 12})
+    # O histórico de cluster traz também uma EJ de outra federação (102): o tenant a exclui.
+    monkeypatch.setattr("app.ia.ferramentas.buscar_ids_por_cluster", lambda *_a, **_k: [101, 102, 103])
+    resposta = executar_consulta(banco, plano(ferramenta="ejs_do_cluster", ano=None, mes=None, cluster=4),
+                                 federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "respondida" and resposta.ano == 2026 and resposta.total == 2
+    assert [linha.id_ej for linha in resposta.linhas] == [103, 101]  # ordem alfabética
+    assert all(linha.valor is None for linha in resposta.linhas)
+    assert "cluster 4" in resposta.resposta and "MG" not in resposta.resposta
+
+
+def test_ejs_do_cluster_vazio_responde_sem_inventar_dados(monkeypatch):
+    monkeypatch.setattr("app.ia.ferramentas.buscar_ids_por_cluster", lambda *_a, **_k: [])
+    resposta = executar_consulta(Banco(), plano(ferramenta="ejs_do_cluster", ano=2025, mes=None, cluster=5),
+                                 federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "respondida" and resposta.total == 0 and not resposta.linhas
+    assert "Nenhuma EJ" in resposta.resposta and resposta.ano == 2025
+
+
+def test_ejs_do_cluster_sem_cluster_esclarece_sem_ler_banco():
+    banco = Mock()
+    resposta = executar_consulta(banco, plano(ferramenta="ejs_do_cluster", ano=None, mes=None),
+                                 federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "esclarecimento"
+    banco.table.assert_not_called()
+
+
+@pytest.mark.parametrize("alteracoes", [dict(busca="Alfa"), dict(ordem="asc"), dict(faixa="meta_abaixo")])
+def test_ejs_do_cluster_nao_aceita_parametros_de_outras_ferramentas(alteracoes):
+    banco = Mock()
+    resposta = executar_consulta(banco, plano(ferramenta="ejs_do_cluster", ano=None, mes=None, cluster=4, **alteracoes),
+                                 federacao_id=12, ano_padrao=2026)
+    assert resposta.status == "fora_do_catalogo"
+    banco.table.assert_not_called()
+
+
 def test_indicadores_unidades_mistas():
     resposta = executar_consulta(Banco(), plano(ferramenta="indicadores_rede"), federacao_id=12, ano_padrao=2026)
     assert len(resposta.linhas) == 6

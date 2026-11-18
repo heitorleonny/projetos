@@ -253,4 +253,7 @@ class TestPreservacaoOsOutrosEndpointsSeguemFechados:
             if get_current_user not in chamaveis:
                 publicas.append(caminho)
 
-        assert publicas == ['/api/v1/auth/login','/api/v1/auth/me','/api/v1/auth/logout','/api/v1/auth/senha',ROTA], f"endpoints públicos inesperados: {publicas}"
+        # `/federacao/logo` (07/11/2026): só o arquivo da logo de federação ativa,
+        # para a tela de login; a escrita (`/minha/logo`) exige admin.
+        assert publicas == ['/api/v1/auth/login','/api/v1/auth/me','/api/v1/auth/logout','/api/v1/auth/senha',ROTA,
+                            '/api/v1/federacao/logo'], f"endpoints públicos inesperados: {publicas}"

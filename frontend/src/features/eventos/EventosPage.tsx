@@ -37,7 +37,7 @@ export default function EventosPage() {
 
     return (
         <div>
-            <div className="mb-8">
+            <div data-tour="eventos" className="mb-8">
                 <div className="flex items-center gap-3 mb-1">
                     <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-50">
                         Eventos
@@ -143,14 +143,16 @@ export default function EventosPage() {
                         )
                     )}
 
-                    <EventoSelector
-                        eventos={eventos}
-                        selectedEventoId={selectedEventoId ?? eventos[0].id_evento}
-                        onChange={(id) => {
-                            setSelectedEventoId(id);
-                            setExpandedMetas(new Set());
-                        }}
-                    />
+                    <div data-tour="eventos-seletor">
+                        <EventoSelector
+                            eventos={eventos}
+                            selectedEventoId={selectedEventoId ?? eventos[0].id_evento}
+                            onChange={(id) => {
+                                setSelectedEventoId(id);
+                                setExpandedMetas(new Set());
+                            }}
+                        />
+                    </div>
                 </div>
             )}
 

@@ -76,7 +76,7 @@ export default function DashboardPage() {
             )}
 
             {/* Filters */}
-            <DashboardFilters filters={filters} onChange={setFilters} />
+            <div data-tour="dashboard-filtros"><DashboardFilters filters={filters} onChange={setFilters} /></div>
 
             {/* Export button */}
             {data && data.data.length > 0 && resumo && (
@@ -133,7 +133,7 @@ export default function DashboardPage() {
             {/* EJ Cards Grid */}
             {data && data.data.length > 0 && (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div data-tour="dashboard-ejs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {data.data.map((empresa) => (
                             <EjCard key={empresa.id} empresa={empresa} />
                         ))}

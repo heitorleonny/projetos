@@ -44,10 +44,15 @@ export default function ClusterTrackPage() {
                 <p className="text-neutral-400 text-sm">
                     Listagem das EJs agrupadas pelo seu Cluster Track calculado, com todos os indicadores do Índice de Cluster.
                 </p>
+                <p className="text-neutral-500 text-xs mt-1">
+                    O projeto de impacto é obrigatório nos clusters 4 e 5: o track pode apontar o Cluster 4 ou 5, mas o cluster real
+                    só chega a eles, e só permanece neles, com projeto de impacto. Sem projeto, o cluster real fica no 3. Quando isso acontece, o cluster apontado aparece riscado
+                    ao lado do cluster real.
+                </p>
             </div>
 
             {/* Filters */}
-            <div className="glass-card rounded-2xl p-5 mb-6">
+            <div data-tour="cluster-filtros" className="glass-card rounded-2xl p-5 mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Search */}
                     <div className="relative">
@@ -148,6 +153,7 @@ export default function ClusterTrackPage() {
                                     <th className="text-right px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Fat. Colab.<br/><span className="text-neutral-600 normal-case">real / taxa %</span></th>
                                     <th className="text-right px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">CSAT<br/><span className="text-neutral-600 normal-case">real / meta</span></th>
                                     <th className="text-right px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Engaj. MEJ<br/><span className="text-neutral-600 normal-case">real / meta</span></th>
+                                    <th className="text-center px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Projeto de Impacto<br/><span className="text-neutral-600 normal-case">tem / meta</span></th>
                                     <th className="text-center px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Índice Real<br/><span className="text-neutral-600 normal-case">cluster / pts</span></th>
                                     <th className="text-center px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Track Índice<br/><span className="text-neutral-600 normal-case">cluster / pts</span></th>
                                     <th className="text-right px-3 py-3 text-[10px] text-neutral-400 uppercase tracking-wider font-semibold whitespace-nowrap">Falta (tracking)<br/><span className="text-neutral-600 normal-case">p/ próx. cluster</span></th>
@@ -175,8 +181,6 @@ export default function ClusterTrackPage() {
 
 function ClusterTrackRow({ ej }: { ej: EmpresaComIndicadores }) {
     const cadastral = getClusterInfo(ej.cluster);
-    const track = getClusterInfo(ej.tracking_cluster_calculado ?? null);
-    const real = getClusterInfo(ej.indice_cluster_calculado ?? null);
     const taxaColabReal = ej.taxa_colaboracao != null ? ej.taxa_colaboracao * 100 : null;
 
     return (
@@ -204,7 +208,7 @@ function ClusterTrackRow({ ej }: { ej: EmpresaComIndicadores }) {
             <td className="px-3 py-3 text-center">
                 <div className="flex flex-col items-center gap-1">
                     <ClusterBadge color={cadastral.color} label={ej.cluster ? `C${ej.cluster}` : '—'} />
-                    <ClusterBadge color={track.color} label={ej.tracking_cluster_calculado ? `C${ej.tracking_cluster_calculado}` : '—'} />
+                    <ClusterRealBadge apontado={ej.tracking_cluster_calculado ?? null} real={ej.tracking_cluster_efetivo ?? null} />
                 </div>
             </td>
 
@@ -232,10 +236,26 @@ function ClusterTrackRow({ ej }: { ej: EmpresaComIndicadores }) {
                 <p className="text-neutral-400 tabular-nums text-[11px]">{ej.meta_engajamento_mej != null ? formatPercent(ej.meta_engajamento_mej) : '—'}</p>
             </td>
 
+            {/* Projeto de impacto: tem / meta (vazio na planilha = nenhum projeto) */}
+            <td className="px-3 py-3 text-center">
+                {ej.tem_dados_no_ano === false ? (
+                    <span className="text-neutral-600">—</span>
+                ) : (
+                    <>
+                        <p className={`font-medium text-sm ${ej.tem_projeto_impacto ? 'text-green-400' : 'text-neutral-500'}`}>
+                            {ej.tem_projeto_impacto ? 'Sim' : 'Não'}
+                        </p>
+                        <p className="text-neutral-400 tabular-nums text-[11px]">
+                            {ej.meta_projetos_impacto != null ? `meta ${ej.meta_projetos_impacto}` : '—'}
+                        </p>
+                    </>
+                )}
+            </td>
+
             {/* Índice Real */}
             <td className="px-3 py-3 text-center">
                 <div className="flex flex-col items-center gap-0.5">
-                    <ClusterBadge color={real.color} label={ej.indice_cluster_calculado ? `C${ej.indice_cluster_calculado}` : '—'} />
+                    <ClusterRealBadge apontado={ej.indice_cluster_calculado ?? null} real={ej.indice_cluster_efetivo ?? null} />
                     {ej.indice_cluster != null && (
                         <span className="text-[10px] text-neutral-400">{formatSde(ej.indice_cluster)}</span>
                     )}
@@ -245,7 +265,7 @@ function ClusterTrackRow({ ej }: { ej: EmpresaComIndicadores }) {
             {/* Track Índice */}
             <td className="px-3 py-3 text-center">
                 <div className="flex flex-col items-center gap-0.5">
-                    <ClusterBadge color={track.color} label={ej.tracking_cluster_calculado ? `C${ej.tracking_cluster_calculado}` : '—'} />
+                    <ClusterRealBadge apontado={ej.tracking_cluster_calculado ?? null} real={ej.tracking_cluster_efetivo ?? null} />
                     {ej.tracking_cluster != null && (
                         <span className="text-[10px] text-neutral-400">{formatSde(ej.tracking_cluster)}</span>
                     )}
@@ -254,17 +274,68 @@ function ClusterTrackRow({ ej }: { ej: EmpresaComIndicadores }) {
 
             {/* Falta — Tracking */}
             <td className="px-3 py-3 text-right">
-                <FaltaCell valor={ej.faturamento_para_proximo_cluster} maxCluster={ej.tracking_cluster_calculado === 5} />
+                <FaltaCell
+                    valor={ej.faturamento_para_proximo_cluster}
+                    trackingCluster={ej.tracking_cluster_calculado ?? null}
+                    clusterReal={ej.tracking_cluster_efetivo ?? null}
+                    exigeProjeto={ej.tem_dados_no_ano !== false && !ej.tem_projeto_impacto}
+                />
             </td>
 
         </tr>
     );
 }
 
-function FaltaCell({ valor, maxCluster }: { valor: number | null; maxCluster: boolean }) {
-    if (maxCluster) return <span className="text-green-400 text-xs font-medium">Cluster máx.</span>;
-    if (valor != null) return <span className="text-primary-300 font-medium tabular-nums text-sm">{formatCurrency(valor)}</span>;
+function FaltaCell({ valor, trackingCluster, clusterReal, exigeProjeto }: {
+    valor: number | null;
+    trackingCluster: number | null;
+    clusterReal: number | null;
+    /** A EJ ainda não tem projeto de impacto (obrigatório no C4 e no C5). */
+    exigeProjeto: boolean;
+}) {
+    // O track aponta C4/C5, mas o cluster real fica travado no C3 sem projeto.
+    if (trackingCluster != null && clusterReal != null && clusterReal < trackingCluster) {
+        return <span className="text-amber-300 text-xs font-medium">Falta projeto de impacto</span>;
+    }
+    if (trackingCluster === 5) {
+        return <span className="text-green-400 text-xs font-medium">Cluster máx.</span>;
+    }
+    if (valor != null) {
+        return (
+            <div>
+                <p className="text-primary-300 font-medium tabular-nums text-sm">{formatCurrency(valor)}</p>
+                {trackingCluster != null && trackingCluster >= 3 && exigeProjeto && (
+                    <p className="text-amber-300/80 text-[10px]">+ projeto de impacto</p>
+                )}
+            </div>
+        );
+    }
     return <span className="text-neutral-600">—</span>;
+}
+
+/**
+ * Cluster que o índice/track aponta e o cluster real. Iguais: um badge só.
+ * Diferentes (sem projeto de impacto o real não passa do C3): o apontado
+ * aparece riscado ao lado do real.
+ */
+function ClusterRealBadge({ apontado, real }: { apontado: number | null; real: number | null }) {
+    const infoApontado = getClusterInfo(apontado);
+    if (apontado == null) return <ClusterBadge color={infoApontado.color} label="—" />;
+    if (real == null || real === apontado) {
+        return <ClusterBadge color={infoApontado.color} label={`C${apontado}`} />;
+    }
+    const infoReal = getClusterInfo(real);
+    return (
+        <span
+            className="inline-flex items-center gap-1"
+            title={`Aponta C${apontado}, mas sem projeto de impacto o cluster real é no máximo C${real}.`}
+        >
+            <span className="text-[11px] font-bold line-through opacity-50" style={{ color: infoApontado.color }}>
+                C{apontado}
+            </span>
+            <ClusterBadge color={infoReal.color} label={`C${real}`} />
+        </span>
+    );
 }
 
 function ClusterBadge({ color, label }: { color: string; label: string }) {

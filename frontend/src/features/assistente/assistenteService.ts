@@ -1,10 +1,11 @@
 import { api } from '../../services/api';
 
 export type Conceito = 'fora_do_zero' | 'ritmo' | 'cluster' | 'sde' | 'taxa_colaboracao' | 'faturamento_colaborativo'
-    | 'csat' | 'engajamento' | 'tracking_cluster' | 'projecao_anual' | 'ritmo_necessario' | 'meta_atingida';
+    | 'csat' | 'engajamento' | 'tracking_cluster' | 'projecao_anual' | 'ritmo_necessario' | 'meta_atingida'
+    | 'projeto_impacto' | 'formula_adaptativa';
 
 export interface ContextoConsulta {
-    ferramenta: 'fora_do_zero' | 'indicadores_rede' | 'ranking' | 'sde' | 'ritmo_mensal' | 'explicar' | 'perfil_ej' | 'metas' | 'esclarecer' | 'recusar';
+    ferramenta: 'fora_do_zero' | 'indicadores_rede' | 'ranking' | 'sde' | 'ritmo_mensal' | 'explicar' | 'perfil_ej' | 'metas' | 'ejs_do_cluster' | 'esclarecer' | 'recusar';
     ano: number | null;
     mes: number | null;
     criterio: 'faturamento' | 'csat' | 'projetos' | 'colab' | null;

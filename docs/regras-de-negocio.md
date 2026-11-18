@@ -87,7 +87,7 @@ O banco real tem `cluster_2022..2026`; o código só mapeava de 2023 a 2026.
 | `meta_csat` | Índice c/ Meta CSAT, Tracking, adaptativo (meses 1–6), falta para o próximo cluster | 0–5 (3,5 a 5,0 na exportação de 21/09) |
 | `meta_engajamento_mej` | Tracking e adaptativo (dividida por 100), SDE | **0–100** na planilha e no banco; cálculo em fração |
 | `meta_taxa_colaboracao` | só exibição ("Metas vs Realizado" mostra `valor%`) | percentual 0–100 na exportação de 21/09, com 4 valores acima de 100 ([9.A](#9a-resolvidas-contra-a-exportação-de-2109)) |
-| `meta_projetos_impacto` | devolvida pela API, não aparece em tela nenhuma | inteiro |
+| `meta_projetos_impacto` | exibição: coluna "Projeto de Impacto" do Cluster Track e linha de "Metas vs Realizado" do perfil | inteiro (0 ou 1 na exportação de 21/09) |
 | `meta_pdi` | nada lê | booleano |
 
 **`monitoramento`** (uma linha por EJ por mês)
@@ -114,7 +114,7 @@ O banco real tem `cluster_2022..2026`; o código só mapeava de 2023 a 2026.
 | Faixas de cluster e fórmula, **duplicadas** | [calculadora_cluster/src/App.tsx:4](../calculadora_cluster/src/App.tsx#L4) |
 | Evento CirandaMEJ'26: metas de 72/34/30/67%, mês de referência 5 | [evento_service.py:45](../portal_fejepe/app/services/evento_service.py#L45) |
 | Cores da barra de meta (80% / 50%) | [EjCard.tsx:92](../front_portal_fejepe/src/features/dashboard/EjCard.tsx#L92), [EmpresaPage.tsx:233](../front_portal_fejepe/src/features/empresa/EmpresaPage.tsx#L233) |
-| Regra temporária do cluster 4 no SDE | [rede_service.py:443](../portal_fejepe/app/services/rede_service.py#L443) |
+| Regra do projeto de impacto (cluster real ≤ C3 sem projeto) | `aplicar_regra_projeto_impacto` em `calculo_service.py`; constantes `CLUSTER_EXIGE_PROJETO_IMPACTO` e `CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO` em `constants.py`. Substituiu a antiga regra temporária do cluster 4 no SDE (9.18). |
 
 ---
 
@@ -421,6 +421,9 @@ Código: [empresa_service.py:560](../portal_fejepe/app/services/empresa_service.
 - **No perfil** os mesmos casos dão cluster track **nulo** (o card mostra "—"). A
   mesma EJ tem cluster track diferente conforme a tela (⚠️ 9.12).
 - **Exemplo:** 74.250.000 pontos, cluster 4.
+- **Cluster real × cluster apontado (09/11/2026):** o tracking só **aponta** o cluster
+  (`tracking_cluster_calculado`). O cluster **real** (`tracking_cluster_efetivo`) é o
+  apontado limitado pela regra do projeto de impacto — ver [§5.8](#58-projeto-de-impacto-e-os-clusters-4-e-5).
 
 ### 5.6 Índice de Cluster e Índice c/ Meta CSAT
 
@@ -477,6 +480,35 @@ partindo do cluster do **Índice real**, sem anualizar. Exemplo: R$ 8.136,75.
 versão diferente, que anualiza e usa a meta de engajamento (⚠️ 9.13).
 
 ---
+
+### 5.8 Projeto de impacto e os clusters 4 e 5
+
+**Regra de negócio** (Heitor, 09/11/2026), ainda **não** consta em `calculos.md` oficial
+do MEJ. O alcance até o C4 foi definido por Heitor em 09/11/2026 (inicialmente a regra
+ valia só para o C5); `[CONFIRMAR]` com a Brasil Júnior.
+
+- **Em linguagem de gestor:** projeto de impacto é obrigatório nos clusters 4 e 5. O
+  tracking pode apontar subida para o C4 ou o C5, mas o cluster **real** só chega a eles, e
+  só permanece neles, se a EJ tiver ao menos um projeto de impacto. Sem projeto o cluster
+  real fica limitado ao **C3**.
+- **Regra:** `cluster real = min(cluster apontado, 3)` quando `projetos_impacto < 1`; senão
+  o apontado. Do C3 para baixo a regra não mexe em nada. Salto de mais de um cluster
+  (C2 apontando C5) também para no C3.
+- **Dado:** coluna `PROJETOS_DE_IMPACTO` da planilha → `monitoramento.projetos_impacto`
+  (migração `26`). Em 21/09 vem vazio ou 1; uma vez 1, repete-se até o último mês. **Vazio
+  significa nenhum projeto.** A EJ "tem projeto" se o **máximo** das linhas lidas for ≥ 1
+  (não a última linha: se a EJ parou de reportar e a última veio vazia, o projeto não some).
+- **Onde vale:** perfil da EJ (3 índices), Cluster Track, e SDE (3 cenários). **Não** foi
+  aplicada a: tendência de cluster (`tendencia_cluster`), meta 4 da Ciranda e filtro
+  `cluster_track` — todos continuam pelo cluster apontado. `[CONFIRMAR]` se devem passar a
+  usar o cluster real.
+- **Campos da API:** `*_calculado` = o que o índice aponta; `*_efetivo` = o real. No SDE,
+  `EjMovimento.cluster_calculado` já é o real, `cluster_apontado` é o de antes da regra e
+  `limitado_por_projeto_impacto` marca quem foi barrado.
+- **Efeito na exportação de 21/09** (cluster oficial 2026 × projeto realizado, última linha
+  por EJ): C5 = 87 EJs, **24 com projeto**; C4 = 80 EJs, **5 com projeto** (167 EJs nos dois
+  clusters, 29 com projeto). Sob a regra, só as EJs com projeto sustentam o C4 e o C5. Linhas gravadas antes da migração 26 ficam com
+  `projetos_impacto` nulo (= sem projeto) até a próxima carga da planilha.
 
 ## 6. Métricas da rede
 
@@ -539,10 +571,14 @@ poderia ser o destino. `[CONFIRMAR]` qual é a leitura oficial.
 4. Calcula o índice do cenário ([§5.3](#53-quadro-comparativo)). Se faltar insumo,
    **mantém**: CSAT real e engajamento real nos cenários 1 e 2 (o 2 também exige os
    dois, pela estrutura do `if`), meta de CSAT nos cenários 2 e 3.
-5. **Regra temporária** ([rede_service.py:443](../portal_fejepe/app/services/rede_service.py#L443)):
-   no cenário 1, EJ com cluster oficial 4 tem o calculado limitado a 3. Ou seja,
-   **todo cluster 4 desce no Índice de Cluster**, "pois dependem de um indicador
-   ainda não implementado". `[CONFIRMAR]` qual indicador (⚠️ 9.18).
+5. **Regra do projeto de impacto** ([§5.8](#58-projeto-de-impacto-e-os-clusters-4-e-5)), nos
+   **três** cenários: o cluster calculado é limitado a C3 se a EJ não tem projeto de
+   impacto. EJ sem projeto **não sobe** para o C4 nem para o C5; EJ do C4 ou do C5 sem
+   projeto **desce** para o C3. Isso substituiu a antiga regra temporária ("todo cluster 4 desce no
+   cenário 1"), que existia por falta deste indicador (⚠️ 9.18, resolvida). Sem dado
+   suficiente para o cenário a EJ parte do cluster atual (mantém), mas a regra continua
+   valendo: C4 e C5 sem projeto não permanecem onde estão. Sem nenhuma linha de monitoramento não há
+   como saber do projeto e a EJ mantém.
 6. Compara o calculado com o atual: maior sobe, menor desce, igual mantém.
 
 | Cenário | Índice usado |
@@ -733,7 +769,7 @@ minha leitura, não fato.
 | 9.15 | Multi-cluster e filtro de ritmo eram aplicados no navegador, sobre a página carregada. | Resultados incompletos e total errado. | ✅ **Corrigida em 04/10:** busca todo o recorte antes de aplicar filtros locais e paginar. Ainda convém levar os filtros ao backend para reduzir consultas. |
 | 9.16 | Totais do topo do Dashboard somavam só a página carregada. | "Faturamento Total" mudava ao clicar "Carregar mais". | ✅ **Corrigida em 04/10:** os totais vêm de uma consulta a todas as EJs do recorte, com os mesmos filtros do Dashboard. `/rede/indicadores` não cobre busca, cidade, universidade, multicluster e ritmo. |
 | 9.17 | Limites fixos: 100 EJs (Escalonado, Comparação, Cluster Track), 1.000 (SDE), 5.000 (eventos). | FEJEPE tem 42 EJs federadas na BJ; FEJEMG tem 285 e já estoura o limite de 100. | ✅ **Resolvida (29/09).** Os números certos são 43 e 291. A causa maior era o teto de 1000 linhas do PostgREST, que zerava 139 EJs da FEJEMG; os services agora paginam (`app/services/leitura.py`) e as telas buscam todas as páginas. Ver `docs/achado-9.17-limites-com-segundo-tenant.md`. |
-| 9.18 | Regra temporária: todo cluster 4 desce no cenário 1 do SDE, sem indicar qual indicador falta. | SDE do cenário 1 enviesado para baixo. | `[CONFIRMAR]` e documentar ou remover. |
+| 9.18 | Regra temporária: todo cluster 4 desce no cenário 1 do SDE, sem indicar qual indicador falta. | SDE do cenário 1 enviesado para baixo. | ✅ **Resolvida (09/11):** o indicador que faltava era o projeto de impacto. A regra temporária saiu e entrou a regra de [§5.8](#58-projeto-de-impacto-e-os-clusters-4-e-5), nos três cenários. |
 | 9.19 | Cores de cluster diferentes entre portal e calculadora. | Confunde quem usa as duas. | Cosmético. |
 | 9.20 | "EJ ativa" só existe no evento. Indicadores, SDE e Dashboard contam EJs inativas. | "EJs na Rede" inclui inativas. | Definir se inativa entra nos indicadores. |
 | 9.21 | Submeta de "verde de maio" sem percentual definido. | Código morto. | Remover ou definir. |

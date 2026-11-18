@@ -12,6 +12,10 @@ A ausência de dependência aqui é, portanto, deliberada — não é esquecimen
 Quem adicionar um segundo endpoint neste router precisa decidir explicitamente
 se ele também é público; o default do projeto é que NÃO seja.
 
+O segundo endpoint público é `GET /logo` (migração 25), decidido em 07/11/2026:
+devolve só o arquivo da logo de uma federação ativa, pelo slug, para a mesma
+tela de login. A escrita (`PUT/DELETE /minha/logo`) exige admin, como a paleta.
+
 O que sustenta essa abertura do lado do banco: `anon` só tem GRANT nas quatro
 colunas de branding das federações ativas (infra/db/init/09-federacao-branding.sql).
 Mesmo que este código pedisse mais, o Postgres recusaria.
@@ -24,15 +28,16 @@ justamente para não depender de qual usuário está logado.
 """
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 
 from app.database import Client
 from postgrest.exceptions import APIError
 
 from app.config import settings
-from app.dependencies import get_current_user, get_federacao_id, get_supabase, require_papel
+from app.dependencies import get_current_user, get_federacao_id, get_supabase, get_supabase_anon, require_papel
 from app.models.federacao import FederacaoBranding, PaletaFederacao
-from app.services.federacao_service import buscar_federacao_do_usuario, definir_paleta
+from app.services.federacao_service import (TAMANHO_MAXIMO_LOGO, buscar_federacao_do_usuario, buscar_logo_publica,
+                                           definir_logo, definir_paleta, detectar_tipo_logo, remover_logo)
 
 router = APIRouter(prefix="/api/v1/federacao", tags=["Federação"])
 
@@ -129,6 +134,87 @@ def put_paleta(entrada: PaletaFederacao, sb: Client = Depends(get_supabase),
         raise HTTPException(503, "Não foi possível salvar a paleta agora.") from None
     if linha is None:
         raise HTTPException(403, "Seu vínculo atual não permite alterar a paleta.")
+    return _branding(linha)
+
+
+@router.get(
+    "/logo",
+    summary="Logo enviada pela federação",
+    description=(
+        "Arquivo da logo (PNG, JPEG ou WebP) de uma federação ativa. Endpoint PÚBLICO, "
+        "pelo mesmo motivo de `/branding`: a tela de login mostra a logo antes do token. "
+        "O parâmetro `v` vem de `logo_url` e só serve para renovar o cache."
+    ),
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}, "image/jpeg": {}, "image/webp": {}}}, 404: {"description": "Sem logo enviada"}},
+)
+def get_logo(
+    slug: str = Query(min_length=1, max_length=120),
+    v: str | None = Query(default=None, max_length=32),
+    sb: Client = Depends(get_supabase_anon),
+) -> Response:
+    try:
+        logo = buscar_logo_publica(sb, slug.strip().lower())
+    except (APIError, httpx.HTTPError):
+        raise HTTPException(503, "Não foi possível carregar a logo agora.") from None
+    if logo is None:
+        raise HTTPException(404, "Federação sem logo enviada.")
+    # Versão certa na URL: o arquivo daquele endereço nunca muda.
+    cache = "public, max-age=31536000, immutable" if v == logo["versao"] else "public, max-age=300"
+    return Response(content=bytes(logo["conteudo"]), media_type=logo["tipo"], headers={
+        "Cache-Control": cache, "ETag": f'"{logo["versao"]}"',
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    })
+
+
+def _erro_de_escrita(exc: Exception, acao: str) -> HTTPException:
+    if isinstance(exc, APIError) and exc.code == "42501":
+        return HTTPException(403, f"Seu vínculo atual não permite {acao} a logo.")
+    if isinstance(exc, APIError) and exc.code == "22023":
+        return HTTPException(422, "Use uma imagem PNG, JPEG ou WebP de até 512 KB.")
+    return HTTPException(503, f"Não foi possível {acao} a logo agora.")
+
+
+@router.put("/minha/logo", response_model=FederacaoBranding,
+            summary="Envia a logo da federação do usuário",
+            dependencies=[Depends(get_current_user), Depends(require_papel("admin"))])
+async def put_logo(arquivo: UploadFile = File(description="PNG, JPEG ou WebP de até 512 KB."),
+                   sb: Client = Depends(get_supabase),
+                   federacao_id: int | None = Depends(get_federacao_id)) -> FederacaoBranding:
+    if federacao_id is None:
+        raise HTTPException(403, "Usuário sem federação associada.")
+    # Lê no máximo um byte além do limite: arquivo grande não ocupa memória.
+    conteudo = await arquivo.read(TAMANHO_MAXIMO_LOGO + 1)
+    if not conteudo:
+        raise HTTPException(422, "Escolha um arquivo de imagem.")
+    if len(conteudo) > TAMANHO_MAXIMO_LOGO:
+        raise HTTPException(413, "A logo deve ter até 512 KB.")
+    tipo = detectar_tipo_logo(conteudo)
+    if tipo is None:
+        raise HTTPException(422, "Use uma imagem PNG, JPEG ou WebP. SVG não é aceito.")
+    try:
+        linha = definir_logo(sb, conteudo, tipo)
+    except (APIError, httpx.HTTPError) as exc:
+        raise _erro_de_escrita(exc, "salvar") from None
+    if linha is None:
+        raise HTTPException(403, "Seu vínculo atual não permite salvar a logo.")
+    return _branding(linha)
+
+
+@router.delete("/minha/logo", response_model=FederacaoBranding,
+               summary="Remove a logo enviada pela federação do usuário",
+               dependencies=[Depends(get_current_user), Depends(require_papel("admin"))])
+def delete_logo(sb: Client = Depends(get_supabase),
+                federacao_id: int | None = Depends(get_federacao_id)) -> FederacaoBranding:
+    if federacao_id is None:
+        raise HTTPException(403, "Usuário sem federação associada.")
+    try:
+        linha = remover_logo(sb)
+    except (APIError, httpx.HTTPError) as exc:
+        raise _erro_de_escrita(exc, "remover") from None
+    if linha is None:
+        raise HTTPException(403, "Seu vínculo atual não permite remover a logo.")
     return _branding(linha)
 
 

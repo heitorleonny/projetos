@@ -23,6 +23,7 @@ from app.services.federacao_service import buscar_nome_da_federacao
 from app.services.leitura import ler_todas
 from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
+    aplicar_regra_projeto_impacto,
     calcular_crescimento,
     calcular_faturamento_colab_para_proximo_cluster,
     calcular_faturamento_para_proximo_cluster,
@@ -30,12 +31,14 @@ from app.services.calculo_service import (
     calcular_percentual_meta,
     calcular_pontos_cluster,
     calcular_pontos_cluster_adaptativo,
+    calcular_projetos_impacto,
     calcular_ritmo_necessario,
     calcular_taxa_colaboracao,
     calcular_tendencia_cluster,
     classificar_cluster,
     classificar_ritmo,
     projetar_faturamento_anual,
+    tem_projeto_impacto,
 )
 from app.utils.cluster import get_cluster_value_for_year
 from app.utils.constants import MESES_ANO
@@ -298,6 +301,7 @@ def buscar_empresa(
             meta_taxa_colaboracao=meta_raw.get("meta_taxa_colaboracao"),
             taxa_colaboracao=indicadores.taxa_colaboracao,
             meta_projetos_impacto=meta_raw.get("meta_projetos_impacto"),
+            projetos_impacto=indicadores.projetos_impacto,
             meta_engajamento_mej=meta_raw.get("meta_engajamento_mej"),
             engajamento_mej=indicadores.engajamento_mej,
         )
@@ -379,6 +383,17 @@ def buscar_empresa(
             tracking_cluster = round(tracking, 2)
             tracking_cluster_calc = classificar_cluster(tracking)
 
+    # Cluster real = o que cada índice aponta, limitado pela regra do projeto de
+    # impacto. Sem nenhuma linha de monitoramento não há como saber do projeto,
+    # então a regra não é aplicada (mesmo critério do SDE: sem dado, mantém).
+    aplica_regra = indicadores.tem_dados_no_ano
+    possui_projeto = indicadores.tem_projeto_impacto
+
+    def _efetivo(cluster_apontado: int | None) -> int | None:
+        if not aplica_regra:
+            return cluster_apontado
+        return aplicar_regra_projeto_impacto(cluster_apontado, possui_projeto)
+
     return EmpresaPerfilCompleto(
         empresa=empresa,
         indicadores=indicadores,
@@ -394,6 +409,9 @@ def buscar_empresa(
         indice_meta_csat_calculado=indice_meta_csat_calc,
         tracking_cluster=tracking_cluster,
         tracking_cluster_calculado=tracking_cluster_calc,
+        indice_cluster_efetivo=_efetivo(indice_cluster_calc),
+        indice_meta_csat_efetivo=_efetivo(indice_meta_csat_calc),
+        tracking_cluster_efetivo=_efetivo(tracking_cluster_calc),
     )
 
 
@@ -544,6 +562,10 @@ def _calcular_indicadores_ej(
         if numero_membros > 0:
             engajamento_real = round(max_engajados / numero_membros, 4)
 
+    # Projeto de impacto: obrigatório no C4 e no C5 (ver aplicar_regra_projeto_impacto)
+    projetos_impacto = calcular_projetos_impacto(monitoramentos_sorted)
+    possui_projeto_impacto = tem_projeto_impacto(projetos_impacto)
+
     # Meta
     meta_fat = meta_raw.get("meta_faturamento") if meta_raw else None
 
@@ -642,6 +664,21 @@ def _calcular_indicadores_ej(
             indice_cluster_calc,
         )
 
+    # Cluster real: o que o índice/tracking aponta, limitado pela regra do projeto
+    # de impacto. Sem linha de monitoramento não há como saber do projeto: a regra
+    # não se aplica (tracking já cai no cluster oficial nesse caso).
+    aplica_regra = bool(monitoramentos_sorted)
+    tracking_efetivo = (
+        aplicar_regra_projeto_impacto(tracking_cluster_calc, possui_projeto_impacto)
+        if aplica_regra
+        else tracking_cluster_calc
+    )
+    indice_efetivo = (
+        aplicar_regra_projeto_impacto(indice_cluster_calc, possui_projeto_impacto)
+        if aplica_regra
+        else indice_cluster_calc
+    )
+
     return EmpresaComIndicadores(
         id=ej_raw["id"],
         id_ej=ej_raw["id_ej"],
@@ -667,6 +704,15 @@ def _calcular_indicadores_ej(
         tendencia_cluster=None,
         tracking_cluster=tracking_cluster_val,
         tracking_cluster_calculado=tracking_cluster_calc,
+        projetos_impacto=projetos_impacto,
+        tem_projeto_impacto=possui_projeto_impacto,
+        meta_projetos_impacto=(
+            int(meta_raw["meta_projetos_impacto"])
+            if meta_raw and meta_raw.get("meta_projetos_impacto") is not None
+            else None
+        ),
+        tracking_cluster_efetivo=tracking_efetivo,
+        indice_cluster_efetivo=indice_efetivo,
         indice_cluster=indice_cluster_val,
         indice_cluster_calculado=indice_cluster_calc,
         meta_faturamento=float(meta_raw.get("meta_faturamento") or 0) or None if meta_raw else None,

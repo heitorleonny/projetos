@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ENV } from '../config/env';
-import { brandingDeFallback, buscarBranding, buscarBrandingDoUsuario } from '../services/brandingService';
+import { brandingDeFallback, buscarBranding, buscarBrandingDoUsuario, comLogoResolvido } from '../services/brandingService';
 import { authClient } from '../services/auth';
 import type { FederacaoBranding } from '../services/brandingService';
 import { BrandingContext } from './brandingContextStore';
@@ -133,7 +133,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
             usandoFallback,
             // Uma gravação iniciada antes da troca de federação não pode
             // repintar a sessão nova quando a resposta antiga chegar.
-            atualizarBranding: (nova, slugEsperado) => setBranding(atual => atual?.slug === slugEsperado ? nova : atual),
+            atualizarBranding: (nova, slugEsperado) => setBranding(atual => atual?.slug === slugEsperado ? comLogoResolvido(nova) : atual),
         };
     }, [branding, usandoFallback]);
 

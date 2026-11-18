@@ -52,7 +52,7 @@ export default function EmpresaPage() {
         );
     }
 
-    const { empresa, indicadores, serie_mensal, metas, projecao_anual, ritmo_necessario, crescimento_mensal, crescimento_anual, indice_cluster, indice_cluster_calculado, indice_meta_csat, indice_meta_csat_calculado, tracking_cluster, tracking_cluster_calculado } = data;
+    const { empresa, indicadores, serie_mensal, metas, projecao_anual, ritmo_necessario, crescimento_mensal, crescimento_anual, indice_cluster, indice_cluster_calculado, indice_meta_csat, indice_meta_csat_calculado, tracking_cluster, tracking_cluster_calculado, indice_cluster_efetivo, indice_meta_csat_efetivo, tracking_cluster_efetivo } = data;
     const cluster = getClusterInfo(indicadores.cluster);
     const ritmo = getRitmoLabel(indicadores.ritmo);
     const percentMeta = indicadores.percentual_meta ?? 0;
@@ -237,12 +237,16 @@ export default function EmpresaPage() {
                             subtitle="Snapshot atual — valores reais"
                             value={indice_cluster}
                             clusterNum={indice_cluster_calculado}
+                            clusterReal={indice_cluster_efetivo}
+                            temProjetoImpacto={indicadores.tem_projeto_impacto}
                         />
                         <IndiceClusterCard
                             label="Índice c/ Meta CSAT"
                             subtitle="Fat. real × meta CSAT × engajamento real"
                             value={indice_meta_csat}
                             clusterNum={indice_meta_csat_calculado}
+                            clusterReal={indice_meta_csat_efetivo}
+                            temProjetoImpacto={indicadores.tem_projeto_impacto}
                             compareValue={indice_cluster}
                         />
                         <IndiceClusterCard
@@ -250,6 +254,8 @@ export default function EmpresaPage() {
                             subtitle="Projeção anual com metas de qualidade"
                             value={tracking_cluster}
                             clusterNum={tracking_cluster_calculado}
+                            clusterReal={tracking_cluster_efetivo}
+                            temProjetoImpacto={indicadores.tem_projeto_impacto}
                             compareValue={indice_cluster}
                             faltaProximoCluster={indicadores.faturamento_para_proximo_cluster ?? null}
                             debugValues={serie_mensal.length > 0 ? {
@@ -465,6 +471,8 @@ function MetaTable({ metas }: { metas: MetaVsRealizado }) {
         { label: 'CSAT', meta: metas.meta_csat?.toFixed(1) ?? '—', real: metas.csat_medio?.toFixed(2) ?? '—', pct: null },
         { label: 'Taxa Colaboração', meta: metas.meta_taxa_colaboracao != null ? `${metas.meta_taxa_colaboracao}%` : '—', real: metas.taxa_colaboracao != null ? `${(metas.taxa_colaboracao * 100).toFixed(1)}%` : '—', pct: null },
         { label: 'Engajamento MEJ', meta: metas.meta_engajamento_mej != null ? `${metas.meta_engajamento_mej}%` : '—', real: metas.engajamento_mej != null ? `${(metas.engajamento_mej * 100).toFixed(1)}%` : '—', pct: null },
+        // Vazio na planilha = nenhum projeto de impacto.
+        { label: 'Projeto de Impacto', meta: metas.meta_projetos_impacto != null ? String(metas.meta_projetos_impacto) : '—', real: String(metas.projetos_impacto ?? 0), pct: null },
     ];
 
     return (
@@ -503,11 +511,15 @@ function ProjecaoItem({ label, value, accent }: { label: string; value: string; 
     );
 }
 
-function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, faltaProximoCluster, debugValues }: {
+function IndiceClusterCard({ label, subtitle, value, clusterNum, clusterReal, temProjetoImpacto, compareValue, faltaProximoCluster, debugValues }: {
     label: string;
     subtitle: string;
     value: number | null;
+    /** Cluster que o índice aponta. */
     clusterNum: number | null;
+    /** Cluster real: o apontado, limitado ao C3 quando a EJ não tem projeto de impacto. */
+    clusterReal?: number | null;
+    temProjetoImpacto?: boolean;
     compareValue?: number | null;
     faltaProximoCluster?: number | null;
     debugValues?: {
@@ -518,6 +530,9 @@ function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, f
     };
 }) {
     const cluster = getClusterInfo(clusterNum);
+    // O índice aponta C4/C5, mas sem projeto de impacto o cluster real fica no C3.
+    const limitadoPorProjeto = clusterNum != null && clusterReal != null && clusterReal < clusterNum;
+    const clusterRealInfo = getClusterInfo(clusterReal ?? null);
 
     const formatIndice = (v: number) => {
         if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
@@ -583,6 +598,16 @@ function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, f
                 )}
             </div>
 
+            {limitadoPorProjeto && (
+                <div className="rounded-lg px-3 py-2 border border-amber-500/30 bg-amber-500/10">
+                    <p className="text-[9px] uppercase tracking-widest text-amber-400 font-semibold mb-1">Cluster real</p>
+                    <p className="text-sm font-bold" style={{ color: clusterRealInfo.color }}>{clusterRealInfo.label}</p>
+                    <p className="text-[10px] text-amber-300/80 mt-0.5 leading-snug">
+                        Sem projeto de impacto, o cluster real não passa do Cluster {clusterReal}.
+                    </p>
+                </div>
+            )}
+
             {faltaProximoCluster != null && clusterNum != null && clusterNum < 5 && (
                 <div className="mt-1 pt-3 border-t border-white/5">
                     <p className="text-[9px] uppercase tracking-widest text-neutral-600 font-semibold mb-1.5">Falta para o Cluster {clusterNum + 1}</p>
@@ -590,11 +615,19 @@ function IndiceClusterCard({ label, subtitle, value, clusterNum, compareValue, f
                         {formatCurrency(faltaProximoCluster)}
                     </p>
                     <p className="text-[10px] text-neutral-600 mt-0.5">em faturamento acumulado</p>
+                    {clusterNum + 1 >= 4 && temProjetoImpacto === false && (
+                        <p className="text-[10px] text-amber-300/80 mt-1 leading-snug">
+                            O Cluster {clusterNum + 1} também exige projeto de impacto.
+                        </p>
+                    )}
                 </div>
             )}
-            {clusterNum === 5 && (
+            {clusterNum === 5 && !limitadoPorProjeto && (
                 <div className="mt-1 pt-3 border-t border-white/5">
                     <p className="text-[10px] text-green-400 font-medium">Cluster máximo atingido</p>
+                    {temProjetoImpacto && (
+                        <p className="text-[10px] text-neutral-500 mt-0.5">Com projeto de impacto</p>
+                    )}
                 </div>
             )}
 

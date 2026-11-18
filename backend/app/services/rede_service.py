@@ -13,6 +13,9 @@ from app.services.cluster_service import buscar_historico_do_ano, buscar_ids_por
 from app.services.leitura import ler_todas
 from app.services.tenant import filtrar_por_tenant
 from app.services.calculo_service import (
+    aplicar_regra_projeto_impacto,
+    calcular_projetos_impacto,
+    tem_projeto_impacto,
     calcular_crescimento,
     calcular_media_csat,
     calcular_pontos_cluster,
@@ -322,6 +325,12 @@ def calcular_sde_cenarios(
         1. Índice de Cluster (fat real × CSAT real × engaj real × colab real)
         2. Índice c/ Meta CSAT (fat real × meta CSAT × engaj real × colab real)
         3. Tracking de Cluster (fat anualizado × meta CSAT × meta engaj × colab real)
+
+    Em todos os cenários o cluster comparado com o oficial é o cluster REAL:
+    o que o índice aponta, limitado pela regra do projeto de impacto (obrigatório
+    no C4 e no C5). Sem projeto de impacto o cluster real é no máximo C3 — a EJ
+    do C3 não sobe para o C4 ou C5 e as do C4 e C5 descem para o C3. Isso substitui
+    a antiga regra temporária que fazia todo C4 descer no cenário 1.
     """
     # 1. Buscar EJs
     ids_no_cluster: list[int] | None = None
@@ -380,12 +389,16 @@ def calcular_sde_cenarios(
                     nome=ej["nome"],
                     cluster_atual=cluster_atual,
                     cluster_calculado=cluster_atual,
+                    cluster_apontado=cluster_atual,
                     foto_url=ej.get("foto_url"),
                 ))
             continue
 
         ultimo = mons[-1]
         fat_acum = float(ultimo.get("faturamento_acumulado", 0) or 0)
+        # Projeto de impacto: vazio = nenhum. Só vale como "sem projeto" porque
+        # há linha de monitoramento (sem linha o ramo acima mantém o cluster).
+        possui_projeto = tem_projeto_impacto(calcular_projetos_impacto(mons))
 
         # EJs sem faturamento têm índice 0 → cluster 1 calculado
         if fat_acum <= 0:
@@ -396,6 +409,8 @@ def calcular_sde_cenarios(
                     nome=ej["nome"],
                     cluster_atual=cluster_atual,
                     cluster_calculado=1,
+                    cluster_apontado=1,
+                    tem_projeto_impacto=possui_projeto,
                     foto_url=ej.get("foto_url"),
                 )
                 if 1 > cluster_atual:
@@ -438,38 +453,27 @@ def calcular_sde_cenarios(
         # Determinar movimento em cada cenário
         idx_cluster = cluster_atual - 1  # 0-based
         for i, indice in enumerate(indices):
-            if indice is None:
-                # Dados insuficientes para o cenário: mantém cluster atual
-                movimentos[i].append(EjMovimento(
-                    id_ej=eid,
-                    nome=ej["nome"],
-                    cluster_atual=cluster_atual,
-                    cluster_calculado=cluster_atual,
-                    foto_url=ej.get("foto_url"),
-                ))
-                continue
-            cluster_calc = classificar_cluster(indice)
-
-            # Regra temporária: EJs em Cluster 4 sempre descendo no Índice de Cluster
-            # pois dependem de um indicador ainda não implementado.
-            if i == 0 and cluster_atual == 4:
-                cluster_calc = min(cluster_calc, 3)
+            # Sem insumo para o cenário o índice não aponta cluster e a EJ parte
+            # do atual (mantém) — mas a regra do projeto de impacto continua
+            # valendo: C5 sem projeto não permanece no C5.
+            cluster_apontado = cluster_atual if indice is None else classificar_cluster(indice)
+            cluster_calc = aplicar_regra_projeto_impacto(cluster_apontado, possui_projeto)
 
             ej_mov = EjMovimento(
                 id_ej=eid,
                 nome=ej["nome"],
                 cluster_atual=cluster_atual,
                 cluster_calculado=cluster_calc,
+                cluster_apontado=cluster_apontado,
+                tem_projeto_impacto=possui_projeto,
+                limitado_por_projeto_impacto=cluster_calc != cluster_apontado,
                 foto_url=ej.get("foto_url"),
             )
             if cluster_calc > cluster_atual:
                 subidas[i][idx_cluster] += 1
-                movimentos[i].append(ej_mov)
             elif cluster_calc < cluster_atual:
                 descidas[i][idx_cluster] += 1
-                movimentos[i].append(ej_mov)
-            else:
-                movimentos[i].append(ej_mov)
+            movimentos[i].append(ej_mov)
 
     # 5. Montar cenários
     cenarios: list[SdeCenario] = []

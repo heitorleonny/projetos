@@ -1,19 +1,16 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ChatButton from '../components/ChatButton';
-import OnboardingTour from '../features/onboarding/OnboardingTour';
-import { abasDoPortal } from '../config/navigation';
+import TourGuiado from '../features/onboarding/TourGuiado';
 import OnboardingGate from '../features/onboarding/OnboardingGate';
 
 export default function MainLayout() {
     const location = useLocation();
-    const guia = new URLSearchParams(location.search).get('guia');
-    const emVisita = abasDoPortal.some(aba => aba.id === guia && aba.to === location.pathname);
     return (
         <div className="min-h-screen relative">
             <Navbar />
 
-            <main className={`relative pt-24 ${emVisita ? 'pb-80 sm:pb-64' : 'pb-16'} px-4 sm:px-6 max-w-[1280px] mx-auto`}>
+            <main className="relative pt-24 pb-16 px-4 sm:px-6 max-w-[1280px] mx-auto">
                 <OnboardingGate><Outlet /></OnboardingGate>
             </main>
 
@@ -30,8 +27,8 @@ export default function MainLayout() {
                 {' '}(Telegram)
             </footer>
 
-            {location.pathname !== '/onboarding' && !emVisita && <ChatButton />}
-            <OnboardingTour />
+            {location.pathname !== '/onboarding' && <ChatButton />}
+            <TourGuiado />
         </div>
     );
 }

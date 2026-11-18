@@ -33,9 +33,17 @@ MESES_ANO: int = 12
 FATOR_ESCALA_PONTOS: int = 100
 
 # ── Faixas de atingimento da meta anual de faturamento ───────
-# Agrupamento usado pelo Nexo (consulta `metas` e glossário), definido por
+# Agrupamento usado pelo Lamps (consulta `metas` e glossário), definido por
 # Heitor em 07/11/2026. O % da meta continua vindo de
 # calculo_service.calcular_percentual_meta (regras-de-negocio.md §4.3).
 # Faixas: ≥ LIMIAR_META_ATINGIDA; [LIMIAR_META_PARCIAL, LIMIAR_META_ATINGIDA); < LIMIAR_META_PARCIAL.
 LIMIAR_META_ATINGIDA: float = 100.0
 LIMIAR_META_PARCIAL: float = 50.0
+
+# ── Projeto de impacto e o cluster real ───────────────────────
+# Regra de negócio (Heitor, 09/11/2026): projeto de impacto é obrigatório nos
+# clusters 4 e 5. O tracking e os índices apontam o cluster, mas o cluster REAL
+# só chega ao C4, e só permanece no C4 ou no C5, se a EJ tiver ao menos um projeto
+# de impacto. Sem projeto, o cluster real fica limitado ao C3.
+CLUSTER_EXIGE_PROJETO_IMPACTO: int = 4
+CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO: int = 3

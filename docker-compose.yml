@@ -104,8 +104,11 @@ services:
       - /var/lib/postgresql/data
     volumes:
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    # Durante a inicialização o servidor temporário do entrypoint já responde ao
+    # pg_isready; só depois de aplicar todas as migrações o PID 1 vira `postgres`.
+    # Sem esta condição o pytest podia começar com migrações pendentes.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U portal -d portal_test"]
+      test: ["CMD-SHELL", "[ \"$$(cat /proc/1/comm)\" = postgres ] && pg_isready -h 127.0.0.1 -U portal -d portal_test"]
       interval: 2s
       timeout: 3s
       retries: 30

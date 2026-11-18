@@ -96,7 +96,12 @@ export interface EjMovimento {
     id_ej: number;
     nome: string;
     cluster_atual: number | null;
+    /** Cluster real no cenário: o apontado pelo índice, limitado ao C3 sem projeto de impacto. */
     cluster_calculado: number | null;
+    /** O que o índice apontava antes da regra do projeto de impacto. */
+    cluster_apontado: number | null;
+    tem_projeto_impacto: boolean | null;
+    limitado_por_projeto_impacto: boolean;
     foto_url: string | null;
 }
 

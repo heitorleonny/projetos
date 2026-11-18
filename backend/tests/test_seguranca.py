@@ -572,7 +572,7 @@ class TestPreservacaoJWT:
         assert [(c["nome"], c["sde"]) for c in sde["cenarios"]] == [
             ("Índice de Cluster", 0.0),
             ("Índice c/ Meta CSAT", 0.0),
-            ("Tracking de Cluster", 0.45),
+            ("Tracking de Cluster", 0.3),
         ]
 
     def test_eventos_com_token_valido(self, client, auth):

@@ -291,6 +291,7 @@ MONITORAMENTO = _Tabela(
         ("faturamento_colab_mes", "numeric"), ("faturamento_colab_acumulado", "numeric"),
         ("projetos_vendidos_mes", "integer"), ("projetos_colab_mes", "integer"), ("csat", "numeric"),
         ("numero_membros", "integer"), ("membros_engajados_mes", "integer"),
+        ("projetos_impacto", "integer"),
     ),
 )
 

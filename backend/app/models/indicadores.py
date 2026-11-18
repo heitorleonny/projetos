@@ -70,7 +70,14 @@ class EjMovimento(BaseModel):
     id_ej: int
     nome: str
     cluster_atual: int | None = None
+    # Cluster REAL no cenário: o apontado pelo índice, já limitado pela regra do
+    # projeto de impacto (sem projeto, no máximo C3).
     cluster_calculado: int | None = None
+    # O que o índice apontava antes da regra. Só difere de `cluster_calculado`
+    # quando `limitado_por_projeto_impacto` é verdadeiro.
+    cluster_apontado: int | None = None
+    tem_projeto_impacto: bool | None = None
+    limitado_por_projeto_impacto: bool = False
     foto_url: str | None = None
 
 

@@ -30,7 +30,7 @@ import pytest
 
 from app.ingestao.contrato import ErroContrato
 from app.ingestao.leitor import ler_planilha
-from app.ingestao.transform import csat_para_gravar
+from app.ingestao.transform import csat_para_gravar, transformar
 
 psycopg = pytest.importorskip("psycopg", reason="psycopg não instalado (ver requirements.txt)")
 
@@ -110,6 +110,8 @@ def _linhas_base() -> list[dict]:
                     "CSAT": 4.5,
                     "PORCENTAGEM_DE_COLETA_CSAT": 50.0,
                     "QUANTIDADE_DE_MEMBROS_ENGAJADOS_COM_MEJ": 2,
+                    # Vazio no 1º mês e 1 depois: o valor se repete até o fim do ano.
+                    "PROJETOS_DE_IMPACTO": None if mes == 1 else 1,
                     # Fora do contrato: vai para a staging como veio...
                     "NPS": 10.0,
                     # ...e estas três não podem chegar a lugar nenhum.
@@ -162,6 +164,22 @@ class TestContrato:
         planilha = ler_planilha(_gravar_xlsx(tmp_path, "contato", _linhas_base()), ano=ANO)
         assert not {"E_MAIL", "SITE", "FACEBOOK"} & set(planilha.dados.columns)
         assert "NPS" in planilha.dados.columns
+
+    def test_projetos_de_impacto_e_coluna_obrigatoria(self, tmp_path):
+        """Sem a coluna, a carga gravaria NULL por cima de projetos que a EJ já tem."""
+        caminho = _gravar_xlsx(tmp_path, "sem-impacto", _linhas_base(), sem_colunas=("PROJETOS_DE_IMPACTO",))
+        with pytest.raises(ErroContrato, match="PROJETOS_DE_IMPACTO"):
+            ler_planilha(caminho, ano=ANO)
+
+    def test_projetos_de_impacto_vai_para_o_monitoramento_e_vazio_vira_nulo(self, tmp_path):
+        """Vazio fica NULL (o backend lê "sem projeto"); 1 chega como inteiro, sem numpy."""
+        planilha = ler_planilha(_gravar_xlsx(tmp_path, "impacto", _linhas_base()), ano=ANO)
+        federacoes = planilha.dados["FEDERACAO"].map({"FEJEPE": 12, "FEJEPAR": 4, "FEJEMG": 7})
+        resultado = transformar(planilha.dados, federacoes, ano=ANO, colunas_cluster=planilha.colunas_cluster)
+        linhas = [m for f in resultado.fatias.values() for m in f.monitoramentos]
+        por_mes = {m["mes"]: m["projetos_impacto"] for m in linhas}
+        assert por_mes == {1: None, 2: 1, 3: 1}
+        assert all(type(m["projetos_impacto"]) in (int, type(None)) for m in linhas)
 
     def test_ano_errado_no_nome_do_arquivo_e_recusado(self, tmp_path):
         caminho = tmp_path / "monitoring_acumulated_2025_1220250921-1-abc123.xlsx"

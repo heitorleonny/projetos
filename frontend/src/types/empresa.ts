@@ -44,6 +44,13 @@ export interface EmpresaComIndicadores {
     tracking_cluster_calculado: number | null;
     indice_cluster: number | null;
     indice_cluster_calculado: number | null;
+    /** Projeto de impacto: obrigatório no C4 e no C5. O cluster "calculado" é o que o
+     *  índice aponta; o "efetivo" é o real, limitado ao C3 quando não há projeto. */
+    projetos_impacto: number | null;
+    tem_projeto_impacto: boolean;
+    meta_projetos_impacto: number | null;
+    tracking_cluster_efetivo: number | null;
+    indice_cluster_efetivo: number | null;
     meta_faturamento: number | null;
     meta_csat: number | null;
     meta_engajamento_mej: number | null;
@@ -124,6 +131,7 @@ export interface MetaVsRealizado {
     meta_taxa_colaboracao: number | null;
     taxa_colaboracao: number | null;
     meta_projetos_impacto: number | null;
+    projetos_impacto: number | null;
     meta_engajamento_mej: number | null;
     engajamento_mej: number | null;
 }
@@ -143,4 +151,8 @@ export interface EmpresaPerfilCompleto {
     indice_meta_csat_calculado: number | null;
     tracking_cluster: number | null;
     tracking_cluster_calculado: number | null;
+    /** Cluster real de cada índice: o apontado, limitado ao C3 sem projeto de impacto. */
+    indice_cluster_efetivo: number | null;
+    indice_meta_csat_efetivo: number | null;
+    tracking_cluster_efetivo: number | null;
 }

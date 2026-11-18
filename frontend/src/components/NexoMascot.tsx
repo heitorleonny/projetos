@@ -4,7 +4,7 @@ type NexoMascotProps = {
     expressive?: boolean;
 };
 
-/** Vaga-lume do Nexo. Decorativo: o nome acessível fica no controle ou título. */
+/** Vaga-lume do Lamps (o componente mantém o nome antigo). Decorativo: o nome acessível fica no controle ou título. */
 export default function NexoMascot({ className = '', size = 40, expressive = false }: NexoMascotProps) {
     return <svg width={size} height={size} viewBox="0 0 80 80" fill="none"
         className={className} aria-hidden="true" focusable="false">

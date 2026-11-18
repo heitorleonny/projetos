@@ -117,6 +117,7 @@ class MetaVsRealizado(BaseModel):
     taxa_colaboracao: float | None = None
 
     meta_projetos_impacto: int | None = None
+    projetos_impacto: int | None = None
 
     meta_engajamento_mej: float | None = None
     engajamento_mej: float | None = None
@@ -158,6 +159,15 @@ class EmpresaComIndicadores(BaseModel):
     tendencia_cluster: TendenciaCluster | None = None
     tracking_cluster: float | None = None
     tracking_cluster_calculado: int | None = None
+
+    # Projeto de impacto: obrigatório no C4 e no C5. O tracking pode apontar o C4 ou o C5,
+    # mas o cluster real só chega a eles (e só fica neles) com projeto de impacto.
+    projetos_impacto: int | None = None
+    tem_projeto_impacto: bool = False
+    meta_projetos_impacto: int | None = None
+    # Cluster real: o do tracking / do índice com a regra do projeto aplicada.
+    tracking_cluster_efetivo: int | None = None
+    indice_cluster_efetivo: int | None = None
 
     # Índice real (fat acumulado × csat real × engaj real × colab)
     indice_cluster: float | None = None
@@ -207,6 +217,13 @@ class EmpresaPerfilCompleto(BaseModel):
     indice_meta_csat_calculado: int | None = None
     tracking_cluster: float | None = None
     tracking_cluster_calculado: int | None = None
+
+    # Cluster real: o de cada índice com a regra do projeto de impacto aplicada
+    # (sem projeto, no máximo C3). Os `_calculado` acima seguem sendo o que o
+    # índice aponta; estes são o que vale.
+    indice_cluster_efetivo: int | None = None
+    indice_meta_csat_efetivo: int | None = None
+    tracking_cluster_efetivo: int | None = None
 
 
 class PaginacaoMeta(BaseModel):

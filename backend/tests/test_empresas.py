@@ -340,6 +340,7 @@ def test_sde_usa_colaborativo_acumulado_oficial():
         "faturamento_mes": 100_000, "faturamento_acumulado": 100_000,
         "faturamento_colab_mes": 0, "faturamento_colab_acumulado": 100_000,
         "csat": 4.0, "numero_membros": 1, "membros_engajados_mes": 0,
+        "projetos_impacto": 1,  # C4 exige projeto de impacto
     }]
     sb = _make_mock_supabase(
         [EMPRESAS[0]], monitoramentos,
@@ -350,6 +351,193 @@ def test_sde_usa_colaborativo_acumulado_oficial():
 
     assert resposta.cenarios[0].subindo[0].cluster_calculado == 4
     assert resposta.cenarios[0].sde == 0.15
+
+
+# ── Projeto de impacto × cluster real (regra de 09/11/2026) ───
+#
+# Fixture: faturamento 400.000 × CSAT 4,0 × 100 = 160 mi → o índice aponta C5.
+# Com 200.000 → 80 mi → C4. Engajamento 0 (1 membro, nenhum engajado), sem colab.
+# Sem projeto de impacto o cluster real fica limitado ao C3.
+
+
+def _sde_cenario1(cluster_oficial, faturamento, projetos_impacto, *, csat=4.0, linhas=True):
+    """SDE com UMA EJ; devolve o cenário 1 (Índice de Cluster)."""
+    monitoramentos = [{
+        "id": 1, "id_ej": 101, "ano": 2026, "mes": 12,
+        "faturamento_mes": faturamento, "faturamento_acumulado": faturamento,
+        "faturamento_colab_mes": 0, "faturamento_colab_acumulado": 0,
+        "csat": csat, "numero_membros": 1, "membros_engajados_mes": 0,
+        "projetos_impacto": projetos_impacto,
+    }] if linhas else []
+    sb = _make_mock_supabase(
+        [EMPRESAS[0]], monitoramentos,
+        clusters=[{"id_ej": 101, "ano": 2026, "cluster": cluster_oficial}],
+    )
+    return calcular_sde_cenarios(sb, ano=2026).cenarios[0]
+
+
+def _unico(cenario):
+    movimentos = cenario.subindo + cenario.mantendo + cenario.descendo
+    assert len(movimentos) == 1
+    return movimentos[0]
+
+
+class TestSdeProjetoImpacto:
+    def test_c3_sem_projeto_nao_sobe_para_o_c4_nem_para_o_c5(self):
+        cenario = _sde_cenario1(3, 400_000, None)  # aponta C5
+        mov = _unico(cenario)
+        assert (mov.cluster_apontado, mov.cluster_calculado) == (5, 3)
+        assert mov.limitado_por_projeto_impacto is True
+        assert mov.tem_projeto_impacto is False
+        assert cenario.mantendo and not cenario.subindo
+        assert cenario.sde == 0
+
+    def test_c3_com_projeto_sobe(self):
+        cenario = _sde_cenario1(3, 400_000, 1)
+        assert _unico(cenario).cluster_calculado == 5
+        assert cenario.subindo and cenario.sde == 0.15  # peso do C3
+
+    def test_c4_sem_projeto_desce_para_o_c3(self):
+        cenario = _sde_cenario1(4, 200_000, None)  # aponta C4
+        mov = _unico(cenario)
+        assert (mov.cluster_apontado, mov.cluster_calculado) == (4, 3)
+        assert mov.limitado_por_projeto_impacto is True
+        assert cenario.descendo and cenario.sde == -0.15  # peso do C4
+
+    def test_c4_com_projeto_permanece_no_c4(self):
+        """Antes havia uma regra temporária (todo C4 descia a C3 no cenário 1),
+        criada por falta deste indicador. Com projeto, o C4 não desce mais."""
+        cenario = _sde_cenario1(4, 200_000, 1)
+        mov = _unico(cenario)
+        assert (mov.cluster_apontado, mov.cluster_calculado) == (4, 4)
+        assert mov.limitado_por_projeto_impacto is False
+        assert cenario.mantendo and cenario.sde == 0
+
+    def test_c4_com_projeto_sobe_para_o_c5(self):
+        cenario = _sde_cenario1(4, 400_000, 1)
+        assert _unico(cenario).cluster_calculado == 5
+        assert cenario.subindo and cenario.sde == 0.15  # peso do C4
+
+    def test_c5_sem_projeto_desce_para_o_c3(self):
+        cenario = _sde_cenario1(5, 400_000, None)
+        assert _unico(cenario).cluster_calculado == 3
+        assert cenario.descendo and cenario.sde == -0.15  # peso do C5
+
+    def test_c5_com_projeto_permanece_no_c5(self):
+        cenario = _sde_cenario1(5, 400_000, 1)
+        assert _unico(cenario).cluster_calculado == 5
+        assert cenario.mantendo and cenario.sde == 0
+
+    def test_abaixo_do_c4_a_regra_nao_interfere(self):
+        """C2 apontando C4 sem projeto para no C3 (sobe um cluster, peso 0,25)."""
+        cenario = _sde_cenario1(2, 200_000, None)
+        assert _unico(cenario).cluster_calculado == 3
+        assert cenario.subindo and cenario.sde == 0.25
+
+    def test_c4_e_c5_sem_dado_para_o_cenario_tambem_exigem_projeto(self):
+        """Sem CSAT o índice não aponta cluster (mantém), mas sem projeto não há C4 nem C5."""
+        for oficial in (4, 5):
+            sem_projeto = _sde_cenario1(oficial, 400_000, None, csat=None)
+            com_projeto = _sde_cenario1(oficial, 400_000, 1, csat=None)
+            assert _unico(sem_projeto).cluster_calculado == 3 and sem_projeto.descendo
+            assert _unico(com_projeto).cluster_calculado == oficial and com_projeto.mantendo
+
+    def test_sem_nenhum_monitoramento_a_regra_nao_se_aplica(self):
+        """Sem linha não há como saber do projeto: mantém o cluster oficial."""
+        for oficial in (4, 5):
+            cenario = _sde_cenario1(oficial, 0, None, linhas=False)
+            assert _unico(cenario).cluster_calculado == oficial
+            assert cenario.mantendo
+
+    def test_projeto_vale_mesmo_se_a_ultima_linha_veio_vazia(self):
+        monitoramentos = [
+            {"id": 1, "id_ej": 101, "ano": 2026, "mes": 1, "faturamento_mes": 1, "faturamento_acumulado": 1,
+             "faturamento_colab_acumulado": 0, "csat": 4.0, "numero_membros": 1, "membros_engajados_mes": 0,
+             "projetos_impacto": 1},
+            {"id": 2, "id_ej": 101, "ano": 2026, "mes": 2, "faturamento_mes": 399_999, "faturamento_acumulado": 400_000,
+             "faturamento_colab_acumulado": 0, "csat": 4.0, "numero_membros": 1, "membros_engajados_mes": 0,
+             "projetos_impacto": None},
+        ]
+        sb = _make_mock_supabase([EMPRESAS[0]], monitoramentos,
+                                 clusters=[{"id_ej": 101, "ano": 2026, "cluster": 5}])
+        cenario = calcular_sde_cenarios(sb, ano=2026).cenarios[0]
+        assert _unico(cenario).cluster_calculado == 5
+
+
+class TestIndicadoresProjetoImpacto:
+    """tracking_cluster_calculado é o que o tracking aponta; *_efetivo é o que vale."""
+
+    EJ = {"id": 1, "id_ej": 101, "nome": "EJ Alpha"}
+    META = {"meta_faturamento": 500_000, "meta_csat": 4.0, "meta_engajamento_mej": 0, "meta_projetos_impacto": 1}
+
+    def _indicadores(self, projetos_impacto, *, faturamento=400_000, linhas=True):
+        # 400.000 anualizado × meta CSAT 4,0 × 100 = 160 mi → tracking aponta C5;
+        # 200.000 → 80 mi → C4.
+        mons = [{
+            "id_ej": 101, "mes": 12, "faturamento_mes": faturamento, "faturamento_acumulado": faturamento,
+            "faturamento_colab_acumulado": 0, "csat": 4.0, "numero_membros": 1, "membros_engajados_mes": 0,
+            "projetos_impacto": projetos_impacto,
+        }] if linhas else []
+        return _calcular_indicadores_ej(self.EJ, mons, self.META, 2026, None, {101: 4})
+
+    def test_tracking_aponta_c5_mas_sem_projeto_o_real_e_c3(self):
+        ind = self._indicadores(None)
+        assert ind.tracking_cluster_calculado == 5
+        assert ind.tracking_cluster_efetivo == 3
+        assert ind.tem_projeto_impacto is False and ind.projetos_impacto is None
+
+    def test_tracking_aponta_c4_mas_sem_projeto_o_real_e_c3(self):
+        ind = self._indicadores(None, faturamento=200_000)
+        assert (ind.tracking_cluster_calculado, ind.tracking_cluster_efetivo) == (4, 3)
+
+    def test_com_projeto_o_real_acompanha_o_tracking(self):
+        for faturamento, apontado in ((400_000, 5), (200_000, 4)):
+            ind = self._indicadores(1, faturamento=faturamento)
+            assert (ind.tracking_cluster_calculado, ind.tracking_cluster_efetivo) == (apontado, apontado)
+            assert ind.tem_projeto_impacto is True and ind.projetos_impacto == 1
+
+    def test_indice_real_tambem_e_limitado(self):
+        sem = self._indicadores(None)
+        com = self._indicadores(1)
+        assert (sem.indice_cluster_calculado, sem.indice_cluster_efetivo) == (5, 3)
+        assert (com.indice_cluster_calculado, com.indice_cluster_efetivo) == (5, 5)
+
+    def test_abaixo_do_c4_o_real_e_o_apontado(self):
+        ind = self._indicadores(None, faturamento=100_000)  # 40 mi → C3
+        assert (ind.tracking_cluster_calculado, ind.tracking_cluster_efetivo) == (3, 3)
+
+    def test_meta_de_projetos_de_impacto_sai_na_listagem(self):
+        assert self._indicadores(None).meta_projetos_impacto == 1
+
+    def test_sem_monitoramento_a_regra_nao_se_aplica(self):
+        ind = self._indicadores(None, linhas=False)
+        # sem linha o tracking cai no cluster oficial (4 aqui) e nada é limitado
+        assert ind.tracking_cluster_calculado == ind.tracking_cluster_efetivo == 4
+
+
+def test_perfil_expoe_cluster_real_e_projeto_de_impacto(client):
+    """O perfil da EJ devolve o cluster real de cada índice e o realizado do projeto."""
+    metas = [{**METAS[0], "meta_csat": 4.0, "meta_engajamento_mej": 0, "meta_projetos_impacto": 1}]
+    monitoramentos = [{
+        "id": 1, "id_ej": 101, "ano": 2026, "mes": 12,
+        "faturamento_mes": 400_000, "faturamento_acumulado": 400_000,
+        "faturamento_colab_mes": 0, "faturamento_colab_acumulado": 0,
+        "csat": 4.0, "numero_membros": 1, "membros_engajados_mes": 0, "projetos_impacto": None,
+    }]
+    sb = _make_mock_supabase([EMPRESAS[0]], monitoramentos, metas,
+                             clusters=[{"id_ej": 101, "ano": 2026, "cluster": 4}])
+    app.dependency_overrides[get_supabase] = lambda: sb
+    resposta = client.get("/api/v1/empresas/101")
+    app.dependency_overrides.pop(get_supabase, None)
+
+    assert resposta.status_code == 200
+    perfil = resposta.json()
+    assert perfil["tracking_cluster_calculado"] == 5 and perfil["tracking_cluster_efetivo"] == 3
+    assert perfil["indice_cluster_calculado"] == 5 and perfil["indice_cluster_efetivo"] == 3
+    assert perfil["indice_meta_csat_calculado"] == 5 and perfil["indice_meta_csat_efetivo"] == 3
+    assert perfil["metas"]["projetos_impacto"] is None
+    assert perfil["metas"]["meta_projetos_impacto"] == 1
+    assert perfil["indicadores"]["tem_projeto_impacto"] is False
 
 
 def test_ranking_projetos_soma_contratos_mensais_sem_coluna_legada():

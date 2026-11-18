@@ -26,11 +26,11 @@ export default function ChatButton() {
     if (!session) return null;
     return <>
         <AssistentePanel key={escopo} aberto={open} fechar={fechar} />
-        <button ref={botao} onClick={() => setOpen(true)}
+        <button ref={botao} data-tour="nexo" onClick={() => setOpen(true)}
             className="fixed bottom-5 right-5 z-40 flex h-12 items-center gap-2 rounded-lg border border-primary-300/25 bg-primary-600 px-4 text-white shadow-md transition hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-300"
-            aria-label="Abrir Nexo, assistente da rede" aria-controls="assistente-rede" aria-haspopup="dialog" aria-expanded={open} title="Nexo · Pergunte à sua rede">
+            aria-label="Abrir Lamps, assistente da rede" aria-controls="assistente-rede" aria-haspopup="dialog" aria-expanded={open} title="Lamps · Pergunte à sua rede">
             <NexoMascot size={32} className="text-white" />
-            <span className="hidden text-sm font-semibold sm:block">Nexo</span>
+            <span className="hidden text-sm font-semibold sm:block">Lamps</span>
         </button>
     </>;
 }

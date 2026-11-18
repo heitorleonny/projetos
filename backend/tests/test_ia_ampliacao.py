@@ -165,7 +165,8 @@ def test_perfil_resolve_uma_ej_com_projecao_explicita():
     assert resposta.mes == 3 and resposta.linhas[0].id_ej == 101 and resposta.linhas[0].nome == "EJ Sintética PE"
     assert [l.nome for l in resposta.linhas[1:]] == [
         "Faturamento acumulado", "% da meta de faturamento", "Projeção anual", "Ritmo necessário por mês",
-        "Cluster oficial", "Cluster pelo tracking", "CSAT médio", "Projetos no ano"]
+        "Cluster oficial", "Cluster pelo tracking", "Cluster real pelo tracking", "Projetos de impacto",
+        "CSAT médio", "Projetos no ano"]
     valores = {l.nome: l.valor for l in resposta.linhas}
     assert valores["Faturamento acumulado"] == 6000 and valores["% da meta de faturamento"] == 50.0
     assert valores["Cluster oficial"] == 2 and valores["Projetos no ano"] == 3
@@ -394,12 +395,23 @@ CORPUS = Path(__file__).resolve().parents[1] / "app/ia/avaliacao/perguntas.json"
 
 def test_corpus_tem_tres_perguntas_por_ferramenta_nova_e_preserva_as_21():
     casos = json.loads(CORPUS.read_text())
-    assert len(casos) == 33 and len({c["id"] for c in casos}) == 33
-    novos = casos[21:]
+    assert len(casos) == 41 and len({c["id"] for c in casos}) == 41
+    novos = casos[21:33]
     contagem = Counter(c["esperado"]["ferramenta"] if c["esperado"].get("ordem") != "asc" else "ranking_asc" for c in novos)
     assert contagem == {"explicar": 3, "ranking_asc": 3, "perfil_ej": 3, "metas": 3}
     for caso in casos[:21]:  # gabarito anterior sem campos novos
         assert not {"conceito", "ordem", "faixa"} & set(caso["esperado"])
+
+
+def test_corpus_cobre_cluster_conceitos_novos_e_adversariais_do_lamps():
+    casos = {c["id"]: c for c in json.loads(CORPUS.read_text())[33:]}
+    assert {c["esperado"]["ferramenta"] for c in casos.values()} >= {
+        "indicadores_rede", "ejs_do_cluster", "explicar", "recusar"}
+    assert casos["cluster-lista"]["esperado"]["cluster"] == 4
+    assert {casos["explicar-impacto"]["esperado"]["conceito"],
+            casos["explicar-adaptativa"]["esperado"]["conceito"]} == {"projeto_impacto", "formula_adaptativa"}
+    for id_ in ("injecao-prompt", "injecao-tenant"):
+        assert casos[id_]["adversarial"] and casos[id_]["esperado"]["ferramenta"] == "recusar"
 
 
 def test_substituicao_da_ej_de_exemplo_valida_o_contrato():

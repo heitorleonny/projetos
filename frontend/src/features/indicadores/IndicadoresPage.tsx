@@ -574,7 +574,7 @@ export default function IndicadoresPage() {
             )}
 
             {/* Filters */}
-            <div className="glass-card rounded-2xl p-5 mb-8">
+            <div data-tour="indicadores-filtros" className="glass-card rounded-2xl p-5 mb-8">
                 <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                     <div>
                         <label className="text-xs text-neutral-400 uppercase tracking-wider font-semibold mb-2 block">Ano</label>
@@ -908,7 +908,7 @@ export default function IndicadoresPage() {
                     </div>
 
                     {/* ── SDE ── */}
-                    <div className="glass-card rounded-2xl p-6">
+                    <div data-tour="indicadores-sde" className="glass-card rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-sm font-heading font-semibold text-white uppercase tracking-wider">
@@ -919,6 +919,10 @@ export default function IndicadoresPage() {
                                     {sdeCenarios?.total_ejs != null && (
                                         <span className="ml-2 text-neutral-600">· {sdeCenarios.total_ejs} EJs processadas</span>
                                     )}
+                                </p>
+                                <p className="text-[11px] text-neutral-500 mt-1">
+                                    Vale o cluster real: sem projeto de impacto, a EJ não passa do Cluster 3. Ela não sobe para o 4 nem
+                                    para o 5 e, se já está num deles, conta como descendo.
                                 </p>
                             </div>
                         </div>
@@ -1085,6 +1089,14 @@ function EjMovimentoGroup({ label, ejs, color, arrow }: {
                             <path strokeLinecap="round" strokeLinejoin="round" d={arrowPath} />
                         </svg>
                         <span className="text-xs text-neutral-300 truncate">{ej.nome}</span>
+                        {ej.limitado_por_projeto_impacto && (
+                            <span
+                                className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold border border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                title={`O cenário aponta C${ej.cluster_apontado}, mas sem projeto de impacto o cluster real é no máximo C${ej.cluster_calculado}.`}
+                            >
+                                sem projeto de impacto
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         <span className="text-[10px] text-neutral-600">C{ej.cluster_atual}</span>
