@@ -47,3 +47,12 @@ LIMIAR_META_PARCIAL: float = 50.0
 # de impacto. Sem projeto, o cluster real fica limitado ao C3.
 CLUSTER_EXIGE_PROJETO_IMPACTO: int = 4
 CLUSTER_MAXIMO_SEM_PROJETO_IMPACTO: int = 3
+
+# ── Análise do mês: EJs em alerta e em ascensão ──────────────
+# Parâmetros das regras descritivas (docs/plano-analise-do-mes-2026-11-17.md §3).
+# Não são previsão: descrevem o que já aconteceu nos dados do mês.
+# Calibrados em 17/11/2026 com dados reais (plano §12–13).
+ALERTA_MESES_SEM_VENDAS: int = 3          # A1: meses seguidos sem faturamento
+ALERTA_QUEDA_FATURAMENTO_PCT: float = 50.0  # A4: queda mínima entre os dois trimestres
+ALERTA_JANELA_TRIMESTRE_MESES: int = 3    # A4: últimos N meses vs. N anteriores
+ASCENSAO_TOP_CRESCIMENTO: int = 5         # S5: maiores altas do mês

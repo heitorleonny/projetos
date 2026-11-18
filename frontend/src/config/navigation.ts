@@ -1,5 +1,6 @@
 // Mesmos nomes e destinos no menu e no guia de primeiro acesso.
 export const abasDoPortal = [
+    { id: 'analise', to: '/analise', label: 'Análise do mês', grupo: 'principal', descricao: 'Veja o resumo do mês, as EJs que pedem atenção e as que foram bem.', acao: 'Escolha o mês de referência e clique em uma EJ para abrir o perfil dela.' },
     { id: 'visao', to: '/dashboard', label: 'Visão geral', grupo: 'principal', descricao: 'Encontre as empresas juniores da sua rede e acompanhe seus resultados.', acao: 'Confira o período, experimente a busca e clique em uma EJ para abrir seu perfil.' },
     { id: 'indicadores', to: '/indicadores', label: 'Indicadores', grupo: 'principal', descricao: 'Veja o panorama consolidado da federação, com indicadores e gráficos.', acao: 'Confira o ano selecionado e explore os indicadores da rede.' },
     { id: 'cluster', to: '/cluster-track', label: 'Evolução de cluster', grupo: 'analises', descricao: 'Acompanhe o cluster oficial, o tracking e a evolução das empresas juniores.', acao: 'Busque uma EJ e compare o cluster oficial com os cenários apresentados.' },

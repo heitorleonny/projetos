@@ -1034,6 +1034,218 @@
         }
       }
     },
+    "/api/v1/analise": {
+      "get": {
+        "tags": [
+          "Análise do mês"
+        ],
+        "summary": "Análise do mês",
+        "description": "Resumo da federação no mês de referência, EJs em alerta e EJs em ascensão, com o motivo de cada uma. As regras são descritivas (não preditivas). Sem `mes`, usa o último mês com monitoramento carregado.",
+        "operationId": "get_analise_api_v1_analise_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnaliseMes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analise/briefing": {
+      "get": {
+        "tags": [
+          "Análise do mês"
+        ],
+        "summary": "Resumo do mês redigido por IA",
+        "description": "Resumo em 3 a 5 frases redigido pelo modelo a partir dos números da análise. O texto só é devolvido se passar nas guardas (números, nomes, vocabulário); caso contrário, ou sem IA configurada, devolve o resumo fixo (`gerado_por_ia=false`).",
+        "operationId": "get_briefing_api_v1_analise_briefing_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Briefing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analise/briefing/regenerar": {
+      "post": {
+        "tags": [
+          "Análise do mês"
+        ],
+        "summary": "Redigir o resumo do mês de novo",
+        "operationId": "post_regenerar_briefing_api_v1_analise_briefing_regenerar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Ano de referência",
+              "default": 2026,
+              "title": "Ano"
+            },
+            "description": "Ano de referência"
+          },
+          {
+            "name": "mes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 12,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mês de referência",
+              "title": "Mes"
+            },
+            "description": "Mês de referência"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Briefing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/sessao": {
       "get": {
         "tags": [
@@ -2503,6 +2715,89 @@
   },
   "components": {
     "schemas": {
+      "AnaliseMes": {
+        "properties": {
+          "ano": {
+            "type": "integer",
+            "title": "Ano"
+          },
+          "mes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes",
+            "description": "Mês de referência; None quando não há dados no ano."
+          },
+          "mes_anterior": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mes Anterior"
+          },
+          "mes_parcial": {
+            "type": "boolean",
+            "title": "Mes Parcial",
+            "description": "O mês de referência ainda está em andamento.",
+            "default": false
+          },
+          "resumo": {
+            "$ref": "#/components/schemas/ResumoAnalise",
+            "default": {
+              "total_ejs": 0,
+              "fora_do_zero": {
+                "atual": 0.0
+              },
+              "no_verde": {
+                "atual": 0.0
+              },
+              "ritmo_significativo": {
+                "atual": 0.0
+              },
+              "faturamento_acumulado": {
+                "atual": 0.0
+              }
+            }
+          },
+          "alertas": {
+            "items": {
+              "$ref": "#/components/schemas/EjDestaque"
+            },
+            "type": "array",
+            "title": "Alertas",
+            "default": []
+          },
+          "ascensao": {
+            "items": {
+              "$ref": "#/components/schemas/EjDestaque"
+            },
+            "type": "array",
+            "title": "Ascensao",
+            "default": []
+          },
+          "briefing": {
+            "$ref": "#/components/schemas/Briefing",
+            "default": {
+              "frases": [],
+              "gerado_por_ia": false
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "ano"
+        ],
+        "title": "AnaliseMes"
+      },
       "Body_importar_planilha_api_v1_admin_importacoes_post": {
         "properties": {
           "arquivo": {
@@ -2557,6 +2852,36 @@
           "arquivo"
         ],
         "title": "Body_put_logo_api_v1_federacao_minha_logo_put"
+      },
+      "Briefing": {
+        "properties": {
+          "frases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Frases",
+            "default": []
+          },
+          "gerado_por_ia": {
+            "type": "boolean",
+            "title": "Gerado Por Ia",
+            "default": false
+          },
+          "modelo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelo"
+          }
+        },
+        "type": "object",
+        "title": "Briefing"
       },
       "Carga": {
         "properties": {
@@ -2722,6 +3047,28 @@
         ],
         "title": "Catalogo"
       },
+      "Comparativo": {
+        "properties": {
+          "atual": {
+            "type": "number",
+            "title": "Atual",
+            "default": 0
+          },
+          "anterior": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anterior"
+          }
+        },
+        "type": "object",
+        "title": "Comparativo"
+      },
       "Convite": {
         "properties": {
           "nome": {
@@ -2865,6 +3212,70 @@
         ],
         "title": "Direcao",
         "description": "Direção da ordenação."
+      },
+      "EjDestaque": {
+        "properties": {
+          "id_ej": {
+            "type": "integer",
+            "title": "Id Ej"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "foto_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Url"
+          },
+          "gravidade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gravidade"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Só em alertas."
+          },
+          "motivos": {
+            "items": {
+              "$ref": "#/components/schemas/MotivoDestaque"
+            },
+            "type": "array",
+            "title": "Motivos"
+          },
+          "faturamento_mes": {
+            "type": "number",
+            "title": "Faturamento Mes",
+            "default": 0
+          },
+          "percentual_meta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_ej",
+          "nome",
+          "motivos"
+        ],
+        "title": "EjDestaque"
       },
       "EjMovimento": {
         "properties": {
@@ -4311,6 +4722,15 @@
         ],
         "title": "FederacaoMaster"
       },
+      "Gravidade": {
+        "type": "string",
+        "enum": [
+          "alta",
+          "media",
+          "baixa"
+        ],
+        "title": "Gravidade"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4793,6 +5213,25 @@
           "definicao"
         ],
         "title": "MetricaEntrada"
+      },
+      "MotivoDestaque": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "descricao": {
+            "type": "string",
+            "title": "Descricao",
+            "description": "Motivo em linguagem de gestor."
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "descricao"
+        ],
+        "title": "MotivoDestaque"
       },
       "OpcaoEsclarecimento": {
         "properties": {
@@ -5771,6 +6210,63 @@
           "ordem"
         ],
         "title": "ResultadoMetrica"
+      },
+      "ResumoAnalise": {
+        "properties": {
+          "total_ejs": {
+            "type": "integer",
+            "title": "Total Ejs",
+            "default": 0
+          },
+          "fora_do_zero": {
+            "$ref": "#/components/schemas/Comparativo",
+            "default": {
+              "atual": 0.0
+            }
+          },
+          "no_verde": {
+            "$ref": "#/components/schemas/Comparativo",
+            "default": {
+              "atual": 0.0
+            }
+          },
+          "ritmo_significativo": {
+            "$ref": "#/components/schemas/Comparativo",
+            "default": {
+              "atual": 0.0
+            }
+          },
+          "faturamento_acumulado": {
+            "$ref": "#/components/schemas/Comparativo",
+            "default": {
+              "atual": 0.0
+            }
+          },
+          "meta_faturamento_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Faturamento Total"
+          },
+          "percentual_meta_rede": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentual Meta Rede"
+          }
+        },
+        "type": "object",
+        "title": "ResumoAnalise"
       },
       "Ritmo": {
         "type": "string",

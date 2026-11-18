@@ -5,6 +5,7 @@ import LoginPage from './features/auth/LoginPage';
 import ProtectedRoute from './auth/ProtectedRoute';
 import FullPageSpinner from './components/FullPageSpinner';
 
+const AnalisePage      = lazy(() => import('./features/analise/AnalisePage'));
 const DashboardPage    = lazy(() => import('./features/dashboard/DashboardPage'));
 const ComparacaoPage   = lazy(() => import('./features/comparacao/ComparacaoPage'));
 const SimulacaoPage    = lazy(() => import('./features/simulacao/SimulacaoPage'));
@@ -26,7 +27,9 @@ function App() {
           {/* Destino do link de convite: trata sozinha a sessão ausente. */}
           <Route path="/definir-senha" element={<DefinirSenhaPage />} />
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Análise do mês é a primeira tela após o login (D1 do plano de 17/11). */}
+            <Route path="/" element={<Navigate to="/analise" replace />} />
+            <Route path="/analise" element={<AnalisePage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/empresas/:idEj" element={<EmpresaPage />} />

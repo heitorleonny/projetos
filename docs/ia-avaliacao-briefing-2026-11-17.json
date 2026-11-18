@@ -1,0 +1,119 @@
+{
+  "data": "2026-11-17T20:48:33.571048-03:00",
+  "modelo": "anthropic/claude-haiku-5.5",
+  "ano": 2026,
+  "resumo": {
+    "casos": 8,
+    "aceitos": 8,
+    "recusados": 0,
+    "indisponiveis": 0,
+    "motivos_de_recusa": {},
+    "tokens_entrada": 13617,
+    "tokens_saida": 1956
+  },
+  "resultados": [
+    {
+      "federacao": "A",
+      "mes": 3,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1673,
+      "tokens_saida": 265,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2095
+    },
+    {
+      "federacao": "A",
+      "mes": 7,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1725,
+      "tokens_saida": 240,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2237
+    },
+    {
+      "federacao": "A",
+      "mes": 10,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1671,
+      "tokens_saida": 243,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2221
+    },
+    {
+      "federacao": "A",
+      "mes": 11,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1681,
+      "tokens_saida": 245,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2332
+    },
+    {
+      "federacao": "B",
+      "mes": 3,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1707,
+      "tokens_saida": 246,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 1745
+    },
+    {
+      "federacao": "B",
+      "mes": 7,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1727,
+      "tokens_saida": 235,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2574
+    },
+    {
+      "federacao": "B",
+      "mes": 10,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1731,
+      "tokens_saida": 241,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 1918
+    },
+    {
+      "federacao": "B",
+      "mes": 11,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1702,
+      "tokens_saida": 241,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2210
+    }
+  ],
+  "conferencia_manual": {
+    "frases": 40,
+    "fieis": 40,
+    "numero_errado_ou_trocado": 0,
+    "imprecisoes": [],
+    "acao": "nenhuma; empate de março descrito como empate"
+  }
+}

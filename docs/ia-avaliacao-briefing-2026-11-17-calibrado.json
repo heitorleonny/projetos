@@ -1,0 +1,123 @@
+{
+  "data": "2026-11-17T20:54:09.783183-03:00",
+  "modelo": "anthropic/claude-haiku-5.5",
+  "ano": 2026,
+  "resumo": {
+    "casos": 8,
+    "aceitos": 8,
+    "recusados": 0,
+    "indisponiveis": 0,
+    "motivos_de_recusa": {},
+    "tokens_entrada": 15710,
+    "tokens_saida": 2069
+  },
+  "resultados": [
+    {
+      "federacao": "A",
+      "mes": 3,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1911,
+      "tokens_saida": 262,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 1990
+    },
+    {
+      "federacao": "A",
+      "mes": 7,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1988,
+      "tokens_saida": 249,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2620
+    },
+    {
+      "federacao": "A",
+      "mes": 10,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1963,
+      "tokens_saida": 269,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2349
+    },
+    {
+      "federacao": "A",
+      "mes": 11,
+      "ejs": 43,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1961,
+      "tokens_saida": 264,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2862
+    },
+    {
+      "federacao": "B",
+      "mes": 3,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1921,
+      "tokens_saida": 246,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 1695
+    },
+    {
+      "federacao": "B",
+      "mes": 7,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1990,
+      "tokens_saida": 259,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 1804
+    },
+    {
+      "federacao": "B",
+      "mes": 10,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1994,
+      "tokens_saida": 254,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 4058
+    },
+    {
+      "federacao": "B",
+      "mes": 11,
+      "ejs": 141,
+      "status": "aceito",
+      "motivo": null,
+      "frases": 5,
+      "tokens_entrada": 1982,
+      "tokens_saida": 266,
+      "modelo": "anthropic/claude-haiku-5.5",
+      "duracao_ms": 2390
+    }
+  ],
+  "conferencia_manual": {
+    "frases": 40,
+    "fieis": 40,
+    "numero_errado_ou_trocado": 0,
+    "comparacao_invertida": 0,
+    "observacoes_de_estilo": [
+      "empate redigido como 'o motivo mais comum é empate entre…' (federação A, mês 3)",
+      "aviso de mês parcial no fim do texto, não no início (A e B, mês 11)"
+    ],
+    "contexto": "regras calibradas (A4 trimestral, A1 sem quem nunca vendeu, sem A5); fatos com direção e motivo mais comum prontos"
+  }
+}

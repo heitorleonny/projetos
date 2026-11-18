@@ -23,7 +23,7 @@ export default function LoginPage() {
     const redirectTo = useMemo(() => {
         const state = location.state as LocationState | null;
         if (state?.from && state.from.startsWith('/') && !state.from.startsWith('//') && !state.from.includes('\\')) return state.from;
-        return '/dashboard';
+        return '/analise';
     }, [location.state]);
 
     if (!loading && user) {

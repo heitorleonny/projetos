@@ -24,7 +24,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, admin, empresas, eventos, federacao, ia, metricas, rede
+from app.routers import auth, admin, analise, empresas, eventos, federacao, ia, metricas, rede
 
 
 @asynccontextmanager
@@ -72,6 +72,7 @@ def criar_app() -> FastAPI:
     app.include_router(empresas.router)
     app.include_router(eventos.router)
     app.include_router(rede.router)
+    app.include_router(analise.router)
     app.include_router(admin.router)
     app.include_router(ia.router)
     app.include_router(metricas.router)
