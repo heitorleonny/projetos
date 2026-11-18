@@ -103,6 +103,8 @@ deploy-check: ## Verifica contratos de deploy VPS e regressão, sem publicar
 	$(PYTHON) infra/deploy/test-check-env.py
 	$(PYTHON) -m unittest discover -s scripts -p test_regressao_api.py -v
 	docker compose --env-file infra/deploy/aws.env.example -f infra/deploy/compose.aws.yml config --quiet
+	docker compose -p portal-federacoes -f docker-compose.yml -f infra/deploy/vps-fejepe/compose.prod.yml --env-file infra/deploy/vps-fejepe/env.prod.example config --quiet
+	for s in infra/deploy/vps-fejepe/*.sh; do bash -n "$$s" || exit 1; done
 
 # ── HISTÓRICO: demonstração Supabase (não usar na entrega PostgreSQL) ─────────────────────
 #

@@ -1,0 +1,5 @@
+# /etc/cron.d/portal-federacoes-backup
+# Backup diário às 03:15 (fora do horário da limpeza de imagens das 00:40).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+15 3 * * * root /opt/portal-federacoes/atual/infra/deploy/vps-fejepe/backup.sh >> /var/log/portal-federacoes-backup.log 2>&1

@@ -1,0 +1,38 @@
+# Site do Portal das Federações no nginx do HOST da VPS da FEJEPE.
+# Renderizar com:
+#   PORTAL_DOMAIN=federacoes.portalfejepe.cloud FRONTEND_PORT=8080 \
+#     envsubst '${PORTAL_DOMAIN} ${FRONTEND_PORT}' < nginx-portal-federacoes.conf.template \
+#     > /etc/nginx/sites-available/portal-federacoes
+#
+# Só HTTP aqui: o `certbot --nginx -d ${PORTAL_DOMAIN}` acrescenta o bloco 443 e o
+# redirecionamento depois. Sem `default_server`: não disputa nada com os sites
+# `api`, `n8n` e `default` que já existem.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${PORTAL_DOMAIN};
+
+    # A API aceita planilhas de até 20 MB (UPLOAD_MAX_MB); o multipart soma alguns
+    # KB. 21m é o mesmo limite do nginx do frontend.
+    client_max_body_size 21m;
+
+    location / {
+        proxy_pass http://127.0.0.1:${FRONTEND_PORT};
+        proxy_http_version 1.1;
+
+        # Sempre reescritos aqui: nada que o cliente mande nesses cabeçalhos passa
+        # adiante. O nginx do frontend só aceita "https" como protocolo repassado.
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+
+        # Importação da planilha nacional: upload + validação + carga. O nginx do
+        # frontend espera 120 s pela API; aqui fica um pouco acima para não cortar antes.
+        proxy_connect_timeout 10s;
+        proxy_send_timeout    180s;
+        proxy_read_timeout    180s;
+    }
+}

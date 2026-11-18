@@ -1,0 +1,62 @@
+# Override de produção da VPS da FEJEPE. Sempre aplicado junto do compose da raiz:
+#
+#   docker compose -p portal-federacoes \
+#     -f docker-compose.yml -f infra/deploy/vps-fejepe/compose.prod.yml \
+#     --env-file /opt/portal-federacoes/.env.prod up -d --build --wait
+#
+# Sobem por padrão só postgres, migrate, backend e frontend: `test`, `db-test` e
+# `db` estão atrás de profiles no compose da raiz e não são ativados aqui.
+# Nenhuma porta além de 127.0.0.1:${FRONTEND_PORT} (definida no compose da raiz).
+#
+# Limites de memória (VPS com 7,8 GB e n8n + API de produção da FEJEPE ao lado):
+#   postgres 1 GB   — base de ~2 mil EJs × 12 meses cabe com folga em shared_buffers padrão;
+#   backend  2 GB   — a importação lê XLSX de até 20 MB com pandas/openpyxl (pico medido
+#                     localmente bem abaixo disso para a planilha nacional de ~13,5 mil linhas);
+#   migrate  1 GB   — mesma imagem do backend, só aplica SQL e termina;
+#   frontend 256 MB — nginx estático.
+# Total máximo de ~4,3 GB, deixando ~3,5 GB para o resto do servidor.
+
+x-logs: &logs
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    <<: *logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  migrate:
+    <<: *logs
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  backend:
+    <<: *logs
+    restart: unless-stopped
+    environment:
+      DOCS_ENABLED: "false"
+      # A API não tem porta no host: só o nginx do frontend, na rede Docker do
+      # projeto, chega até ela. Confiar nos cabeçalhos de proxy dessa origem faz o
+      # esquema HTTPS do nginx do host chegar ao Uvicorn.
+      FORWARDED_ALLOW_IPS: "*"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  frontend:
+    <<: *logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
